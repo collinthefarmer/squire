@@ -1,0 +1,16 @@
+{
+    "name": "squire",
+    "module": "index.ts",
+    "type": "module",
+    "private": true,
+    "scripts": {
+        "serve": "bun run scripts/serve.ts"
+    },
+    "devDependencies": {
+        "@types/bun": "latest",
+        "prettier": "^3.8.1"
+    },
+    "peerDependencies": {
+        "typescript": "^5"
+    }
+}

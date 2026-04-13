@@ -1,0 +1,399 @@
+/**
+ * Common CSS styles for web components
+ *
+ * Provides reusable style blocks that can be composed in component templates
+ */
+
+import { colors, spacing, borderRadius, transitions } from "@styles/theme";
+
+/**
+ * Base reset styles for select elements
+ */
+export function selectStyles(): string {
+    return `
+        select {
+            padding: ${spacing.sm};
+            background: ${colors.gray[800]};
+            color: ${colors.gray[200]};
+            border: 1px solid ${colors.gray[700]};
+            border-radius: ${borderRadius.md};
+            transition: ${transitions.fast};
+        }
+
+        select:hover {
+            border-color: ${colors.gray[600]};
+        }
+
+        select:focus {
+            outline: none;
+            border-color: ${colors.blue[500]};
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+    `;
+}
+
+/**
+ * Base styles for text input elements
+ */
+export function inputStyles(): string {
+    return `
+        input[type="text"],
+        input[type="number"] {
+            padding: ${spacing.sm};
+            background: ${colors.gray[800]};
+            color: ${colors.gray[200]};
+            border: 1px solid ${colors.gray[700]};
+            border-radius: ${borderRadius.md};
+            transition: ${transitions.fast};
+        }
+
+        input[type="text"]:hover,
+        input[type="number"]:hover {
+            border-color: ${colors.gray[600]};
+        }
+
+        input[type="text"]:focus,
+        input[type="number"]:focus {
+            outline: none;
+            border-color: ${colors.blue[500]};
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+    `;
+}
+
+/**
+ * Base styles for range slider inputs
+ */
+export function rangeInputStyles(): string {
+    return `
+        input[type="range"] {
+            height: 0.5rem;
+            background: ${colors.gray[800]};
+            border-radius: ${borderRadius.sm};
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 1rem;
+            height: 1rem;
+            background: ${colors.blue[500]};
+            border-radius: ${borderRadius.full};
+            cursor: pointer;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 1rem;
+            height: 1rem;
+            background: ${colors.blue[500]};
+            border: none;
+            border-radius: ${borderRadius.full};
+            cursor: pointer;
+        }
+    `;
+}
+
+/**
+ * Base styles for checkbox inputs
+ */
+export function checkboxStyles(): string {
+    return `
+        input[type="checkbox"] {
+            width: 1.25rem;
+            height: 1.25rem;
+            cursor: pointer;
+            accent-color: ${colors.blue[500]};
+        }
+    `;
+}
+
+/**
+ * Primary button styles (blue accent)
+ */
+export function primaryButtonStyles(): string {
+    return `
+        button.primary {
+            padding: ${spacing.sm} ${spacing.lg};
+            background: ${colors.blue[500]};
+            color: ${colors.white};
+            border: none;
+            border-radius: ${borderRadius.md};
+            cursor: pointer;
+            font-weight: 500;
+            transition: ${transitions.fast};
+        }
+
+        button.primary:hover {
+            background: ${colors.blue[600]};
+        }
+
+        button.primary:active {
+            background: ${colors.blue[600]};
+            transform: translateY(1px);
+        }
+
+        button.primary:disabled {
+            background: ${colors.gray[600]};
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+    `;
+}
+
+/**
+ * Secondary button styles (gray background)
+ */
+export function secondaryButtonStyles(): string {
+    return `
+        button.secondary {
+            padding: ${spacing.sm} ${spacing.lg};
+            background: ${colors.gray[800]};
+            color: ${colors.gray[200]};
+            border: 1px solid ${colors.gray[700]};
+            border-radius: ${borderRadius.md};
+            cursor: pointer;
+            transition: ${transitions.fast};
+        }
+
+        button.secondary:hover {
+            background: ${colors.gray[700]};
+            border-color: ${colors.gray[600]};
+        }
+
+        button.secondary:active {
+            transform: translateY(1px);
+        }
+
+        button.secondary:disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+    `;
+}
+
+/**
+ * Success button styles (green)
+ */
+export function successButtonStyles(): string {
+    return `
+        button.success {
+            padding: ${spacing.sm} ${spacing.lg};
+            background: ${colors.green[600]};
+            color: ${colors.white};
+            border: none;
+            border-radius: ${borderRadius.md};
+            cursor: pointer;
+            font-weight: 500;
+            transition: ${transitions.fast};
+        }
+
+        button.success:hover {
+            background: ${colors.green[500]};
+        }
+
+        button.success:active {
+            transform: translateY(1px);
+        }
+
+        button.success:disabled {
+            background: ${colors.gray[600]};
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+    `;
+}
+
+/**
+ * Danger button styles (red)
+ */
+export function dangerButtonStyles(): string {
+    return `
+        button.danger {
+            padding: ${spacing.sm} ${spacing.lg};
+            background: ${colors.red[600]};
+            color: ${colors.white};
+            border: none;
+            border-radius: ${borderRadius.md};
+            cursor: pointer;
+            font-weight: 500;
+            transition: ${transitions.fast};
+        }
+
+        button.danger:hover {
+            background: ${colors.red[500]};
+        }
+
+        button.danger:active {
+            transform: translateY(1px);
+        }
+
+        button.danger:disabled {
+            background: ${colors.gray[600]};
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+    `;
+}
+
+/**
+ * Card container styles
+ */
+export function cardStyles(): string {
+    return `
+        .card {
+            background: ${colors.gray[900]};
+            border: 1px solid ${colors.gray[700]};
+            border-radius: ${borderRadius.lg};
+            padding: ${spacing.xl};
+        }
+    `;
+}
+
+/**
+ * Label styles
+ */
+export function labelStyles(): string {
+    return `
+        label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: ${colors.gray[200]};
+            margin-bottom: ${spacing.xs};
+        }
+    `;
+}
+
+/**
+ * Flex row utility
+ */
+export function flexRow(gap: string = spacing.md): string {
+    return `
+        .flex-row {
+            display: flex;
+            flex-direction: row;
+            gap: ${gap};
+            align-items: center;
+        }
+    `;
+}
+
+/**
+ * Flex column utility
+ */
+export function flexColumn(gap: string = spacing.md): string {
+    return `
+        .flex-col {
+            display: flex;
+            flex-direction: column;
+            gap: ${gap};
+        }
+    `;
+}
+
+/**
+ * Grid utility
+ */
+export function grid(columns: string = "1fr", gap: string = spacing.md): string {
+    return `
+        .grid {
+            display: grid;
+            grid-template-columns: ${columns};
+            gap: ${gap};
+        }
+    `;
+}
+
+/**
+ * Container/card section styles
+ */
+export function containerStyles(): string {
+    return `
+        .container {
+            background: ${colors.gray[900]};
+            border: 1px solid ${colors.gray[700]};
+            border-radius: ${borderRadius.lg};
+            padding: ${spacing.xl};
+        }
+    `;
+}
+
+/**
+ * Section header with bottom border
+ */
+export function sectionHeaderStyles(): string {
+    return `
+        .section-header {
+            font-size: 1.25rem;
+            font-weight: 600;
+            padding-bottom: ${spacing.md};
+            margin-bottom: ${spacing.lg};
+            border-bottom: 2px solid ${colors.gray[700]};
+        }
+    `;
+}
+
+/**
+ * Small section title
+ */
+export function sectionTitleStyles(): string {
+    return `
+        .section-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: ${spacing.md};
+            color: ${colors.gray[100]};
+        }
+    `;
+}
+
+/**
+ * Right-aligned value display
+ */
+export function valueDisplayStyles(): string {
+    return `
+        .value-display {
+            min-width: 3rem;
+            text-align: right;
+            font-size: 0.875rem;
+            color: ${colors.gray[500]};
+        }
+    `;
+}
+
+/**
+ * Horizontal divider
+ */
+export function dividerStyles(): string {
+    return `
+        .divider {
+            height: 1px;
+            background: ${colors.gray[700]};
+            margin: ${spacing.lg} 0;
+        }
+    `;
+}
+
+/**
+ * Slider row layout (label + slider + value)
+ */
+export function sliderRowStyles(): string {
+    return `
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: ${spacing.md};
+        }
+
+        .slider-row label {
+            min-width: 5rem;
+        }
+
+        .slider-row input[type="range"] {
+            flex: 1;
+        }
+    `;
+}

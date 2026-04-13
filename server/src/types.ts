@@ -1,0 +1,190 @@
+// Core type definitions
+
+/**
+ * Base event structure
+ */
+export interface Event<T extends string = string, P = unknown> {
+    type: T;
+    payload: P;
+    metadata: EventMetadata;
+}
+
+export interface EventMetadata {
+    timestamp: number;
+    source: string;
+    targetClients?: string[];
+    priority?: "low" | "normal" | "high";
+}
+
+/**
+ * Audio event types
+ */
+export interface AudioPlayPayload {
+    channel: string;
+    source: {
+        type: "file" | "stream" | "live";
+        ref: string;
+    };
+    volume: number;
+    loop: boolean;
+    effects?: AudioEffect[];
+    respectTimeScale: boolean;
+}
+
+export interface AudioEffect {
+    type: string;
+    params: Record<string, unknown>;
+}
+
+export type AudioPlayEvent = Event<"audio.play", AudioPlayPayload>;
+export type AudioPauseEvent = Event<"audio.pause", { channel: string }>;
+export type AudioResumeEvent = Event<"audio.resume", { channel: string }>;
+export type AudioStopEvent = Event<"audio.stop", { channel: string }>;
+export type AudioVolumeEvent = Event<
+    "audio.volume",
+    { channel: string; volume: number }
+>;
+
+export type AudioEvent =
+    | AudioPlayEvent
+    | AudioPauseEvent
+    | AudioResumeEvent
+    | AudioStopEvent
+    | AudioVolumeEvent;
+
+/**
+ * Audio state
+ */
+export interface AudioChannelState {
+    id: string;
+    source: {
+        type: "file" | "stream" | "live";
+        ref: string;
+    } | null;
+    playing: boolean;
+    position: number;
+    volume: number;
+    loop: boolean;
+    effects: AudioEffect[];
+    respectTimeScale: boolean;
+}
+
+export interface AudioState {
+    channels: Map<string, AudioChannelState>;
+    masterVolume: number;
+}
+
+/**
+ * Client registry
+ */
+export interface ConnectedClient {
+    id: string;
+    type: "master" | "display";
+    ws: any; // ServerWebSocket type from Bun
+    connectedAt: number;
+}
+
+export interface ClientsState {
+    clients: Map<string, ConnectedClient>;
+}
+
+/**
+ * Image/Visual event types
+ */
+
+export type AspectRatioMode = "cover" | "contain" | "fill" | "native" | "custom";
+export type BlendMode = "normal" | "multiply" | "screen" | "overlay" | "add";
+export type TransitionType = "crossfade" | "fade-to-black" | "wipe" | "dissolve" | "cut";
+
+export interface ImagePosition {
+    x: string | number; // "center", "left", "right", or pixel/percentage value
+    y: string | number; // "center", "top", "bottom", or pixel/percentage value
+}
+
+export interface ImageTransition {
+    type: TransitionType;
+    duration: number; // milliseconds
+    easing?: string; // CSS easing function
+}
+
+export interface ImageEffect {
+    type: string; // "blur", "tint", "glow", etc.
+    params: Record<string, unknown>;
+}
+
+export interface ImageSetPayload {
+    layer: string; // Layer alias like "background", "midground", etc.
+    imageRef: string; // Asset reference
+    aspectRatio: AspectRatioMode;
+    position?: ImagePosition;
+    transition?: ImageTransition;
+}
+
+export interface ImageClearPayload {
+    layer: string;
+    transition?: ImageTransition;
+}
+
+export interface ImageTransformPayload {
+    layer: string;
+    position?: ImagePosition;
+    scale?: number;
+    rotation?: number; // degrees
+}
+
+export interface ImageEffectPayload {
+    layer: string;
+    effects: ImageEffect[];
+    replace: boolean; // If true, replace all effects; if false, add/merge
+}
+
+export interface ImageLayerConfigPayload {
+    layer: string;
+    blendMode?: BlendMode;
+    opacity?: number; // 0.0 to 1.0
+    zIndex?: number;
+    visible?: boolean;
+}
+
+export type ImageSetEvent = Event<"visual.image.set", ImageSetPayload>;
+export type ImageClearEvent = Event<"visual.image.clear", ImageClearPayload>;
+export type ImageTransformEvent = Event<"visual.image.transform", ImageTransformPayload>;
+export type ImageEffectEvent = Event<"visual.image.effect", ImageEffectPayload>;
+export type ImageLayerConfigEvent = Event<"visual.image.layer_config", ImageLayerConfigPayload>;
+
+export type ImageEvent =
+    | ImageSetEvent
+    | ImageClearEvent
+    | ImageTransformEvent
+    | ImageEffectEvent
+    | ImageLayerConfigEvent;
+
+/**
+ * Image layer state
+ */
+export interface ImageLayerState {
+    id: string; // Layer alias
+    imageRef: string | null;
+    aspectRatio: AspectRatioMode;
+    position: ImagePosition;
+    scale: number;
+    rotation: number;
+    blendMode: BlendMode;
+    opacity: number;
+    zIndex: number;
+    visible: boolean;
+    effects: ImageEffect[];
+}
+
+export interface ImageState {
+    layers: Map<string, ImageLayerState>;
+}
+
+/**
+ * Application state (updated)
+ */
+export interface ApplicationState {
+    audio?: AudioState;
+    clients?: ClientsState;
+    image?: ImageState;
+}

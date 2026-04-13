@@ -1,0 +1,19 @@
+{
+    "name": "ts-web-client",
+    "type": "module",
+    "private": true,
+    "scripts": {
+        "serve": "bun server.ts",
+        "dev": "bun server.ts",
+        "type-check": "tsc --noEmit"
+    },
+    "devDependencies": {
+        "@types/bun": "latest"
+    },
+    "peerDependencies": {
+        "typescript": "^5"
+    },
+    "dependencies": {
+        "rxjs": "^7.8.2"
+    }
+}
