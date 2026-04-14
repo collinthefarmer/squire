@@ -83,12 +83,14 @@ export class EventStore {
     getReplayEvents(): Event[] {
         const events: Event[] = [];
 
-        for (const { domain } of this.domains) {
-            events.push(...domain.getReplayEvents());
-        }
-
+        // Time scale must come first so other domains (clocks, audio)
+        // can read the correct scale when processing their replay events
         if (this.currentTimeEvent) {
             events.push(this.currentTimeEvent);
+        }
+
+        for (const { domain } of this.domains) {
+            events.push(...domain.getReplayEvents());
         }
 
         logger.debug("Replay events retrieved", { count: events.length });

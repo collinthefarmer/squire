@@ -120,6 +120,12 @@ export function applyTimeScaleChange(
             continue;
         }
 
+        // Skip if scale hasn't actually changed (e.g., during replay
+        // where the time event and clock create both carry the same scale)
+        if (clock.scaleAtStart === newScale) {
+            continue;
+        }
+
         // Accumulate elapsed game time at the old scale
         const realElapsed = now - clock.startedAt;
         const gameElapsed = realElapsed * clock.scaleAtStart;
