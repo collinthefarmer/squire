@@ -38,6 +38,12 @@ export interface CreationReplayRule {
     folds?: Record<string, FoldRule>;
     replaces?: string[];
     appends?: string[];
+    /**
+     * Optional filter applied during getReplayEvents().
+     * Receives the full event sequence for an entity.
+     * Return false to exclude the entity from replay.
+     */
+    replayFilter?: (sequence: Event[]) => boolean;
 }
 
 export type ReplayConfig = Record<string, CreationReplayRule>;
@@ -56,6 +62,7 @@ type EventRole =
 export class ReplayDomain {
     private state = new Map<string, Event[]>();
     private roles = new Map<string, EventRole>();
+    private replayFilter?: (sequence: Event[]) => boolean;
     private keyField: string;
 
     constructor(keyField: string, config: ReplayConfig) {
@@ -99,10 +106,14 @@ export class ReplayDomain {
 
     /**
      * Get all events needed to replay current state for a new client.
+     * Applies the optional replayFilter to exclude stale entities.
      */
     getReplayEvents(): Event[] {
         const events: Event[] = [];
         for (const sequence of this.state.values()) {
+            if (this.replayFilter && !this.replayFilter(sequence)) {
+                continue;
+            }
             events.push(...sequence);
         }
         return events;
@@ -168,6 +179,10 @@ export class ReplayDomain {
     private buildRoles(config: ReplayConfig): void {
         for (const [createType, rule] of Object.entries(config)) {
             this.roles.set(createType, { behavior: "create" });
+
+            if (rule.replayFilter) {
+                this.replayFilter = rule.replayFilter;
+            }
 
             for (const removeType of rule.removes) {
                 this.roles.set(removeType, { behavior: "remove" });

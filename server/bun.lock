@@ -7,6 +7,7 @@
       "dependencies": {
         "image-size": "^2.0.2",
         "imgkit": "^2.2.1",
+        "mediabunny": "^1.40.1",
         "rxjs": "^7.8.2",
         "zod": "^4.3.6",
       },
@@ -18,6 +19,10 @@
   },
   "packages": {
     "@types/bun": ["@types/bun@1.3.11", "", { "dependencies": { "bun-types": "1.3.11" } }, "sha512-5vPne5QvtpjGpsGYXiFyycfpDF2ECyPcTSsFBMa0fraoxiQyMJ3SmuQIGhzPg2WJuWxVBoxWJ2kClYTcw/4fAg=="],
+
+    "@types/dom-mediacapture-transform": ["@types/dom-mediacapture-transform@0.1.11", "", { "dependencies": { "@types/dom-webcodecs": "*" } }, "sha512-Y2p+nGf1bF2XMttBnsVPHUWzRRZzqUoJAKmiP10b5umnO6DDrWI0BrGDJy1pOHoOULVmGSfFNkQrAlC5dcj6nQ=="],
+
+    "@types/dom-webcodecs": ["@types/dom-webcodecs@0.1.13", "", {}, "sha512-O5hkiFIcjjszPIYyUSyvScyvrBoV3NOEEZx/pMlsu44TKzWNkLVBBxnxJz42in5n3QIolYOcBYFCPZZ0h8SkwQ=="],
 
     "@types/node": ["@types/node@25.5.0", "", { "dependencies": { "undici-types": "~7.18.0" } }, "sha512-jp2P3tQMSxWugkCUKLRPVUpGaL5MVFwF8RDuSRztfwgN1wmqJeMSbKlnEtQqU8UrhTmzEmZdu2I6v2dpp7XIxw=="],
 
@@ -40,6 +45,8 @@
     "imgkit-windows-arm64": ["imgkit-windows-arm64@2.2.1", "", { "os": "win32", "cpu": "arm64" }, "sha512-uPDo3zCiPNHFkzdT9895No0dp9KZFd2g5i17IiNdBMYYia8WdiThR+PKxKZS9mdLPD4dyWAFmEMlRZXxeQYhvw=="],
 
     "imgkit-windows-x64": ["imgkit-windows-x64@2.2.1", "", { "os": "win32", "cpu": "x64" }, "sha512-eQ/mGUPgDz7kJaCpPF78sJcIPWWpO+PJJ6BpveTA0qXIDU93BTpSA5Q+cMT264qQZdpyhAg3KWE4anRLUdy4hw=="],
+
+    "mediabunny": ["mediabunny@1.40.1", "", { "dependencies": { "@types/dom-mediacapture-transform": "^0.1.11", "@types/dom-webcodecs": "0.1.13" } }, "sha512-HU/stGzAkdWaJIly6ypbUVgAUvT9kt39DIg0IaErR7/1fwtTmgUYs4i8uEPYcgcjPjbB9gtBmUXOLnXi6J2LDw=="],
 
     "rxjs": ["rxjs@7.8.2", "", { "dependencies": { "tslib": "^2.1.0" } }, "sha512-dhKf903U/PQZY6boNNtAGdWbG85WAbjT/1xYoZIC7FAY0yWapOBQVsVrDl58W86//e1VpMNBtRV4MaXfdMySFA=="],
 

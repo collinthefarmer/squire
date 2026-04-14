@@ -11,6 +11,8 @@ import { CountdownService } from "@services/countdown/countdown-service";
 import { TimeService } from "@services/time/time-service";
 import { ImageResizeService } from "@services/image/image-resize-service";
 import { Logger } from "@utils/logger";
+import { preloadAudioDurations } from "@api/handlers/assets-metadata";
+import { createAudioReplay } from "@core/events/replay-configs";
 import type { Event, ConnectedClient } from "@types";
 import { eventSchema } from "@schemas";
 import { ZodError } from "zod";
@@ -136,13 +138,21 @@ async function main() {
     container.resolve<AudioService>(TOKENS.AudioService);
     container.resolve<ImageService>(TOKENS.ImageService);
     container.resolve<CountdownService>(TOKENS.CountdownService);
-    container.resolve<TimeService>(TOKENS.TimeService);
+    const timeService = container.resolve<TimeService>(TOKENS.TimeService);
     const clientRegistry = container.resolve<ClientRegistry>(
         TOKENS.ClientRegistry,
     );
     const eventStore = container.resolve<EventStore>(TOKENS.EventStore);
 
+    // Register audio replay domain with time-scale-aware filtering
+    eventStore.registerDomain("audio.", createAudioReplay(timeService));
+
     logger.info("Services initialized");
+
+    // Pre-populate audio duration cache for replay filtering
+    preloadAudioDurations().then(() => {
+        logger.info("Audio durations loaded");
+    });
 
     // Create and configure router
     const router = new Router();

@@ -14,6 +14,7 @@
     "dependencies": {
         "image-size": "^2.0.2",
         "imgkit": "^2.2.1",
+        "mediabunny": "^1.40.1",
         "rxjs": "^7.8.2",
         "zod": "^4.3.6"
     },

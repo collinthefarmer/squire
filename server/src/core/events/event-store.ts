@@ -2,7 +2,7 @@ import { Subject, Observable } from "rxjs";
 import { filter } from "rxjs/operators";
 import type { Event } from "@types";
 import { Logger } from "@utils/logger";
-import { audioReplay, imageReplay, clockReplay } from "./replay-configs";
+import { imageReplay, clockReplay } from "./replay-configs";
 import type { ReplayDomain } from "./replay-domain";
 
 const logger = new Logger("EventStore");
@@ -25,7 +25,6 @@ export class EventStore {
     private events$ = new Subject<Event>();
 
     private domains: Array<{ prefix: string; domain: ReplayDomain }> = [
-        { prefix: "audio.", domain: audioReplay },
         { prefix: "visual.image.", domain: imageReplay },
         { prefix: "ui.clock.", domain: clockReplay },
     ];
@@ -34,6 +33,15 @@ export class EventStore {
 
     constructor(_config: EventStoreConfig = {}) {
         logger.info("EventStore initialized", { bufferSize: _config.bufferSize });
+    }
+
+    /**
+     * Register a replay domain for a given event prefix.
+     * Use for domains that depend on services resolved after
+     * the EventStore is created (e.g., audio needs TimeService).
+     */
+    registerDomain(prefix: string, domain: ReplayDomain): void {
+        this.domains.push({ prefix, domain });
     }
 
     /**

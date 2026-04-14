@@ -1,4 +1,7 @@
 import type { Event } from "@types";
+import type { TimeService } from "@services/time/time-service";
+import { getAudioDuration } from "@api/handlers/assets-metadata";
+import { computeGameTimeElapsed } from "@utils/game-time";
 import { defineReplay } from "./replay-domain";
 
 /**
@@ -8,9 +11,6 @@ import { defineReplay } from "./replay-domain";
  * the audio was paused, shifts the play event's timestamp
  * forward by that duration, and returns a sequence with just
  * the adjusted play event (removing the pause).
- *
- * On replay, the adjusted timestamp makes the audio start
- * at the correct position as if the pause never happened.
  */
 function handleAudioResume(sequence: Event[], resumeEvent: Event): Event[] {
     const playEvent = sequence.find((e) => e.type === "audio.play");
@@ -21,7 +21,6 @@ function handleAudioResume(sequence: Event[], resumeEvent: Event): Event[] {
     }
 
     if (!pauseEvent) {
-        // No pause to resume from — keep just the play event
         return [playEvent];
     }
 
@@ -41,30 +40,71 @@ function handleAudioResume(sequence: Event[], resumeEvent: Event): Event[] {
 }
 
 /**
- * Audio replay rules.
+ * Create audio replay rules.
  *
- * audio.play is the creation event. Volume folds into it.
- * Resume uses a custom transform to adjust the play timestamp
- * and remove the pause. Pause is stored as a replace (only
- * latest matters). Stop removes the channel.
+ * Accepts a TimeService reference for the replay filter that
+ * excludes non-looping audio that has finished playing,
+ * accounting for time-scale changes.
  */
-export const audioReplay = defineReplay("channel", {
-    "audio.play": {
-        removes: ["audio.stop"],
-        folds: {
-            "audio.volume": ["volume"],
-            "audio.resume": { transform: handleAudioResume },
+export function createAudioReplay(timeService: TimeService) {
+    return defineReplay("channel", {
+        "audio.play": {
+            removes: ["audio.stop"],
+            folds: {
+                "audio.volume": ["volume"],
+                "audio.resume": { transform: handleAudioResume },
+            },
+            replaces: ["audio.pause"],
+            replayFilter: (sequence) => {
+                const playEvent = sequence.find((e) => e.type === "audio.play");
+                if (!playEvent) {
+                    return false;
+                }
+
+                const payload = playEvent.payload as {
+                    loop?: boolean;
+                    respectTimeScale?: boolean;
+                    source?: { ref?: string };
+                };
+
+                // Looping audio always replays
+                if (payload.loop) {
+                    return true;
+                }
+
+                // Paused audio hasn't finished
+                if (sequence.some((e) => e.type === "audio.pause")) {
+                    return true;
+                }
+
+                // Check if the file has finished based on duration
+                const sourceRef = payload.source?.ref;
+                if (!sourceRef) {
+                    return true;
+                }
+
+                const duration = getAudioDuration(sourceRef);
+                if (duration === undefined) {
+                    return true; // Unknown duration, include to be safe
+                }
+
+                const durationMs = duration * 1000;
+
+                const elapsed = payload.respectTimeScale !== false
+                    ? computeGameTimeElapsed(
+                          playEvent.metadata.timestamp,
+                          timeService.getScaleHistory(),
+                      )
+                    : Date.now() - playEvent.metadata.timestamp;
+
+                return elapsed < durationMs;
+            },
         },
-        replaces: ["audio.pause"],
-    },
-});
+    });
+}
 
 /**
  * Image replay rules.
- *
- * visual.image.set is the creation event. Transform folds
- * position/scale into it. Effect and layer_config are stored
- * as replace entries (only latest of each type).
  */
 export const imageReplay = defineReplay("layer", {
     "visual.image.set": {
@@ -78,11 +118,6 @@ export const imageReplay = defineReplay("layer", {
 
 /**
  * Clock replay rules.
- *
- * ui.clock.create is the creation event. Update folds position/
- * zIndex/visible into it. Start is a replace (only latest matters).
- * Pause and adjust are appended (timeline sequence for elapsed
- * time computation).
  */
 export const clockReplay = defineReplay("id", {
     "ui.clock.create": {

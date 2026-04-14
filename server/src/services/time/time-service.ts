@@ -6,14 +6,22 @@ import { Logger } from "@utils/logger";
 
 const logger = new Logger("TimeService");
 
+export interface TimeScaleEntry {
+    timestamp: number;
+    scale: number;
+}
+
 /**
  * Time-scale service
  *
  * Manages the global time-scale multiplier. Validates scale values,
- * stores the current scale in StateStore, and broadcasts changes
- * to all clients.
+ * stores the current scale in StateStore, maintains a history of
+ * scale changes for elapsed-time computation, and broadcasts
+ * changes to all clients.
  */
 export class TimeService {
+    private scaleHistory: TimeScaleEntry[] = [{ timestamp: 0, scale: 1.0 }];
+
     constructor(
         private eventStore: EventStore,
         private stateStore: StateStore,
@@ -21,6 +29,21 @@ export class TimeService {
     ) {
         this.setupEventListeners();
         logger.info("TimeService initialized");
+    }
+
+    /**
+     * Get the full scale history for elapsed-time computation.
+     */
+    getScaleHistory(): TimeScaleEntry[] {
+        return this.scaleHistory;
+    }
+
+    /**
+     * Get the current time scale.
+     */
+    getCurrentScale(): number {
+        const last = this.scaleHistory[this.scaleHistory.length - 1];
+        return last?.scale ?? 1.0;
     }
 
     private setupEventListeners(): void {
@@ -41,6 +64,11 @@ export class TimeService {
         const scale = Math.max(0, Math.min(10, event.payload.scale));
 
         logger.info("Time scale changed", { scale });
+
+        this.scaleHistory.push({
+            timestamp: event.metadata.timestamp,
+            scale,
+        });
 
         this.stateStore.updateState((state) => ({
             ...state,
