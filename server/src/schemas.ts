@@ -8,6 +8,7 @@ import { z } from "zod";
 export const eventMetadataSchema = z.object({
     timestamp: z.number(),
     source: z.string(),
+    gameTimestamp: z.number().optional(),
     targetClients: z.array(z.string()).optional(),
     priority: z.enum(["low", "normal", "high"]).optional(),
 });

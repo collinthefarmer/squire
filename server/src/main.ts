@@ -12,7 +12,7 @@ import { TimeService } from "@services/time/time-service";
 import { ImageResizeService } from "@services/image/image-resize-service";
 import { Logger } from "@utils/logger";
 import { preloadAudioDurations } from "@api/handlers/assets-metadata";
-import { createAudioReplay } from "@core/events/replay-configs";
+import { createAudioReplay, createClockReplay } from "@core/events/replay-configs";
 import type { Event, ConnectedClient } from "@types";
 import { eventSchema } from "@schemas";
 import { ZodError } from "zod";
@@ -144,8 +144,9 @@ async function main() {
     );
     const eventStore = container.resolve<EventStore>(TOKENS.EventStore);
 
-    // Register audio replay domain with time-scale-aware filtering
+    // Register time-scale-aware replay domains
     eventStore.registerDomain("audio.", createAudioReplay(timeService));
+    eventStore.registerDomain("ui.clock.", createClockReplay(timeService));
 
     logger.info("Services initialized");
 

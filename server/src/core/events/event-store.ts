@@ -2,7 +2,7 @@ import { Subject, Observable } from "rxjs";
 import { filter } from "rxjs/operators";
 import type { Event } from "@types";
 import { Logger } from "@utils/logger";
-import { imageReplay, clockReplay } from "./replay-configs";
+import { imageReplay } from "./replay-configs";
 import type { ReplayDomain } from "./replay-domain";
 
 const logger = new Logger("EventStore");
@@ -26,7 +26,6 @@ export class EventStore {
 
     private domains: Array<{ prefix: string; domain: ReplayDomain }> = [
         { prefix: "visual.image.", domain: imageReplay },
-        { prefix: "ui.clock.", domain: clockReplay },
     ];
 
     private currentTimeEvent: Event | null = null;

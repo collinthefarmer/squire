@@ -12,6 +12,7 @@ export interface Event<T extends string = string, P = unknown> {
 export interface EventMetadata {
     timestamp: number;
     source: string;
+    gameTimestamp?: number;
     targetClients?: string[];
     priority?: "low" | "normal" | "high";
 }

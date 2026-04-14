@@ -140,7 +140,7 @@ export class AudioService {
 
         // Calculate elapsed time from event timestamp for sync
         // Event timestamp is when audio originally started playing
-        const eventTimestamp = event.metadata.timestamp;
+        const eventTimestamp = event.metadata.gameTimestamp ?? event.metadata.timestamp;
         const now = Date.now();
         const elapsedSeconds = (now - eventTimestamp) / 1000;
 

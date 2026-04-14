@@ -44,6 +44,12 @@ export interface CreationReplayRule {
      * Return false to exclude the entity from replay.
      */
     replayFilter?: (sequence: Event[]) => boolean;
+    /**
+     * Optional transform applied during getReplayEvents().
+     * Receives the full event sequence, returns a modified sequence.
+     * Runs after the filter. Use for time-scale adjustments.
+     */
+    replayTransform?: (sequence: Event[]) => Event[];
 }
 
 export type ReplayConfig = Record<string, CreationReplayRule>;
@@ -63,6 +69,7 @@ export class ReplayDomain {
     private state = new Map<string, Event[]>();
     private roles = new Map<string, EventRole>();
     private replayFilter?: (sequence: Event[]) => boolean;
+    private replayTransform?: (sequence: Event[]) => Event[];
     private keyField: string;
 
     constructor(keyField: string, config: ReplayConfig) {
@@ -106,16 +113,24 @@ export class ReplayDomain {
 
     /**
      * Get all events needed to replay current state for a new client.
-     * Applies the optional replayFilter to exclude stale entities.
+     * Applies optional filter (exclude stale entities) and transform
+     * (adjust timestamps for time-scale) before returning.
      */
     getReplayEvents(): Event[] {
         const events: Event[] = [];
+
         for (const sequence of this.state.values()) {
             if (this.replayFilter && !this.replayFilter(sequence)) {
                 continue;
             }
-            events.push(...sequence);
+
+            const transformed = this.replayTransform
+                ? this.replayTransform(sequence)
+                : sequence;
+
+            events.push(...transformed);
         }
+
         return events;
     }
 
@@ -182,6 +197,10 @@ export class ReplayDomain {
 
             if (rule.replayFilter) {
                 this.replayFilter = rule.replayFilter;
+            }
+
+            if (rule.replayTransform) {
+                this.replayTransform = rule.replayTransform;
             }
 
             for (const removeType of rule.removes) {
