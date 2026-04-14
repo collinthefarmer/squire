@@ -27,7 +27,6 @@ import { ClockControls } from "@master/components/clock/clock-controls";
 import { ImageToolbar } from "@master/components/image/image-toolbar";
 import { LayerSelector } from "@master/components/image/layer-selector";
 import { AspectRatioSelector } from "@master/components/image/aspect-ratio-selector";
-import { PositionControl } from "@master/components/image/position-control";
 
 /**
  * Initialize master client
@@ -67,7 +66,7 @@ function init(): void {
 
     customElements.define("layer-selector", LayerSelector);
     customElements.define("aspect-ratio-selector", AspectRatioSelector);
-    customElements.define("position-control", PositionControl);
+
     customElements.define("image-toolbar", ImageToolbar);
     customElements.define("image-gallery", ImageGallery);
 

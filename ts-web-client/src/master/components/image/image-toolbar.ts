@@ -1,6 +1,6 @@
 import { BaseComponent } from "@components/base/base-component";
 import { ServiceRegistry } from "@services/service-registry";
-import type { ImageToolbarService, ToolbarPosition } from "@master/services/image-toolbar-service";
+import type { ImageToolbarService } from "@master/services/image-toolbar-service";
 import type { AspectRatioMode } from "@types";
 import { containerStyles, sectionHeaderStyles, labelStyles } from "@styles/common-styles";
 import { colors, spacing, borderRadius } from "@styles/theme";
@@ -92,10 +92,6 @@ export class ImageToolbar extends BaseComponent {
                     </div>
                 </div>
 
-                <div class="control-group">
-                    <label>Position</label>
-                    <position-control></position-control>
-                </div>
             </div>
         `;
     }
@@ -114,9 +110,5 @@ export class ImageToolbar extends BaseComponent {
             this.imageToolbarService.setAspectRatio(aspectRatio);
         }) as EventListener);
 
-        this.shadowRoot.addEventListener("position-change", ((e: CustomEvent) => {
-            const position = e.detail.position as ToolbarPosition;
-            this.imageToolbarService.setPosition(position);
-        }) as EventListener);
     }
 }
