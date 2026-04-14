@@ -17,6 +17,8 @@ export class VisualRenderer extends BaseComponent {
     private ctx: CanvasRenderingContext2D | null = null;
     private imageCache!: ImageCache;
     private resizeObserver: ResizeObserver | null = null;
+    private pendingLayers: Map<string, ImageLayerState> | null = null;
+    private isRendering = false;
 
     override connectedCallback(): void {
         super.connectedCallback();
@@ -113,13 +115,31 @@ export class VisualRenderer extends BaseComponent {
     }
 
     /**
-     * Draw all image layers using shared utilities
+     * Draw all image layers using shared utilities.
+     *
+     * Serializes render calls so rapid updates (e.g., event replay
+     * on connect) don't race. If a new update arrives while rendering,
+     * it's queued and drawn after the current render completes.
      */
     private async drawAllLayers(layers: Map<string, ImageLayerState>): Promise<void> {
         if (!this.ctx || !this.canvas) {
             return;
         }
 
+        if (this.isRendering) {
+            this.pendingLayers = layers;
+            return;
+        }
+
+        this.isRendering = true;
         await drawLayers(this.ctx, this.canvas, layers, this.imageCache);
+        this.isRendering = false;
+
+        // If a newer update arrived while rendering, draw it now
+        if (this.pendingLayers) {
+            const next = this.pendingLayers;
+            this.pendingLayers = null;
+            await this.drawAllLayers(next);
+        }
     }
 }
