@@ -1,5 +1,5 @@
 import { interval, animationFrameScheduler, type Subscription } from "rxjs";
-import { takeUntil } from "rxjs";
+import { takeUntil } from "rxjs/operators";
 import { BaseComponent } from "@components/base/base-component";
 import { ServiceRegistry } from "@services/service-registry";
 import type { MasterClockService } from "@master/services/clock-service";
