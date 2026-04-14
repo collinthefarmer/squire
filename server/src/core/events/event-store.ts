@@ -29,6 +29,7 @@ export class EventStore {
     private currentAudioState = new Map<string, Event[]>();
     private currentImageState = new Map<string, Event[]>();
     private currentClockState = new Map<string, Event[]>();
+    private currentTimeEvent: Event | null = null;
 
     constructor(_config: EventStoreConfig = {}) {
         logger.info("EventStore initialized", { bufferSize: _config.bufferSize });
@@ -86,6 +87,10 @@ export class EventStore {
             events.push(...clockEvents);
         }
 
+        if (this.currentTimeEvent) {
+            events.push(this.currentTimeEvent);
+        }
+
         logger.debug("Replay events retrieved", { count: events.length });
         return events;
     }
@@ -100,6 +105,8 @@ export class EventStore {
             this.updateImageStore(event);
         } else if (event.type.startsWith("ui.clock.")) {
             this.updateClockStore(event);
+        } else if (event.type.startsWith("time.")) {
+            this.currentTimeEvent = event;
         }
     }
 

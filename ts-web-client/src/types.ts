@@ -42,6 +42,11 @@ export type {
     ClockDestroyPayload,
     ClockUpdateEvent,
     ClockUpdatePayload,
+    ClockVisibility,
+    ClockCompletionBehavior,
+    TimeScaleChangedEvent,
+    TimeScaleChangedPayload,
+    TimeEvent,
 } from "../../server/src/types";
 
 /**

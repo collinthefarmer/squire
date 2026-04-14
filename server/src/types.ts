@@ -189,12 +189,18 @@ export interface ImageState {
  * independently from event timestamps.
  */
 
+export type ClockVisibility = "always" | "hidden" | "dm-only";
+export type ClockCompletionBehavior = "persist" | "auto-hide" | "auto-destroy";
+
 export interface ClockCreatePayload {
     id: string;
     duration: number;        // total duration in ms
     autoStart?: boolean;     // start immediately on create
     position?: ImagePosition; // reuses image position format
     zIndex?: number;
+    respectTimeScale?: boolean;   // default true
+    visibility?: ClockVisibility; // default "always"
+    onComplete?: ClockCompletionBehavior; // default "persist"
 }
 
 export interface ClockStartPayload {
@@ -237,10 +243,23 @@ export type ClockEvent =
     | ClockUpdateEvent;
 
 /**
- * Application state (updated)
+ * Time-scale event types
+ */
+
+export interface TimeScaleChangedPayload {
+    scale: number;
+}
+
+export type TimeScaleChangedEvent = Event<"time.scale_changed", TimeScaleChangedPayload>;
+
+export type TimeEvent = TimeScaleChangedEvent;
+
+/**
+ * Application state
  */
 export interface ApplicationState {
     audio?: AudioState;
     clients?: ClientsState;
     image?: ImageState;
+    time?: { scale: number };
 }

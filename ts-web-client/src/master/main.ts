@@ -6,6 +6,7 @@ import { AssetService } from "@master/services/asset-service";
 import { ImageToolbarService } from "@master/services/image-toolbar-service";
 import { MasterVisualService } from "@master/services/visual-service";
 import { MasterClockService } from "@master/services/clock-service";
+import { TimeScaleService } from "@services/time-scale-service";
 
 import { Draggable } from "@components/draggable/draggable";
 import { DraggableImage } from "@components/draggable/draggable-image";
@@ -44,6 +45,7 @@ function init(): void {
     const imageToolbarService = new ImageToolbarService();
     const visualService = new MasterVisualService(connection, eventBus);
     const clockService = new MasterClockService(connection, eventBus);
+    const timeScaleService = new TimeScaleService(eventBus);
 
     ServiceRegistry.register("ConfigService", config);
     ServiceRegistry.register("EventBus", eventBus);
@@ -52,6 +54,7 @@ function init(): void {
     ServiceRegistry.register("ImageToolbarService", imageToolbarService);
     ServiceRegistry.register("MasterVisualService", visualService);
     ServiceRegistry.register("MasterClockService", clockService);
+    ServiceRegistry.register("TimeScaleService", timeScaleService);
 
     customElements.define("squire-draggable", DraggableImage);
     customElements.define("squire-draggable-handle", Draggable);

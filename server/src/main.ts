@@ -8,6 +8,7 @@ import { ClientRegistry } from "@core/transport/client-registry";
 import { AudioService } from "@services/audio/audio-service";
 import { ImageService } from "@services/image/image-service";
 import { CountdownService } from "@services/countdown/countdown-service";
+import { TimeService } from "@services/time/time-service";
 import { ImageResizeService } from "@services/image/image-resize-service";
 import { Logger } from "@utils/logger";
 import type { Event, ConnectedClient } from "@types";
@@ -52,6 +53,14 @@ function initializeContainer(): Container {
     container.registerFactory(TOKENS.CountdownService, () => {
         return new CountdownService(
             container.resolve(TOKENS.EventStore),
+            container.resolve(TOKENS.ClientRegistry),
+        );
+    });
+
+    container.registerFactory(TOKENS.TimeService, () => {
+        return new TimeService(
+            container.resolve(TOKENS.EventStore),
+            container.resolve(TOKENS.StateStore),
             container.resolve(TOKENS.ClientRegistry),
         );
     });
@@ -127,6 +136,7 @@ async function main() {
     container.resolve<AudioService>(TOKENS.AudioService);
     container.resolve<ImageService>(TOKENS.ImageService);
     container.resolve<CountdownService>(TOKENS.CountdownService);
+    container.resolve<TimeService>(TOKENS.TimeService);
     const clientRegistry = container.resolve<ClientRegistry>(
         TOKENS.ClientRegistry,
     );

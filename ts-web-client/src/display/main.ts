@@ -6,6 +6,7 @@ import { ConfigService } from "@services/config-service";
 import { AudioService } from "@display/services/audio-service";
 import { VisualService } from "@display/services/visual-service";
 import { DisplayClockService } from "@display/services/clock-service";
+import { TimeScaleService } from "@services/time-scale-service";
 import { AudioEnableModal } from "@display/components/audio-enable-modal";
 import { AudioPlayer } from "@display/components/audio-player";
 import { AudioChannelCard } from "@display/components/audio-channel-card";
@@ -31,6 +32,7 @@ function init(): void {
     const audioService = new AudioService(eventBus, config);
     const visualService = new VisualService(eventBus);
     const clockService = new DisplayClockService(eventBus);
+    const timeScaleService = new TimeScaleService(eventBus);
 
     // Register singletons
     ServiceRegistry.register("ConfigService", config);
@@ -39,6 +41,7 @@ function init(): void {
     ServiceRegistry.register("AudioService", audioService);
     ServiceRegistry.register("VisualService", visualService);
     ServiceRegistry.register("ClockService", clockService);
+    ServiceRegistry.register("TimeScaleService", timeScaleService);
 
     // Register components
     customElements.define("audio-enable-modal", AudioEnableModal);

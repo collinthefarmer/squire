@@ -178,6 +178,9 @@ export const clockCreatePayloadSchema = z.object({
     autoStart: z.boolean().optional(),
     position: imagePositionSchema.optional(),
     zIndex: z.number().optional(),
+    respectTimeScale: z.boolean().optional(),
+    visibility: z.enum(["always", "hidden", "dm-only"]).optional(),
+    onComplete: z.enum(["persist", "auto-hide", "auto-destroy"]).optional(),
 });
 
 export const clockCreateEventSchema = z.object({
@@ -236,11 +239,27 @@ export const clockEventSchema = z.discriminatedUnion("type", [
     clockUpdateEventSchema,
 ]);
 
+// Time-scale schemas
+export const timeScaleChangedPayloadSchema = z.object({
+    scale: z.number().min(0).max(10),
+});
+
+export const timeScaleChangedEventSchema = z.object({
+    type: z.literal("time.scale_changed"),
+    payload: timeScaleChangedPayloadSchema,
+    metadata: eventMetadataSchema,
+});
+
+export const timeEventSchema = z.discriminatedUnion("type", [
+    timeScaleChangedEventSchema,
+]);
+
 // All events
 export const eventSchema = z.discriminatedUnion("type", [
     ...audioEventSchema.options,
     ...imageEventSchema.options,
     ...clockEventSchema.options,
+    ...timeEventSchema.options,
 ]);
 
 /**
@@ -279,4 +298,7 @@ export type ClockDestroyEvent = z.infer<typeof clockDestroyEventSchema>;
 export type ClockUpdatePayload = z.infer<typeof clockUpdatePayloadSchema>;
 export type ClockUpdateEvent = z.infer<typeof clockUpdateEventSchema>;
 export type ClockEvent = z.infer<typeof clockEventSchema>;
+export type TimeScaleChangedPayload = z.infer<typeof timeScaleChangedPayloadSchema>;
+export type TimeScaleChangedEvent = z.infer<typeof timeScaleChangedEventSchema>;
+export type TimeEvent = z.infer<typeof timeEventSchema>;
 export type ValidatedEvent = z.infer<typeof eventSchema>;
