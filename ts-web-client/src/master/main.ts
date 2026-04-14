@@ -25,6 +25,7 @@ import { AudioPlaybackButtons } from "@master/components/audio/audio-playback-bu
 import { VolumeControl } from "@master/components/audio/volume-control";
 import { ImageGallery } from "@master/components/image/image-gallery";
 import { ClockControls } from "@master/components/clock/clock-controls";
+import { TimeScaleControls } from "@master/components/time/time-scale-controls";
 import { ImageToolbar } from "@master/components/image/image-toolbar";
 import { LayerSelector } from "@master/components/image/layer-selector";
 import { AspectRatioSelector } from "@master/components/image/aspect-ratio-selector";
@@ -74,6 +75,7 @@ function init(): void {
     customElements.define("image-gallery", ImageGallery);
 
     customElements.define("clock-controls", ClockControls);
+    customElements.define("time-scale-controls", TimeScaleControls);
 
     customElements.define("iframe-preview", IframePreview);
     customElements.define("drop-zone-overlay", DropZoneOverlay);

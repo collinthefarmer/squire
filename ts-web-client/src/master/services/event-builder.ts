@@ -21,6 +21,7 @@ import type {
     ClockAdjustEvent,
     ClockDestroyEvent,
     ClockUpdateEvent,
+    TimeScaleChangedEvent,
 } from "@types";
 
 /**
@@ -256,6 +257,9 @@ export class EventBuilder {
         autoStart?: boolean;
         position?: ImagePosition;
         zIndex?: number;
+        respectTimeScale?: boolean;
+        visibility?: "always" | "hidden" | "dm-only";
+        onComplete?: "persist" | "auto-hide" | "auto-destroy";
     }): ClockCreateEvent {
         return {
             type: "ui.clock.create",
@@ -265,6 +269,9 @@ export class EventBuilder {
                 autoStart: params.autoStart,
                 position: params.position,
                 zIndex: params.zIndex,
+                respectTimeScale: params.respectTimeScale,
+                visibility: params.visibility,
+                onComplete: params.onComplete,
             },
             metadata: {
                 timestamp: Date.now(),
@@ -331,6 +338,19 @@ export class EventBuilder {
                 zIndex: params.zIndex,
                 visible: params.visible,
             },
+            metadata: {
+                timestamp: Date.now(),
+                source: "master-client",
+            },
+        };
+    }
+
+    // -- Time events --
+
+    static timeScaleChanged(params: { scale: number }): TimeScaleChangedEvent {
+        return {
+            type: "time.scale_changed",
+            payload: { scale: params.scale },
             metadata: {
                 timestamp: Date.now(),
                 source: "master-client",

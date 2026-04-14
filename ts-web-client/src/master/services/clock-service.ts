@@ -5,6 +5,7 @@ import { ServiceRegistry } from "@services/service-registry";
 import type { EventBus } from "@services/event-bus";
 import type { ConnectionService } from "@services/connection-service";
 import type { ClockState } from "@services/clock-state";
+import type { TimeScaleService } from "@services/time-scale-service";
 import {
     CLOCK_DISPLAY,
     applyClockCreate,
@@ -13,6 +14,7 @@ import {
     applyClockAdjust,
     applyClockDestroy,
     applyClockUpdate,
+    applyTimeScaleChange,
 } from "@services/clock-state";
 import { calculatePosition } from "@utils/canvas-renderer";
 import { DISPLAY } from "@shared/constants/display";
@@ -47,6 +49,24 @@ export class MasterClockService implements CanvasObjectProvider {
     constructor(connectionService: ConnectionService, eventBus: EventBus) {
         this.connectionService = connectionService;
         this.setupEventListeners(eventBus);
+        this.setupTimeScaleListener(eventBus);
+    }
+
+    private getTimeScale(): number {
+        try {
+            const ts = ServiceRegistry.get<TimeScaleService>("TimeScaleService");
+            return ts.getScale();
+        } catch {
+            return 1.0;
+        }
+    }
+
+    private setupTimeScaleListener(eventBus: EventBus): void {
+        eventBus.on("server:time.scale_changed", (event: unknown) => {
+            const { scale } = (event as { payload: { scale: number } }).payload;
+            const updated = applyTimeScaleChange(this.clocks$.value, scale);
+            this.clocks$.next(updated);
+        });
     }
 
     // -- State access --
@@ -102,6 +122,9 @@ export class MasterClockService implements CanvasObjectProvider {
         autoStart?: boolean;
         position?: ImagePosition;
         zIndex?: number;
+        respectTimeScale?: boolean;
+        visibility?: "always" | "hidden" | "dm-only";
+        onComplete?: "persist" | "auto-hide" | "auto-destroy";
     }): void {
         this.logger.info("Creating clock", params);
         this.connectionService.send(EventBuilder.clockCreate(params));
@@ -152,14 +175,15 @@ export class MasterClockService implements CanvasObjectProvider {
 
     private handleEvent(event: { type: string }): void {
         const current = this.clocks$.value;
+        const scale = this.getTimeScale();
         let updated: Map<string, ClockState>;
 
         switch (event.type) {
             case "ui.clock.create":
-                updated = applyClockCreate(current, event as ClockCreateEvent);
+                updated = applyClockCreate(current, event as ClockCreateEvent, scale);
                 break;
             case "ui.clock.start":
-                updated = applyClockStart(current, event as ClockStartEvent);
+                updated = applyClockStart(current, event as ClockStartEvent, scale);
                 break;
             case "ui.clock.pause":
                 updated = applyClockPause(current, event as ClockPauseEvent);

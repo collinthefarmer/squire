@@ -12,6 +12,8 @@ import {
     secondaryButtonStyles,
     dangerButtonStyles,
     inputStyles,
+    selectStyles,
+    checkboxStyles,
     flexColumn,
 } from "@styles/common-styles";
 import { colors, spacing, borderRadius } from "@styles/theme";
@@ -60,6 +62,8 @@ export class ClockControls extends BaseComponent {
             ${sectionHeaderStyles()}
             ${headerRowStyles()}
             ${primaryButtonStyles()}
+            ${selectStyles()}
+            ${checkboxStyles()}
             ${secondaryButtonStyles()}
             ${dangerButtonStyles()}
             ${outlineButtonStyles()}
@@ -172,6 +176,30 @@ export class ClockControls extends BaseComponent {
                         </div>
                         <button class="primary" id="create-btn" type="button">Create</button>
                     </div>
+                    <div class="create-form">
+                        <div class="field">
+                            <label>
+                                <input type="checkbox" id="clock-respect-ts" checked />
+                                Time Scale
+                            </label>
+                        </div>
+                        <div class="field">
+                            <label for="clock-visibility">Visibility</label>
+                            <select id="clock-visibility">
+                                <option value="always">Always</option>
+                                <option value="hidden">Hidden</option>
+                                <option value="dm-only">DM Only</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="clock-on-complete">On Complete</label>
+                            <select id="clock-on-complete">
+                                <option value="persist">Persist</option>
+                                <option value="auto-hide">Auto Hide</option>
+                                <option value="auto-destroy">Auto Destroy</option>
+                            </select>
+                        </div>
+                    </div>
 
                     <div class="clock-list" id="clock-list">
                         <div class="empty">No active clocks</div>
@@ -204,6 +232,9 @@ export class ClockControls extends BaseComponent {
     private handleCreate(): void {
         const idInput = this.shadowRoot?.querySelector("#clock-id") as HTMLInputElement;
         const durationInput = this.shadowRoot?.querySelector("#clock-duration") as HTMLInputElement;
+        const respectTsInput = this.shadowRoot?.querySelector("#clock-respect-ts") as HTMLInputElement;
+        const visibilityInput = this.shadowRoot?.querySelector("#clock-visibility") as HTMLSelectElement;
+        const onCompleteInput = this.shadowRoot?.querySelector("#clock-on-complete") as HTMLSelectElement;
 
         if (!idInput || !durationInput) {
             return;
@@ -220,6 +251,9 @@ export class ClockControls extends BaseComponent {
             id,
             duration: seconds * 1000,
             autoStart: true,
+            respectTimeScale: respectTsInput?.checked ?? true,
+            visibility: (visibilityInput?.value as "always" | "hidden" | "dm-only") ?? "always",
+            onComplete: (onCompleteInput?.value as "persist" | "auto-hide" | "auto-destroy") ?? "persist",
         });
 
         idInput.value = "";

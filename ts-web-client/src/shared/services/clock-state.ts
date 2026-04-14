@@ -17,6 +17,8 @@ import type {
     ClockAdjustEvent,
     ClockDestroyEvent,
     ClockUpdateEvent,
+    ClockVisibility,
+    ClockCompletionBehavior,
 } from "@types";
 
 /**
@@ -31,6 +33,13 @@ export interface ClockState {
     position: ImagePosition;
     zIndex: number;
     visible: boolean;
+
+    // V2 fields
+    respectTimeScale: boolean;
+    scaleAtStart: number;
+    visibility: ClockVisibility;
+    onComplete: ClockCompletionBehavior;
+    completed: boolean;
 }
 
 /**
@@ -41,12 +50,26 @@ export const CLOCK_DISPLAY = { width: 200, height: 60 } as const;
 // -- Computation helpers --
 
 /**
- * Compute remaining time for a clock
+ * Compute remaining time for a clock.
+ *
+ * When respectTimeScale is true and the clock is running,
+ * elapsed real time is multiplied by scaleAtStart to produce
+ * game-time elapsed. Scale changes mid-run require an internal
+ * pause+resume cycle to capture the new scale.
  */
 export function getRemainingTime(clock: ClockState, now: number = Date.now()): number {
-    const runningElapsed = clock.running && clock.startedAt !== null
-        ? now - clock.startedAt
-        : 0;
+    if (clock.completed) {
+        return 0;
+    }
+
+    let runningElapsed = 0;
+
+    if (clock.running && clock.startedAt !== null) {
+        const realElapsed = now - clock.startedAt;
+        runningElapsed = clock.respectTimeScale
+            ? realElapsed * clock.scaleAtStart
+            : realElapsed;
+    }
 
     return Math.max(0, clock.duration - clock.elapsed - runningElapsed);
 }
@@ -79,6 +102,39 @@ export function getUrgency(clock: ClockState, now: number = Date.now()): number 
     return 1 - remaining / clock.duration;
 }
 
+/**
+ * Apply a time-scale change to all running clocks that respect it.
+ *
+ * Performs an internal pause+resume: accumulates elapsed game time
+ * at the old scale, then records the new scale for future computation.
+ */
+export function applyTimeScaleChange(
+    clocks: Map<string, ClockState>,
+    newScale: number,
+    now: number = Date.now(),
+): Map<string, ClockState> {
+    let updated = clocks;
+
+    for (const [id, clock] of clocks) {
+        if (!clock.running || !clock.respectTimeScale || clock.startedAt === null) {
+            continue;
+        }
+
+        // Accumulate elapsed game time at the old scale
+        const realElapsed = now - clock.startedAt;
+        const gameElapsed = realElapsed * clock.scaleAtStart;
+
+        updated = updateInMap(updated, id, (c) => ({
+            ...c,
+            elapsed: c.elapsed + gameElapsed,
+            startedAt: now,
+            scaleAtStart: newScale,
+        }));
+    }
+
+    return updated;
+}
+
 // -- Event reducers --
 
 /**
@@ -89,8 +145,10 @@ export function getUrgency(clock: ClockState, now: number = Date.now()): number 
 export function applyClockCreate(
     clocks: Map<string, ClockState>,
     event: ClockCreateEvent,
+    currentScale: number = 1.0,
 ): Map<string, ClockState> {
-    const { id, duration, autoStart, position, zIndex } = event.payload;
+    const { id, duration, autoStart, position, zIndex,
+            respectTimeScale, visibility, onComplete } = event.payload;
     const timestamp = event.metadata.timestamp;
 
     const clock: ClockState = {
@@ -102,6 +160,11 @@ export function applyClockCreate(
         position: position ?? { x: "center", y: "top" },
         zIndex: zIndex ?? 100,
         visible: true,
+        respectTimeScale: respectTimeScale ?? true,
+        scaleAtStart: autoStart ? currentScale : 1.0,
+        visibility: visibility ?? "always",
+        onComplete: onComplete ?? "persist",
+        completed: false,
     };
 
     return setInMap(clocks, id, clock);
@@ -113,18 +176,22 @@ export function applyClockCreate(
 export function applyClockStart(
     clocks: Map<string, ClockState>,
     event: ClockStartEvent,
+    currentScale: number = 1.0,
 ): Map<string, ClockState> {
     return updateInMap(clocks, event.payload.id, (clock) => ({
         ...clock,
         running: true,
         startedAt: event.metadata.timestamp,
+        scaleAtStart: currentScale,
+        completed: false,
     }));
 }
 
 /**
  * Apply a ui.clock.pause event.
  *
- * Accumulates the running interval into elapsed time.
+ * Accumulates the running interval into elapsed time,
+ * accounting for time scale if applicable.
  */
 export function applyClockPause(
     clocks: Map<string, ClockState>,
@@ -133,9 +200,14 @@ export function applyClockPause(
     const timestamp = event.metadata.timestamp;
 
     return updateInMap(clocks, event.payload.id, (clock) => {
-        const runningElapsed = clock.startedAt !== null
-            ? timestamp - clock.startedAt
-            : 0;
+        let runningElapsed = 0;
+
+        if (clock.startedAt !== null) {
+            const realElapsed = timestamp - clock.startedAt;
+            runningElapsed = clock.respectTimeScale
+                ? realElapsed * clock.scaleAtStart
+                : realElapsed;
+        }
 
         return {
             ...clock,

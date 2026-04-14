@@ -94,7 +94,11 @@ export class ClockRenderer extends BaseComponent {
         container.innerHTML = "";
 
         for (const [id, clock] of this.clocks) {
-            if (!clock.visible) {
+            if (!clock.visible || clock.visibility === "hidden" || clock.visibility === "dm-only") {
+                continue;
+            }
+
+            if (clock.completed) {
                 continue;
             }
 
@@ -138,24 +142,24 @@ export class ClockRenderer extends BaseComponent {
     }
 
     /**
-     * Interpolate color based on urgency (0 = calm, 1 = critical)
+     * Smooth urgency color via HSL interpolation.
      *
-     * 0.0–0.5: white
-     * 0.5–0.75: white → yellow/orange
-     * 0.75–0.9: orange → red
-     * 0.9–1.0: intense red
+     * 0.0–0.5: white (no urgency)
+     * 0.5–1.0: hue shifts from 60° (yellow) to 0° (red),
+     * saturation and lightness ramp up for intensity.
      */
     private urgencyColor(urgency: number): string {
         if (urgency < 0.5) {
             return colors.white;
         }
-        if (urgency < 0.75) {
-            return colors.amber[400];
-        }
-        if (urgency < 0.9) {
-            return "#ef4444"; // red-500
-        }
-        return "#dc2626"; // red-600
+
+        // Map 0.5–1.0 to 0–1 for interpolation
+        const t = (urgency - 0.5) / 0.5;
+        const hue = 60 * (1 - t);            // 60° (yellow) → 0° (red)
+        const saturation = 80 + t * 20;       // 80% → 100%
+        const lightness = 70 - t * 20;        // 70% → 50%
+
+        return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
     }
 
     // -- Animation loop --
@@ -192,8 +196,53 @@ export class ClockRenderer extends BaseComponent {
                 continue;
             }
 
+            // Check for completion
+            const remaining = getRemainingTime(clock);
+            if (remaining <= 0 && clock.running && !clock.completed) {
+                this.handleCompletion(id, clock, el);
+                continue;
+            }
+
             this.positionClockElement(el, clock);
             this.updateClockDisplay(el, clock);
+        }
+    }
+
+    private handleCompletion(id: string, clock: ClockState, el: HTMLElement): void {
+        switch (clock.onComplete) {
+            case "persist":
+                el.textContent = formatTime(0);
+                el.style.color = this.urgencyColor(1);
+                break;
+
+            case "auto-hide":
+                el.style.opacity = "0";
+                el.style.transition = "opacity 1s ease";
+                setTimeout(() => {
+                    const updated = new Map(this.clocks);
+                    const current = updated.get(id);
+                    if (current) {
+                        updated.set(id, { ...current, completed: true });
+                        this.clocks = updated;
+                    }
+                }, 1000);
+                break;
+
+            case "auto-destroy": {
+                const updated = new Map(this.clocks);
+                updated.delete(id);
+                this.clocks = updated;
+                this.renderClocks();
+                break;
+            }
+        }
+
+        // Mark as completed to prevent re-triggering
+        const updated = new Map(this.clocks);
+        const current = updated.get(id);
+        if (current && clock.onComplete === "persist") {
+            updated.set(id, { ...current, completed: true });
+            this.clocks = updated;
         }
     }
 }

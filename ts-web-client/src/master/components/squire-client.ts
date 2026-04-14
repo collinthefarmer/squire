@@ -125,6 +125,7 @@ export class SquireMasterClient extends BaseComponent {
                         <image-toolbar></image-toolbar>
                         <image-gallery></image-gallery>
                         <clock-controls></clock-controls>
+                        <time-scale-controls></time-scale-controls>
                     </div>
                 </div>
 

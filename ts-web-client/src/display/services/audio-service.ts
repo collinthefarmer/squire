@@ -32,6 +32,7 @@ export class AudioService {
     ) {
         this.apiUrl = config.getApiUrl();
         this.setupEventListeners();
+        this.setupTimeScaleListener();
     }
 
     /**
@@ -67,8 +68,39 @@ export class AudioService {
      */
     private setupEventListeners(): void {
         this.eventBus.on("server:audio.*", (event: any) => {
-            console.log(event);
             this.handleAudioEvent(event);
+        });
+    }
+
+    /**
+     * Adjust audio playback rate when time scale changes.
+     * Channels with respectTimeScale=true play at the new rate.
+     * Scale 0 pauses; resuming restores the last non-zero rate.
+     */
+    private setupTimeScaleListener(): void {
+        this.eventBus.on("server:time.scale_changed", (event: unknown) => {
+            const { scale } = (event as { payload: { scale: number } }).payload;
+            this.logger.info("Time scale changed, adjusting audio", { scale });
+
+            for (const [channel, state] of this.channels$.value) {
+                if (!state.respectTimeScale) {
+                    continue;
+                }
+
+                const audio = this.audioElements.get(channel);
+                if (!audio) {
+                    continue;
+                }
+
+                if (scale === 0) {
+                    audio.pause();
+                } else {
+                    audio.playbackRate = scale;
+                    if (state.playing && audio.paused) {
+                        audio.play().catch(() => {});
+                    }
+                }
+            }
         });
     }
 
