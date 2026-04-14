@@ -133,28 +133,55 @@ Some state is best computed client-side from event timestamps rather than mainta
 
 When using client-computed state, **event timestamps are critical**. The `metadata.timestamp` on lifecycle events (start, pause, resume) is what clients use to reconstruct timing. Ensure these timestamps are preserved accurately through the EventStore replay path.
 
-### 4.3 EventStore Replay and the Folding Pattern
+### 4.3 EventStore Replay — Declarative Domain Rules
 
-When adding a new event domain, you must add replay support to the EventStore (`server/src/core/events/event-store.ts`):
+Replay behavior is defined declaratively in `server/src/core/events/replay-configs.ts` using the creation-centric rule system. Each creation event declares how mutation events affect it.
 
-1. Add a `currentDomainState` map
-2. Add routing in `updateDomainStore()` for the new event prefix
-3. Implement `updateDomainStore()` with smart supersession rules per event type
-4. Include the new map in `getReplayEvents()`
+**Adding a new domain:**
 
-If you skip this, new clients will never see existing state for your domain.
+1. Define a config in `replay-configs.ts` using `defineReplay(keyField, rules)`
+2. Add the domain to the `domains` array in `event-store.ts`
 
-**The folding pattern:** Mutation events (transform, update, config) should be **folded into the stored creation event** rather than stored as separate replay entries. On replay, clients receive a single creation event per entity with the current effective state — no sequence of mutations to reconstruct.
+```typescript
+// replay-configs.ts
+export const myReplay = defineReplay("id", {
+    "my.create": {
+        removes: ["my.destroy"],
+        folds: {
+            "my.update": ["position", "color"],  // merge fields into create
+        },
+        replaces: ["my.config"],  // latest only, stored alongside create
+        appends: ["my.tick"],     // accumulated in sequence (order matters)
+    },
+});
+
+// event-store.ts — add one line to the domains array
+{ prefix: "my.", domain: myReplay },
+```
+
+**Five behaviors:**
+
+| Behavior | Declaration | Effect |
+|----------|-------------|--------|
+| **create** | Top-level key | Starts fresh replay sequence `[createEvent]` |
+| **remove** | `removes: [...]` | Deletes entity from replay |
+| **fold** | `folds: { type: [...fields] }` | Merges fields into the creation event's payload |
+| **replace** | `replaces: [...]` | Stored alongside creation; only latest per type |
+| **append** | `appends: [...]` | Accumulated in sequence (order preserved) |
+
+**The folding pattern:** Fold events merge specified fields into the stored creation event. On replay, clients receive a single creation event per entity with the current effective state — no sequence of mutations to reconstruct.
 
 This prevents a class of bugs where mutation events carry optional fields: if a later mutation omits a field that an earlier one set, the client reducer skips the `undefined` field and the value is lost.
 
-**Examples in the codebase:**
-- `audio.volume` folds the new volume into the stored `audio.play` event's payload
-- `visual.image.transform` folds position/scale into the stored `visual.image.set` event
-- `ui.clock.update` folds position/zIndex/visible into the stored `ui.clock.create` event
-- `audio.resume` adjusts the stored play event's timestamp to account for pause duration
+**Custom fold transforms:** For complex cases (e.g., `audio.resume` which adjusts timestamps based on pause duration), use a transform function instead of field names:
 
-**When NOT to fold:** Lifecycle events that build a timeline (clock `start`/`pause`/`adjust`) must be stored in sequence because clients compute elapsed time from the event timestamps. Only fold property changes that replace previous values.
+```typescript
+folds: {
+    "audio.resume": { transform: (sequence, trigger) => adjustedSequence },
+}
+```
+
+**When to fold vs append:** Fold property changes that replace previous values. Append lifecycle events that build a timeline (clock start/pause/adjust) where clients compute state from the event sequence.
 
 ---
 
