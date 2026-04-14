@@ -370,9 +370,17 @@ export class AudioService {
         });
 
         audio.addEventListener("ended", () => {
-            if (!loop) {
-                this.logger.info("Audio ended", { channel });
+            if (loop) {
+                return;
             }
+
+            this.logger.info("Audio ended", { channel });
+
+            const updated = updateInMap(this.channels$.value, channel, (ch) => ({
+                ...ch,
+                playing: false,
+            }));
+            this.channels$.next(updated);
         });
 
         // Set src after adding event listeners to trigger loading
