@@ -4,6 +4,7 @@ import type { ConfigService } from "@services/config-service";
 import type { VisualService } from "@display/services/visual-service";
 import type { ImageLayerState } from "@types";
 import { ImageCache, drawLayers } from "@utils/canvas-renderer";
+import { Logger } from "@utils/logger";
 import { colors } from "@styles/theme";
 
 /**
@@ -14,6 +15,7 @@ import { colors } from "@styles/theme";
  * batched replay events) into a single render per frame.
  */
 export class VisualRenderer extends BaseComponent {
+    private logger = new Logger("VisualRenderer");
     private canvas: HTMLCanvasElement | null = null;
     private ctx: CanvasRenderingContext2D | null = null;
     private imageCache!: ImageCache;
@@ -124,8 +126,14 @@ export class VisualRenderer extends BaseComponent {
         this.renderFrameId = requestAnimationFrame(async () => {
             this.renderFrameId = null;
 
-            if (this.ctx && this.canvas) {
+            if (!this.ctx || !this.canvas) {
+                return;
+            }
+
+            try {
                 await drawLayers(this.ctx, this.canvas, this.latestLayers, this.imageCache);
+            } catch (error) {
+                this.logger.error("Render failed", { error });
             }
         });
     }

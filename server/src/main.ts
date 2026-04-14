@@ -149,10 +149,10 @@ async function main() {
 
     logger.info("Services initialized");
 
-    // Pre-populate audio duration cache for replay filtering
-    preloadAudioDurations().then(() => {
-        logger.info("Audio durations loaded");
-    });
+    // Pre-populate audio duration cache before accepting connections
+    // so the replay filter can exclude finished audio
+    await preloadAudioDurations();
+    logger.info("Audio durations loaded");
 
     // Create and configure router
     const router = new Router();

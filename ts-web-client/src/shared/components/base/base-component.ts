@@ -8,7 +8,7 @@ import { takeUntil } from "rxjs/operators";
  * template method for render logic, and Shadow DOM setup.
  */
 export abstract class BaseComponent<TState = unknown> extends HTMLElement {
-    private destroy$ = new Subject<void>();
+    protected destroy$ = new Subject<void>();
     protected cleanup: Array<() => void> = [];
 
     constructor() {
@@ -39,7 +39,7 @@ export abstract class BaseComponent<TState = unknown> extends HTMLElement {
      */
     protected subscribe<T>(
         observable: Observable<T>,
-        callback: (value: T) => void
+        callback: (value: T) => void,
     ): void {
         observable
             .pipe(takeUntil(this.destroy$))

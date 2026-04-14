@@ -4,7 +4,12 @@ import { BaseComponent } from "@components/base/base-component";
 import { ServiceRegistry } from "@services/service-registry";
 import type { DisplayClockService } from "@display/services/clock-service";
 import type { ClockState } from "@services/clock-state";
-import { CLOCK_DISPLAY, getRemainingTime, formatTime, getUrgency } from "@services/clock-state";
+import {
+    CLOCK_DISPLAY,
+    getRemainingTime,
+    formatTime,
+    getUrgency,
+} from "@services/clock-state";
 import { calculatePosition } from "@utils/canvas-renderer";
 import { DISPLAY } from "@shared/constants/display";
 import { colors, alpha, transitions } from "@styles/theme";
@@ -24,7 +29,8 @@ export class ClockRenderer extends BaseComponent {
     override connectedCallback(): void {
         super.connectedCallback();
 
-        this.clockService = ServiceRegistry.get<DisplayClockService>("ClockService");
+        this.clockService =
+            ServiceRegistry.get<DisplayClockService>("ClockService");
 
         this.render();
         this.setupSubscriptions();
@@ -72,19 +78,16 @@ export class ClockRenderer extends BaseComponent {
     }
 
     private setupSubscriptions(): void {
-        this.subscribe(
-            this.clockService.getClocks$(),
-            (clocks) => {
-                this.clocks = clocks;
-                this.renderClocks();
+        this.subscribe(this.clockService.getClocks$(), (clocks) => {
+            this.clocks = clocks;
+            this.renderClocks();
 
-                if (clocks.size > 0) {
-                    this.startAnimationLoop();
-                } else {
-                    this.stopAnimationLoop();
-                }
-            },
-        );
+            if (clocks.size > 0) {
+                this.startAnimationLoop();
+            } else {
+                this.stopAnimationLoop();
+            }
+        });
     }
 
     private renderClocks(): void {
@@ -96,7 +99,11 @@ export class ClockRenderer extends BaseComponent {
         container.innerHTML = "";
 
         for (const [id, clock] of this.clocks) {
-            if (!clock.visible || clock.visibility === "hidden" || clock.visibility === "dm-only") {
+            if (
+                !clock.visible ||
+                clock.visibility === "hidden" ||
+                clock.visibility === "dm-only"
+            ) {
                 continue;
             }
 
@@ -157,9 +164,9 @@ export class ClockRenderer extends BaseComponent {
 
         // Map 0.5–1.0 to 0–1 for interpolation
         const t = (urgency - 0.5) / 0.5;
-        const hue = 60 * (1 - t);            // 60° (yellow) → 0° (red)
-        const saturation = 80 + t * 20;       // 80% → 100%
-        const lightness = 70 - t * 20;        // 70% → 50%
+        const hue = 60 * (1 - t); // 60° (yellow) → 0° (red)
+        const saturation = 80 + t * 20; // 80% → 100%
+        const lightness = 70 - t * 20; // 70% → 50%
 
         return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
     }
@@ -188,7 +195,9 @@ export class ClockRenderer extends BaseComponent {
         }
 
         for (const [id, clock] of this.clocks) {
-            const el = container.querySelector(`[data-clock-id="${id}"]`) as HTMLElement | null;
+            const el = container.querySelector(
+                `[data-clock-id="${id}"]`,
+            ) as HTMLElement | null;
             if (!el) {
                 continue;
             }
@@ -205,7 +214,11 @@ export class ClockRenderer extends BaseComponent {
         }
     }
 
-    private handleCompletion(id: string, clock: ClockState, el: HTMLElement): void {
+    private handleCompletion(
+        id: string,
+        clock: ClockState,
+        el: HTMLElement,
+    ): void {
         switch (clock.onComplete) {
             case "persist":
                 el.textContent = formatTime(0);

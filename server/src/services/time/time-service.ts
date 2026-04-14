@@ -20,7 +20,7 @@ export interface TimeScaleEntry {
  * changes to all clients.
  */
 export class TimeService {
-    private scaleHistory: TimeScaleEntry[] = [{ timestamp: 0, scale: 1.0 }];
+    private scaleHistory: TimeScaleEntry[] = [];
 
     constructor(
         private eventStore: EventStore,

@@ -56,5 +56,5 @@ export function computeGameTimeElapsed(
     const remaining = now - currentTime;
     elapsed += remaining * activeScale;
 
-    return elapsed;
+    return Math.max(0, elapsed);
 }
