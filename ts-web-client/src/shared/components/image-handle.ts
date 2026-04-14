@@ -1,7 +1,7 @@
 import { BaseAssetComponent } from "@components/base/base-asset-component";
 import { ServiceRegistry } from "@services/service-registry";
 import type { ConfigService } from "@services/config-service";
-import { colors, spacing, borderRadius } from "@styles/theme";
+import { colors, spacing, borderRadius, transitions } from "@styles/theme";
 
 /**
  * Image thumbnail component for asset galleries
@@ -20,6 +20,9 @@ import { colors, spacing, borderRadius } from "@styles/theme";
 export class ImageHandle extends BaseAssetComponent {
     private _asset = "";
     private configService!: ConfigService;
+
+    /** Thumbnail size for resized image requests (2x display size for retina) */
+    private readonly THUMBNAIL_SIZE = 160;
 
     get asset(): string {
         return this._asset;
@@ -62,7 +65,7 @@ export class ImageHandle extends BaseAssetComponent {
                     overflow: hidden;
                     background: ${colors.gray[800]};
                     border: 2px solid transparent;
-                    transition: border-color 0.15s ease, transform 0.15s ease;
+                    transition: ${transitions.fast};
                 }
 
                 .thumbnail:hover {
@@ -110,7 +113,9 @@ export class ImageHandle extends BaseAssetComponent {
         }
 
         const apiUrl = this.configService?.getApiUrl() ?? "";
-        const imageUrl = `${apiUrl}/public/images/${this._asset}`;
+
+        // Request resized image for thumbnail display
+        const imageUrl = `${apiUrl}/public/images/${this._asset}?w=${this.THUMBNAIL_SIZE}`;
 
         const img = document.createElement("img");
         img.src = imageUrl;

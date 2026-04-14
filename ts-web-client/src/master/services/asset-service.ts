@@ -68,9 +68,13 @@ export class AssetService {
             }
 
             const assetsData = await response.json();
-            const assetNames = assetsData.map((asset: { name: string; url: string }) => asset.name);
+            const assetNames = assetsData.map(
+                (asset: { name: string; url: string }) => asset.name,
+            );
             this.audioAssets$.next(assetNames);
-            this.logger.info("Audio assets loaded", { count: assetNames.length });
+            this.logger.info("Audio assets loaded", {
+                count: assetNames.length,
+            });
         } catch (error) {
             this.logger.error("Error fetching audio assets", { error });
         }
@@ -93,7 +97,9 @@ export class AssetService {
 
             const assetsData: ImageAsset[] = await response.json();
             this.imageAssets$.next(assetsData);
-            this.logger.info("Image assets loaded", { count: assetsData.length });
+            this.logger.info("Image assets loaded", {
+                count: assetsData.length,
+            });
         } catch (error) {
             this.logger.error("Error fetching image assets", { error });
         }
@@ -103,9 +109,6 @@ export class AssetService {
      * Refresh all assets
      */
     async refreshAssets(): Promise<void> {
-        await Promise.all([
-            this.fetchAudioAssets(),
-            this.fetchImageAssets(),
-        ]);
+        await Promise.all([this.fetchAudioAssets(), this.fetchImageAssets()]);
     }
 }

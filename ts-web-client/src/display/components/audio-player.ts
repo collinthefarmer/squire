@@ -4,7 +4,7 @@ import type { AudioService } from "@display/services/audio-service";
 import type { AudioChannelState } from "@types";
 import { AudioChannelCard } from "./audio-channel-card";
 import { flexColumn } from "@styles/common-styles";
-import { colors, spacing, borderRadius } from "@styles/theme";
+import { colors, spacing, borderRadius, alpha } from "@styles/theme";
 
 /**
  * Audio player component
@@ -37,7 +37,7 @@ export class AudioPlayer extends BaseComponent {
             }
 
             .audio-overlay {
-                background: rgba(0, 0, 0, 0.8);
+                background: ${alpha(colors.black, 0.8)};
                 border-radius: ${borderRadius.lg};
                 padding: ${spacing.lg};
                 min-width: 200px;

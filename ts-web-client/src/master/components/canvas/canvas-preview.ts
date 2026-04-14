@@ -1,28 +1,37 @@
 import { BaseComponent } from "@components/base/base-component";
 import { ServiceRegistry } from "@services/service-registry";
 import type { MasterVisualService } from "@master/services/visual-service";
-import type { ImageToolbarService, ToolbarPosition } from "@master/services/image-toolbar-service";
+import type { ImageToolbarService } from "@master/services/image-toolbar-service";
+import type { IframePreview } from "./iframe-preview";
+import type { DropZoneOverlay } from "./drop-zone-overlay";
+import {
+    screenToCanvasFraction,
+    screenToDisplayPixels,
+    wouldOverlapDisplay,
+} from "./display-coordinates";
 import { containerStyles, sectionHeaderStyles } from "@styles/common-styles";
-import { colors, spacing, borderRadius } from "@styles/theme";
+import { spacing } from "@styles/theme";
 
 /**
- * Canvas preview component for master client
+ * Canvas preview container for master client
  *
- * Embeds the display client in an iframe to provide a live preview
- * of what the display shows. This guarantees pixel-perfect parity
- * since it's the actual display client running in a frame.
+ * Hosts an iframe preview of the display client and a drop zone overlay.
+ * Coordinates drag-and-drop image placement by listening for drag events,
+ * converting coordinates, and delegating to the visual service.
  *
- * Supports drag-and-drop image placement from the image gallery.
+ * @example
+ * ```html
+ * <canvas-preview></canvas-preview>
+ * ```
  */
 export class CanvasPreview extends BaseComponent {
     private visualService!: MasterVisualService;
     private imageToolbarService!: ImageToolbarService;
     private isDragActive = false;
     private currentDragAsset: string | null = null;
-    private resizeObserver: ResizeObserver | null = null;
 
-    private readonly PREVIEW_WIDTH = 1920;
-    private readonly PREVIEW_HEIGHT = 1080;
+    private readonly DISPLAY_WIDTH = 1920;
+    private readonly DISPLAY_HEIGHT = 1080;
 
     override connectedCallback(): void {
         super.connectedCallback();
@@ -31,14 +40,12 @@ export class CanvasPreview extends BaseComponent {
         this.imageToolbarService = ServiceRegistry.get<ImageToolbarService>("ImageToolbarService");
 
         this.render();
-        this.setupResizeObserver();
-        this.setupDropZone();
+        this.setupDragListeners();
     }
 
     override disconnectedCallback(): void {
         super.disconnectedCallback();
-        this.resizeObserver?.disconnect();
-        this.cleanupDropZone();
+        this.cleanupDragListeners();
     }
 
     protected override getStyles(): string {
@@ -59,59 +66,6 @@ export class CanvasPreview extends BaseComponent {
             .header {
                 font-size: 1.125rem;
             }
-
-            .iframe-wrapper {
-                position: relative;
-                width: 100%;
-                aspect-ratio: 16 / 9;
-                background: ${colors.black};
-                border-radius: ${borderRadius.md};
-                overflow: hidden;
-            }
-
-            iframe {
-                position: absolute;
-                top: 0;
-                left: 0;
-                width: 1920px;
-                height: 1080px;
-                border: none;
-                display: block;
-                transform-origin: top left;
-            }
-
-            .drop-zone {
-                position: absolute;
-                inset: 0;
-                display: none;
-                align-items: center;
-                justify-content: center;
-                background: rgba(59, 130, 246, 0.2);
-                border: 3px dashed ${colors.blue[500]};
-                border-radius: ${borderRadius.md};
-                pointer-events: none;
-                z-index: 10;
-            }
-
-            .drop-zone.active {
-                display: flex;
-                pointer-events: auto;
-            }
-
-            .drop-zone.hover {
-                background: rgba(59, 130, 246, 0.4);
-                border-color: ${colors.blue[400]};
-            }
-
-            .drop-zone-text {
-                color: ${colors.white};
-                font-size: 1rem;
-                font-weight: 500;
-                text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
-                padding: ${spacing.md};
-                background: rgba(0, 0, 0, 0.5);
-                border-radius: ${borderRadius.sm};
-            }
         `;
     }
 
@@ -125,90 +79,47 @@ export class CanvasPreview extends BaseComponent {
 
             <div class="container preview-container">
                 <div class="section-header header">Display Preview</div>
-                <div class="iframe-wrapper">
-                    <iframe
-                        src="http://localhost:3001"
-                        title="Display Preview"
-                        loading="lazy"
-                    ></iframe>
-                    <div class="drop-zone">
-                        <span class="drop-zone-text">Drop image here</span>
-                    </div>
-                </div>
+                <iframe-preview>
+                    <drop-zone-overlay></drop-zone-overlay>
+                    <canvas-overlay></canvas-overlay>
+                </iframe-preview>
             </div>
         `;
     }
 
-    private setupResizeObserver(): void {
-        const wrapper = this.shadowRoot?.querySelector(".iframe-wrapper");
-        if (!wrapper) {
-            return;
-        }
+    // -- Drag event handling --
 
-        this.resizeObserver = new ResizeObserver(() => {
-            this.updateScale();
-        });
-
-        this.resizeObserver.observe(wrapper);
-        this.updateScale();
-    }
-
-    private updateScale(): void {
-        const wrapper = this.shadowRoot?.querySelector(".iframe-wrapper") as HTMLElement;
-        const iframe = this.shadowRoot?.querySelector("iframe") as HTMLIFrameElement;
-        if (!wrapper || !iframe) {
-            return;
-        }
-
-        const containerWidth = wrapper.clientWidth;
-        const scale = containerWidth / this.PREVIEW_WIDTH;
-
-        iframe.style.transform = `scale(${scale})`;
-    }
-
-    private setupDropZone(): void {
+    private setupDragListeners(): void {
         document.addEventListener("drag-start", this.handleDragStart);
         document.addEventListener("drag-move", this.handleDragMove);
         document.addEventListener("drag-end", this.handleDragEnd);
+        document.addEventListener("drag-scale", this.handleDragScale);
+        document.addEventListener("asset-click", this.handleAssetClick);
     }
 
-    private cleanupDropZone(): void {
+    private cleanupDragListeners(): void {
         document.removeEventListener("drag-start", this.handleDragStart);
         document.removeEventListener("drag-move", this.handleDragMove);
         document.removeEventListener("drag-end", this.handleDragEnd);
+        document.removeEventListener("drag-scale", this.handleDragScale);
+        document.removeEventListener("asset-click", this.handleAssetClick);
     }
 
     private handleDragStart = (e: Event): void => {
-        const customEvent = e as CustomEvent;
-        const dropZone = this.shadowRoot?.querySelector(".drop-zone");
-        if (!dropZone) {
-            return;
-        }
+        const detail = (e as CustomEvent).detail;
 
         this.isDragActive = true;
-        this.currentDragAsset = customEvent.detail?.data ?? null;
-        dropZone.classList.add("active");
+        this.currentDragAsset = detail?.data ?? null;
 
-        dropZone.addEventListener("mouseenter", this.handleDropZoneEnter);
-        dropZone.addEventListener("mouseleave", this.handleDropZoneLeave);
-        dropZone.addEventListener("mouseup", this.handleDrop as EventListener);
-        dropZone.addEventListener("touchend", this.handleTouchDrop as EventListener);
-    };
-
-    private handleDragEnd = (_e: Event): void => {
-        const dropZone = this.shadowRoot?.querySelector(".drop-zone");
-        if (!dropZone) {
-            return;
+        this.imageToolbarService.resetScale();
+        if (detail?.imageWidth && detail?.imageHeight) {
+            this.imageToolbarService.setImageDimensions({
+                width: detail.imageWidth,
+                height: detail.imageHeight,
+            });
         }
 
-        this.isDragActive = false;
-        this.currentDragAsset = null;
-        dropZone.classList.remove("active", "hover");
-
-        dropZone.removeEventListener("mouseenter", this.handleDropZoneEnter);
-        dropZone.removeEventListener("mouseleave", this.handleDropZoneLeave);
-        dropZone.removeEventListener("mouseup", this.handleDrop as EventListener);
-        dropZone.removeEventListener("touchend", this.handleTouchDrop as EventListener);
+        this.getDropZone()?.activate();
     };
 
     private handleDragMove = (e: Event): void => {
@@ -218,64 +129,113 @@ export class CanvasPreview extends BaseComponent {
 
         const customEvent = e as CustomEvent;
         const { x, y } = customEvent.detail;
-        const normalizedPos = this.screenToNormalizedPosition(x, y);
 
+        const wrapperRect = this.getIframePreview()?.getWrapperRect();
+        if (!wrapperRect) {
+            return;
+        }
+
+        // Cursor position as fraction of canvas (unclamped).
+        // Represents the image center point.
+        const normalizedPos = screenToCanvasFraction(x, y, wrapperRect);
         this.imageToolbarService.setPosition(normalizedPos);
     };
 
-    private screenToNormalizedPosition(screenX: number, screenY: number): ToolbarPosition {
-        const wrapper = this.shadowRoot?.querySelector(".iframe-wrapper");
-        if (!wrapper) {
-            return { x: 0.5, y: 0.5 };
+    private handleDragEnd = (e: Event): void => {
+        const customEvent = e as CustomEvent;
+        const { x, y } = customEvent.detail;
+
+        // Handle the drop if we have an active drag asset.
+        // Cursor position represents the image center.
+        if (this.currentDragAsset) {
+            this.handleDrop(this.currentDragAsset, x, y);
         }
 
-        const rect = wrapper.getBoundingClientRect();
+        this.imageToolbarService.setImageDimensions(null);
 
-        const x = (screenX - rect.left) / rect.width;
-        const y = (screenY - rect.top) / rect.height;
+        this.isDragActive = false;
+        this.currentDragAsset = null;
 
-        return {
-            x: Math.max(0, Math.min(1, x)),
-            y: Math.max(0, Math.min(1, y)),
-        };
+        this.getDropZone()?.deactivate();
+    };
+
+    private handleDragScale = (e: Event): void => {
+        const { scale } = (e as CustomEvent).detail;
+        this.imageToolbarService.setScale(scale);
+    };
+
+    /**
+     * Handle single-click on an image asset.
+     *
+     * Applies the image at the current toolbar position (center by default)
+     * using whatever settings are configured in the toolbar. Sets image
+     * dimensions temporarily so the visual service can compute placement.
+     */
+    private handleAssetClick = (e: Event): void => {
+        const { asset, assetType, imageWidth, imageHeight } = (e as CustomEvent).detail;
+
+        if (assetType !== "image" || !asset) {
+            return;
+        }
+
+        // Dimensions must be set before handleImageDrop reads them
+        // and cleared after, all within the same synchronous block,
+        // since no drag lifecycle manages them for click events.
+        if (imageWidth && imageHeight) {
+            this.imageToolbarService.setImageDimensions({
+                width: imageWidth,
+                height: imageHeight,
+            });
+        }
+
+        const settings = this.imageToolbarService.getSettings();
+        const displayX = settings.position.x * this.DISPLAY_WIDTH;
+        const displayY = settings.position.y * this.DISPLAY_HEIGHT;
+
+        this.visualService.handleImageDrop(asset, displayX, displayY);
+
+        this.imageToolbarService.setImageDimensions(null);
+    };
+
+    private handleDrop(imageRef: string, screenX: number, screenY: number): void {
+        const iframePreview = this.getIframePreview();
+        if (!iframePreview) {
+            return;
+        }
+
+        const wrapperRect = iframePreview.getWrapperRect();
+        if (!wrapperRect) {
+            return;
+        }
+
+        const previewScale = iframePreview.getPreviewScale();
+        const displayPos = screenToDisplayPixels(screenX, screenY, wrapperRect, previewScale);
+
+        const settings = this.imageToolbarService.getSettings();
+        const overlaps = wouldOverlapDisplay(
+            displayPos.x,
+            displayPos.y,
+            settings.imageDimensions,
+            settings.aspectRatio,
+            settings.scale,
+            this.DISPLAY_WIDTH,
+            this.DISPLAY_HEIGHT,
+        );
+
+        if (!overlaps) {
+            return;
+        }
+
+        this.visualService.handleImageDrop(imageRef, displayPos.x, displayPos.y);
     }
 
-    private handleDropZoneEnter = (): void => {
-        const dropZone = this.shadowRoot?.querySelector(".drop-zone");
-        dropZone?.classList.add("hover");
-    };
+    // -- Sub-component accessors --
 
-    private handleDropZoneLeave = (): void => {
-        const dropZone = this.shadowRoot?.querySelector(".drop-zone");
-        dropZone?.classList.remove("hover");
-    };
+    private getIframePreview(): IframePreview | null {
+        return this.shadowRoot?.querySelector("iframe-preview") as IframePreview | null;
+    }
 
-    private handleDrop = (e: MouseEvent): void => {
-        if (!this.currentDragAsset) {
-            return;
-        }
-
-        this.visualService.handleImageDrop(
-            this.currentDragAsset,
-            e.clientX,
-            e.clientY,
-        );
-    };
-
-    private handleTouchDrop = (e: TouchEvent): void => {
-        if (!this.currentDragAsset) {
-            return;
-        }
-
-        const touch = e.changedTouches[0];
-        if (!touch) {
-            return;
-        }
-
-        this.visualService.handleImageDrop(
-            this.currentDragAsset,
-            touch.clientX,
-            touch.clientY,
-        );
-    };
+    private getDropZone(): DropZoneOverlay | null {
+        return this.shadowRoot?.querySelector("drop-zone-overlay") as DropZoneOverlay | null;
+    }
 }

@@ -1,12 +1,11 @@
 import { BaseComponent } from "@components/base/base-component";
 import type { BaseAssetComponent } from "@components/base/base-asset-component";
-import type { Draggable } from "@components/draggable";
+import type { Draggable } from "@components/draggable/draggable";
 import type { ImageHandle } from "@components/image-handle";
 import { ServiceRegistry } from "@services/service-registry";
 import type { AssetService, ImageAsset } from "@master/services/asset-service";
 import { labelStyles } from "@styles/common-styles";
 import { colors, spacing, borderRadius } from "@styles/theme";
-import type { Observable } from "rxjs";
 
 export type AssetType = "audio" | "image";
 
@@ -22,7 +21,12 @@ export interface AssetGalleryConfig {
  * Configurable gallery view with draggable asset components.
  * Emits custom events when dragging starts/stops.
  */
+/**
+ * @attr aspect-ratio - Aspect ratio mode forwarded to draggable children ("cover" | "contain")
+ */
 export class AssetGrid extends BaseComponent {
+    static observedAttributes = ["aspect-ratio"];
+
     private assetService!: AssetService;
     private config: AssetGalleryConfig;
 
@@ -39,6 +43,14 @@ export class AssetGrid extends BaseComponent {
 
         this.render();
         this.setupSubscriptions();
+    }
+
+    attributeChangedCallback(name: string, _old: string | null, value: string | null): void {
+        if (name !== "aspect-ratio" || !value) {
+            return;
+        }
+
+        this.syncAspectRatio(value);
     }
 
     protected override getStyles(): string {
@@ -151,6 +163,21 @@ export class AssetGrid extends BaseComponent {
                 }),
             );
         }) as EventListener);
+
+        this.shadowRoot.addEventListener("drag-click", ((e: CustomEvent) => {
+            this.dispatchEvent(
+                new CustomEvent("asset-click", {
+                    detail: {
+                        assetType: this.config.assetType,
+                        asset: e.detail.data,
+                        imageWidth: e.detail.imageWidth,
+                        imageHeight: e.detail.imageHeight,
+                    },
+                    bubbles: true,
+                    composed: true,
+                }),
+            );
+        }) as EventListener);
     }
 
     private updateAudioAssetGrid(assets: string[]): void {
@@ -187,6 +214,8 @@ export class AssetGrid extends BaseComponent {
 
         grid.innerHTML = "";
 
+        const aspectRatio = this.getAttribute("aspect-ratio") ?? "contain";
+
         for (const asset of assets) {
             const li = document.createElement("li");
 
@@ -198,6 +227,7 @@ export class AssetGrid extends BaseComponent {
             draggable.setAttribute("data-drag-data", asset.name);
             draggable.setAttribute("data-image-width", String(asset.width));
             draggable.setAttribute("data-image-height", String(asset.height));
+            draggable.setAttribute("data-aspect-ratio", aspectRatio);
 
             const item = document.createElement(
                 this.config.assetElement,
@@ -207,6 +237,17 @@ export class AssetGrid extends BaseComponent {
             draggable.appendChild(item);
             li.appendChild(draggable);
             grid.appendChild(li);
+        }
+    }
+
+    private syncAspectRatio(aspectRatio: string): void {
+        const grid = this.shadowRoot?.querySelector("ul");
+        if (!grid) {
+            return;
+        }
+
+        for (const draggable of Array.from(grid.querySelectorAll("squire-draggable"))) {
+            draggable.setAttribute("data-aspect-ratio", aspectRatio);
         }
     }
 }

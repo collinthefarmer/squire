@@ -4,7 +4,7 @@
  * Provides reusable style blocks that can be composed in component templates
  */
 
-import { colors, spacing, borderRadius, transitions } from "@styles/theme";
+import { colors, spacing, borderRadius, transitions, alpha } from "@styles/theme";
 
 /**
  * Base reset styles for select elements
@@ -27,7 +27,7 @@ export function selectStyles(): string {
         select:focus {
             outline: none;
             border-color: ${colors.blue[500]};
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            box-shadow: 0 0 0 3px ${alpha(colors.blue[500], 0.1)};
         }
     `;
 }
@@ -56,7 +56,7 @@ export function inputStyles(): string {
         input[type="number"]:focus {
             outline: none;
             border-color: ${colors.blue[500]};
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            box-shadow: 0 0 0 3px ${alpha(colors.blue[500], 0.1)};
         }
     `;
 }
@@ -394,6 +394,88 @@ export function sliderRowStyles(): string {
 
         .slider-row input[type="range"] {
             flex: 1;
+        }
+    `;
+}
+
+/**
+ * Outline button — transparent bg with border, for secondary actions
+ */
+export function outlineButtonStyles(): string {
+    return `
+        .outline-button {
+            background: transparent;
+            border: 1px solid ${colors.gray[600]};
+            color: ${colors.gray[200]};
+            padding: ${spacing.xs} ${spacing.sm};
+            border-radius: ${borderRadius.sm};
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: ${transitions.fast};
+        }
+
+        .outline-button:hover {
+            background: ${colors.gray[700]};
+            border-color: ${colors.gray[500]};
+        }
+    `;
+}
+
+/**
+ * Header row — space-between flex for a title with inline actions
+ */
+export function headerRowStyles(): string {
+    return `
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: ${spacing.sm};
+        }
+    `;
+}
+
+/**
+ * Segmented button group — mutually exclusive toggle buttons
+ */
+export function segmentedButtonStyles(): string {
+    return `
+        .button-group {
+            display: flex;
+            border-radius: ${borderRadius.md};
+            overflow: hidden;
+            border: 1px solid ${colors.gray[600]};
+        }
+
+        .button-group .option {
+            padding: ${spacing.sm} ${spacing.md};
+            background: ${colors.gray[800]};
+            color: ${colors.gray[200]};
+            border: none;
+            font-size: 0.75rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: ${transitions.fast};
+            flex: 1;
+            text-align: center;
+        }
+
+        .button-group .option:not(:last-child) {
+            border-right: 1px solid ${colors.gray[600]};
+        }
+
+        .button-group .option:hover:not(.selected) {
+            background: ${colors.gray[700]};
+        }
+
+        .button-group .option.selected {
+            background: ${colors.blue[600]};
+            color: ${colors.white};
+        }
+
+        .button-group .option:focus {
+            outline: none;
+            box-shadow: inset 0 0 0 2px ${colors.blue[400]};
         }
     `;
 }

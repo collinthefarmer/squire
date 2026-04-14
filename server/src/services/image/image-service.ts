@@ -65,9 +65,9 @@ export class ImageService {
     }
 
     private handleSet(event: ImageSetEvent): void {
-        const { layer, imageRef, aspectRatio, position } = event.payload;
+        const { layer, imageRef, aspectRatio, position, scale } = event.payload;
 
-        logger.info(`Image set: layer=${layer}, imageRef=${imageRef}`);
+        logger.info(`Image set: layer=${layer}, imageRef=${imageRef}, scale=${scale ?? 1}`);
 
         // Update materialized view - create or update layer
         this.stateStore.updateState((state) => {
@@ -79,13 +79,14 @@ export class ImageService {
                       imageRef,
                       aspectRatio,
                       position: position || existingLayer.position,
+                      scale: scale ?? existingLayer.scale,
                   }
                 : {
                       id: layer,
                       imageRef,
                       aspectRatio,
                       position: position || { x: "center", y: "center" },
-                      scale: 1,
+                      scale: scale ?? 1,
                       rotation: 0,
                       blendMode: "normal",
                       opacity: 1,

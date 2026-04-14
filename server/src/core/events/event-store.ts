@@ -28,6 +28,7 @@ export class EventStore {
     // Track "current effective" events per entity for replay
     private currentAudioState = new Map<string, Event[]>();
     private currentImageState = new Map<string, Event[]>();
+    private currentClockState = new Map<string, Event[]>();
 
     constructor(_config: EventStoreConfig = {}) {
         logger.info("EventStore initialized", { bufferSize: _config.bufferSize });
@@ -81,6 +82,10 @@ export class EventStore {
             events.push(...layerEvents);
         }
 
+        for (const clockEvents of this.currentClockState.values()) {
+            events.push(...clockEvents);
+        }
+
         logger.debug("Replay events retrieved", { count: events.length });
         return events;
     }
@@ -93,6 +98,8 @@ export class EventStore {
             this.updateAudioStore(event);
         } else if (event.type.startsWith("visual.image.")) {
             this.updateImageStore(event);
+        } else if (event.type.startsWith("ui.clock.")) {
+            this.updateClockStore(event);
         }
     }
 
@@ -242,6 +249,51 @@ export class EventStore {
                     );
                     filtered.push(event);
                     this.currentImageState.set(layerId, filtered);
+                }
+                break;
+            }
+        }
+    }
+
+    private updateClockStore(event: Event): void {
+        const payload = event.payload as { id: string };
+        const clockId = payload.id;
+
+        switch (event.type) {
+            case "ui.clock.create":
+                this.currentClockState.set(clockId, [event]);
+                break;
+
+            case "ui.clock.destroy":
+                this.currentClockState.delete(clockId);
+                break;
+
+            case "ui.clock.start": {
+                const events = this.currentClockState.get(clockId);
+                if (events) {
+                    // Only the latest start matters — remove any previous
+                    const filtered = events.filter((e) => e.type !== "ui.clock.start");
+                    filtered.push(event);
+                    this.currentClockState.set(clockId, filtered);
+                }
+                break;
+            }
+
+            case "ui.clock.pause":
+            case "ui.clock.adjust": {
+                const events = this.currentClockState.get(clockId);
+                if (events) {
+                    events.push(event);
+                }
+                break;
+            }
+
+            case "ui.clock.update": {
+                const events = this.currentClockState.get(clockId);
+                if (events) {
+                    const filtered = events.filter((e) => e.type !== "ui.clock.update");
+                    filtered.push(event);
+                    this.currentClockState.set(clockId, filtered);
                 }
                 break;
             }

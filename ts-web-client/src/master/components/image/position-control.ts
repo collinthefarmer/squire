@@ -1,6 +1,6 @@
 import { BaseComponent } from "@components/base/base-component";
 import { ServiceRegistry } from "@services/service-registry";
-import type { ImageToolbarService, ToolbarPosition } from "@master/services/image-toolbar-service";
+import type { ImageToolbarService, ToolbarPosition, ImageDimensions } from "@master/services/image-toolbar-service";
 import type { AspectRatioMode } from "@types";
 import { colors, spacing, borderRadius } from "@styles/theme";
 import { map, distinctUntilChanged, filter } from "rxjs";
@@ -24,6 +24,8 @@ export class PositionControl extends BaseComponent {
     private isDragging = false;
     private position: ToolbarPosition = { x: 0.5, y: 0.5 };
     private aspectRatio: AspectRatioMode = "contain";
+    private imageDimensions: ImageDimensions | null = null;
+    private scale: number = 1.0;
 
     private readonly PADDING = 8;
     private readonly HANDLE_RADIUS = 6;
@@ -148,6 +150,36 @@ export class PositionControl extends BaseComponent {
                 this.draw();
             }
         );
+
+        // Image dimensions changes (from drag)
+        this.subscribe(
+            settings$.pipe(
+                map((s) => s.imageDimensions),
+                distinctUntilChanged((a, b) => a?.width === b?.width && a?.height === b?.height)
+            ),
+            (dimensions) => {
+                this.imageDimensions = dimensions;
+
+                if (!dimensions) {
+                    this.position = { x: 0.5, y: 0.5 };
+                    this.emitChange();
+                }
+
+                this.draw();
+            }
+        );
+
+        // Scale changes (from wheel/pinch during drag)
+        this.subscribe(
+            settings$.pipe(
+                map((s) => s.scale),
+                distinctUntilChanged()
+            ),
+            (scale) => {
+                this.scale = scale;
+                this.draw();
+            }
+        );
     }
 
     private handleMouseDown = (e: MouseEvent): void => {
@@ -237,10 +269,7 @@ export class PositionControl extends BaseComponent {
         const x = (clientX - rect.left) / rect.width;
         const y = (clientY - rect.top) / rect.height;
 
-        this.position = {
-            x: Math.max(0, Math.min(1, x)),
-            y: Math.max(0, Math.min(1, y)),
-        };
+        this.position = { x, y };
 
         this.draw();
     }
@@ -278,47 +307,73 @@ export class PositionControl extends BaseComponent {
             return;
         }
 
-        const centerX = this.position.x * width;
-        const centerY = this.position.y * height;
-
         let innerWidth: number;
         let innerHeight: number;
 
-        if (this.aspectRatio === "cover") {
-            innerWidth = width * 1.3;
-            innerHeight = height * 1.3;
+        if (this.imageDimensions) {
+            // Use actual image aspect ratio
+            const imageRatio = this.imageDimensions.width / this.imageDimensions.height;
+            const canvasRatio = width / height;
+
+            if (this.aspectRatio === "cover") {
+                // Image covers entire canvas (some parts may extend beyond)
+                if (imageRatio > canvasRatio) {
+                    innerHeight = height;
+                    innerWidth = height * imageRatio;
+                } else {
+                    innerWidth = width;
+                    innerHeight = width / imageRatio;
+                }
+            } else {
+                // Contain: image fits within canvas (some canvas may be empty)
+                if (imageRatio > canvasRatio) {
+                    innerWidth = width * 0.8;
+                    innerHeight = innerWidth / imageRatio;
+                } else {
+                    innerHeight = height * 0.8;
+                    innerWidth = innerHeight * imageRatio;
+                }
+            }
+
+            // Apply scale factor
+            innerWidth *= this.scale;
+            innerHeight *= this.scale;
         } else {
-            innerWidth = width * 0.6;
-            innerHeight = height * 0.6;
+            // Fallback to current hardcoded behavior when no image
+            if (this.aspectRatio === "cover") {
+                innerWidth = width * 1.3;
+                innerHeight = height * 1.3;
+            } else {
+                innerWidth = width * 0.6;
+                innerHeight = height * 0.6;
+            }
         }
 
+        // Position by center: the position represents where the
+        // image center sits on the display canvas
+        const centerX = this.position.x * width;
+        const centerY = this.position.y * height;
         const innerX = centerX - innerWidth / 2;
         const innerY = centerY - innerHeight / 2;
 
-        if (this.aspectRatio === "cover") {
-            this.ctx.save();
-            this.ctx.beginPath();
-            this.ctx.rect(2, 2, width - 4, height - 4);
-            this.ctx.clip();
+        // Clip the fill to the outer rect, but draw the stroke unclipped
+        // so the user can see the full image extent when it goes off-canvas
+        this.ctx.save();
+        this.ctx.beginPath();
+        this.ctx.rect(2, 2, width - 4, height - 4);
+        this.ctx.clip();
 
-            this.ctx.fillStyle = `${colors.blue[500]}40`;
-            this.ctx.fillRect(innerX, innerY, innerWidth, innerHeight);
+        this.ctx.fillStyle = `${colors.blue[500]}40`;
+        this.ctx.fillRect(innerX, innerY, innerWidth, innerHeight);
 
-            this.ctx.restore();
+        this.ctx.restore();
 
-            this.ctx.setLineDash([4, 4]);
-            this.ctx.strokeStyle = colors.blue[400];
-            this.ctx.lineWidth = 2;
-            this.ctx.strokeRect(innerX, innerY, innerWidth, innerHeight);
-            this.ctx.setLineDash([]);
-        } else {
-            this.ctx.fillStyle = `${colors.blue[500]}40`;
-            this.ctx.fillRect(innerX, innerY, innerWidth, innerHeight);
-
-            this.ctx.strokeStyle = colors.blue[500];
-            this.ctx.lineWidth = 2;
-            this.ctx.strokeRect(innerX, innerY, innerWidth, innerHeight);
-        }
+        // Draw border (unclipped — shows image bounds outside canvas)
+        this.ctx.setLineDash([4, 4]);
+        this.ctx.strokeStyle = colors.blue[400];
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(innerX, innerY, innerWidth, innerHeight);
+        this.ctx.setLineDash([]);
     }
 
     private drawHandle(width: number, height: number): void {

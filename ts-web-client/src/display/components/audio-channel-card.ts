@@ -1,6 +1,6 @@
 import { BaseComponent } from "@components/base/base-component";
 import type { AudioChannelState } from "@types";
-import { colors, spacing, borderRadius, transitions } from "@styles/theme";
+import { colors, spacing, borderRadius, transitions, alpha } from "@styles/theme";
 
 /**
  * Audio channel card component
@@ -29,7 +29,7 @@ export class AudioChannelCard extends BaseComponent {
             .channel {
                 margin-bottom: ${spacing.md};
                 padding: ${spacing.md};
-                background: rgba(255, 255, 255, 0.05);
+                background: ${alpha(colors.white, 0.05)};
                 border-radius: ${borderRadius.md};
                 border-left: 3px solid;
             }
@@ -92,7 +92,7 @@ export class AudioChannelCard extends BaseComponent {
             .volume-track {
                 flex: 1;
                 height: 4px;
-                background: rgba(255, 255, 255, 0.1);
+                background: ${alpha(colors.white, 0.1)};
                 border-radius: 2px;
                 overflow: hidden;
             }

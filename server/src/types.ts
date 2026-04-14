@@ -118,6 +118,7 @@ export interface ImageSetPayload {
     aspectRatio: AspectRatioMode;
     position?: ImagePosition;
     transition?: ImageTransition;
+    scale?: number; // Initial scale factor (defaults to 1.0)
 }
 
 export interface ImageClearPayload {
@@ -179,6 +180,61 @@ export interface ImageLayerState {
 export interface ImageState {
     layers: Map<string, ImageLayerState>;
 }
+
+/**
+ * Clock event types
+ *
+ * Lifecycle events for countdown clocks. The server relays these
+ * without managing clock time — clients compute remaining time
+ * independently from event timestamps.
+ */
+
+export interface ClockCreatePayload {
+    id: string;
+    duration: number;        // total duration in ms
+    autoStart?: boolean;     // start immediately on create
+    position?: ImagePosition; // reuses image position format
+    zIndex?: number;
+}
+
+export interface ClockStartPayload {
+    id: string;
+}
+
+export interface ClockPausePayload {
+    id: string;
+}
+
+export interface ClockAdjustPayload {
+    id: string;
+    delta: number; // ms to add (positive) or remove (negative)
+}
+
+export interface ClockDestroyPayload {
+    id: string;
+}
+
+export interface ClockUpdatePayload {
+    id: string;
+    position?: ImagePosition;
+    zIndex?: number;
+    visible?: boolean;
+}
+
+export type ClockCreateEvent = Event<"ui.clock.create", ClockCreatePayload>;
+export type ClockStartEvent = Event<"ui.clock.start", ClockStartPayload>;
+export type ClockPauseEvent = Event<"ui.clock.pause", ClockPausePayload>;
+export type ClockAdjustEvent = Event<"ui.clock.adjust", ClockAdjustPayload>;
+export type ClockDestroyEvent = Event<"ui.clock.destroy", ClockDestroyPayload>;
+export type ClockUpdateEvent = Event<"ui.clock.update", ClockUpdatePayload>;
+
+export type ClockEvent =
+    | ClockCreateEvent
+    | ClockStartEvent
+    | ClockPauseEvent
+    | ClockAdjustEvent
+    | ClockDestroyEvent
+    | ClockUpdateEvent;
 
 /**
  * Application state (updated)

@@ -103,6 +103,7 @@ export const imageSetPayloadSchema = z.object({
     aspectRatio: z.enum(["cover", "contain", "fill", "native", "custom"]),
     position: imagePositionSchema.optional(),
     transition: imageTransitionSchema.optional(),
+    scale: z.number().min(0.1).max(5.0).optional(),
 });
 
 export const imageSetEventSchema = z.object({
@@ -170,10 +171,76 @@ export const imageEventSchema = z.discriminatedUnion("type", [
     imageLayerConfigEventSchema,
 ]);
 
+// Clock schemas
+export const clockCreatePayloadSchema = z.object({
+    id: z.string(),
+    duration: z.number().min(1000),
+    autoStart: z.boolean().optional(),
+    position: imagePositionSchema.optional(),
+    zIndex: z.number().optional(),
+});
+
+export const clockCreateEventSchema = z.object({
+    type: z.literal("ui.clock.create"),
+    payload: clockCreatePayloadSchema,
+    metadata: eventMetadataSchema,
+});
+
+export const clockStartEventSchema = z.object({
+    type: z.literal("ui.clock.start"),
+    payload: z.object({ id: z.string() }),
+    metadata: eventMetadataSchema,
+});
+
+export const clockPauseEventSchema = z.object({
+    type: z.literal("ui.clock.pause"),
+    payload: z.object({ id: z.string() }),
+    metadata: eventMetadataSchema,
+});
+
+export const clockAdjustEventSchema = z.object({
+    type: z.literal("ui.clock.adjust"),
+    payload: z.object({
+        id: z.string(),
+        delta: z.number(),
+    }),
+    metadata: eventMetadataSchema,
+});
+
+export const clockDestroyEventSchema = z.object({
+    type: z.literal("ui.clock.destroy"),
+    payload: z.object({ id: z.string() }),
+    metadata: eventMetadataSchema,
+});
+
+export const clockUpdatePayloadSchema = z.object({
+    id: z.string(),
+    position: imagePositionSchema.optional(),
+    zIndex: z.number().optional(),
+    visible: z.boolean().optional(),
+});
+
+export const clockUpdateEventSchema = z.object({
+    type: z.literal("ui.clock.update"),
+    payload: clockUpdatePayloadSchema,
+    metadata: eventMetadataSchema,
+});
+
+// Union of all clock events
+export const clockEventSchema = z.discriminatedUnion("type", [
+    clockCreateEventSchema,
+    clockStartEventSchema,
+    clockPauseEventSchema,
+    clockAdjustEventSchema,
+    clockDestroyEventSchema,
+    clockUpdateEventSchema,
+]);
+
 // All events
 export const eventSchema = z.discriminatedUnion("type", [
     ...audioEventSchema.options,
     ...imageEventSchema.options,
+    ...clockEventSchema.options,
 ]);
 
 /**
@@ -203,4 +270,13 @@ export type ImageEffectEvent = z.infer<typeof imageEffectEventSchema>;
 export type ImageLayerConfigPayload = z.infer<typeof imageLayerConfigPayloadSchema>;
 export type ImageLayerConfigEvent = z.infer<typeof imageLayerConfigEventSchema>;
 export type ImageEvent = z.infer<typeof imageEventSchema>;
+export type ClockCreatePayload = z.infer<typeof clockCreatePayloadSchema>;
+export type ClockCreateEvent = z.infer<typeof clockCreateEventSchema>;
+export type ClockStartEvent = z.infer<typeof clockStartEventSchema>;
+export type ClockPauseEvent = z.infer<typeof clockPauseEventSchema>;
+export type ClockAdjustEvent = z.infer<typeof clockAdjustEventSchema>;
+export type ClockDestroyEvent = z.infer<typeof clockDestroyEventSchema>;
+export type ClockUpdatePayload = z.infer<typeof clockUpdatePayloadSchema>;
+export type ClockUpdateEvent = z.infer<typeof clockUpdateEventSchema>;
+export type ClockEvent = z.infer<typeof clockEventSchema>;
 export type ValidatedEvent = z.infer<typeof eventSchema>;

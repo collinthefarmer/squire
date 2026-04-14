@@ -63,3 +63,15 @@ export const transitions = {
     fast: "all 0.15s ease",
     normal: "all 0.3s ease",
 } as const;
+
+/**
+ * Compose a theme hex color with an alpha channel.
+ *
+ * @example alpha(colors.blue[500], 0.2) → "rgba(59, 130, 246, 0.2)"
+ */
+export function alpha(hex: string, opacity: number): string {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+}

@@ -29,6 +29,19 @@ export type {
     AspectRatioMode,
     BlendMode,
     TransitionType,
+    ClockCreateEvent,
+    ClockStartEvent,
+    ClockPauseEvent,
+    ClockAdjustEvent,
+    ClockDestroyEvent,
+    ClockEvent,
+    ClockCreatePayload,
+    ClockStartPayload,
+    ClockPausePayload,
+    ClockAdjustPayload,
+    ClockDestroyPayload,
+    ClockUpdateEvent,
+    ClockUpdatePayload,
 } from "../../server/src/types";
 
 /**

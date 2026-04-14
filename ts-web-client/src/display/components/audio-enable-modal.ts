@@ -1,7 +1,7 @@
 import { BaseComponent } from "@components/base/base-component";
 import { Logger } from "@utils/logger";
 import { primaryButtonStyles, cardStyles } from "@styles/common-styles";
-import { colors, spacing, borderRadius } from "@styles/theme";
+import { colors, spacing, borderRadius, alpha } from "@styles/theme";
 
 /**
  * Modal component for enabling audio playback
@@ -128,7 +128,7 @@ export class AudioEnableModal extends BaseComponent {
             }
 
             dialog::backdrop {
-                background: rgba(0, 0, 0, 0.85);
+                background: ${alpha(colors.black, 0.85)};
                 backdrop-filter: blur(4px);
             }
 
@@ -144,7 +144,7 @@ export class AudioEnableModal extends BaseComponent {
                 max-width: 400px;
                 text-align: center;
                 color: ${colors.gray[100]};
-                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+                box-shadow: 0 25px 50px -12px ${alpha(colors.black, 0.5)};
             }
 
             .icon {

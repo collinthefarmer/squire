@@ -15,6 +15,12 @@ import type {
     ImageTransition,
     AspectRatioMode,
     BlendMode,
+    ClockCreateEvent,
+    ClockStartEvent,
+    ClockPauseEvent,
+    ClockAdjustEvent,
+    ClockDestroyEvent,
+    ClockUpdateEvent,
 } from "@types";
 
 /**
@@ -131,6 +137,7 @@ export class EventBuilder {
         aspectRatio: AspectRatioMode;
         position?: ImagePosition;
         transition?: ImageTransition;
+        scale?: number;
     }): ImageSetEvent {
         return {
             type: "visual.image.set",
@@ -140,6 +147,7 @@ export class EventBuilder {
                 aspectRatio: params.aspectRatio,
                 position: params.position,
                 transition: params.transition,
+                scale: params.scale,
             },
             metadata: {
                 timestamp: Date.now(),
@@ -230,6 +238,96 @@ export class EventBuilder {
                 layer: params.layer,
                 blendMode: params.blendMode,
                 opacity: params.opacity,
+                zIndex: params.zIndex,
+                visible: params.visible,
+            },
+            metadata: {
+                timestamp: Date.now(),
+                source: "master-client",
+            },
+        };
+    }
+
+    // -- Clock events --
+
+    static clockCreate(params: {
+        id: string;
+        duration: number;
+        autoStart?: boolean;
+        position?: ImagePosition;
+        zIndex?: number;
+    }): ClockCreateEvent {
+        return {
+            type: "ui.clock.create",
+            payload: {
+                id: params.id,
+                duration: params.duration,
+                autoStart: params.autoStart,
+                position: params.position,
+                zIndex: params.zIndex,
+            },
+            metadata: {
+                timestamp: Date.now(),
+                source: "master-client",
+            },
+        };
+    }
+
+    static clockStart(params: { id: string }): ClockStartEvent {
+        return {
+            type: "ui.clock.start",
+            payload: { id: params.id },
+            metadata: {
+                timestamp: Date.now(),
+                source: "master-client",
+            },
+        };
+    }
+
+    static clockPause(params: { id: string }): ClockPauseEvent {
+        return {
+            type: "ui.clock.pause",
+            payload: { id: params.id },
+            metadata: {
+                timestamp: Date.now(),
+                source: "master-client",
+            },
+        };
+    }
+
+    static clockAdjust(params: { id: string; delta: number }): ClockAdjustEvent {
+        return {
+            type: "ui.clock.adjust",
+            payload: { id: params.id, delta: params.delta },
+            metadata: {
+                timestamp: Date.now(),
+                source: "master-client",
+            },
+        };
+    }
+
+    static clockDestroy(params: { id: string }): ClockDestroyEvent {
+        return {
+            type: "ui.clock.destroy",
+            payload: { id: params.id },
+            metadata: {
+                timestamp: Date.now(),
+                source: "master-client",
+            },
+        };
+    }
+
+    static clockUpdate(params: {
+        id: string;
+        position?: ImagePosition;
+        zIndex?: number;
+        visible?: boolean;
+    }): ClockUpdateEvent {
+        return {
+            type: "ui.clock.update",
+            payload: {
+                id: params.id,
+                position: params.position,
                 zIndex: params.zIndex,
                 visible: params.visible,
             },

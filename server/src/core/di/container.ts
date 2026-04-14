@@ -57,4 +57,5 @@ export const TOKENS = {
     ClientRegistry: Symbol("ClientRegistry"),
     AudioService: Symbol("AudioService"),
     ImageService: Symbol("ImageService"),
+    CountdownService: Symbol("CountdownService"),
 };

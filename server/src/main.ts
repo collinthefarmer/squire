@@ -7,6 +7,8 @@ import { StateStore } from "@core/state/state-store";
 import { ClientRegistry } from "@core/transport/client-registry";
 import { AudioService } from "@services/audio/audio-service";
 import { ImageService } from "@services/image/image-service";
+import { CountdownService } from "@services/countdown/countdown-service";
+import { ImageResizeService } from "@services/image/image-resize-service";
 import { Logger } from "@utils/logger";
 import type { Event, ConnectedClient } from "@types";
 import { eventSchema } from "@schemas";
@@ -43,6 +45,13 @@ function initializeContainer(): Container {
         return new ImageService(
             container.resolve(TOKENS.EventStore),
             container.resolve(TOKENS.StateStore),
+            container.resolve(TOKENS.ClientRegistry),
+        );
+    });
+
+    container.registerFactory(TOKENS.CountdownService, () => {
+        return new CountdownService(
+            container.resolve(TOKENS.EventStore),
             container.resolve(TOKENS.ClientRegistry),
         );
     });
@@ -117,6 +126,7 @@ async function main() {
     // Initialize services (resolving instantiates them via DI)
     container.resolve<AudioService>(TOKENS.AudioService);
     container.resolve<ImageService>(TOKENS.ImageService);
+    container.resolve<CountdownService>(TOKENS.CountdownService);
     const clientRegistry = container.resolve<ClientRegistry>(
         TOKENS.ClientRegistry,
     );
@@ -127,6 +137,9 @@ async function main() {
     // Create and configure router
     const router = new Router();
     registerRoutes(router);
+
+    // Initialize image resize service
+    const imageResizeService = new ImageResizeService();
 
     // Start WebSocket server
     const server = Bun.serve<{ clientId: string }>({
@@ -166,6 +179,34 @@ async function main() {
             }
 
             if (url.pathname.startsWith(`/${PUBLIC_DIR}/`)) {
+                // Handle image resize requests
+                if (url.pathname.startsWith(`/${PUBLIC_DIR}/images/`)) {
+                    const filename = url.pathname.replace(`/${PUBLIC_DIR}/images/`, "");
+
+                    // Parse resize parameters
+                    const widthParam = url.searchParams.get("w");
+                    const heightParam = url.searchParams.get("h");
+                    const width = widthParam ? parseInt(widthParam, 10) : null;
+                    const height = heightParam ? parseInt(heightParam, 10) : null;
+
+                    // If resize params provided, use resize service
+                    if (width || height) {
+                        const resized = await imageResizeService.getResizedImage(filename, width, height);
+                        if (!resized) {
+                            return new Response("Not Found", { status: 404 });
+                        }
+
+                        return new Response(resized.buffer, {
+                            headers: {
+                                "Content-Type": resized.contentType,
+                                "Cache-Control": "public, max-age=31536000",
+                                "Access-Control-Allow-Origin": "*",
+                            },
+                        });
+                    }
+                }
+
+                // Serve original file (no resize params)
                 const filePath = "." + url.pathname;
                 const file = Bun.file(filePath);
 

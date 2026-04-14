@@ -1,0 +1,330 @@
+import { BaseComponent } from "@components/base/base-component";
+import { ServiceRegistry } from "@services/service-registry";
+import type { MasterClockService } from "@master/services/clock-service";
+import type { ClockState } from "@services/clock-state";
+import { getRemainingTime, formatTime } from "@services/clock-state";
+import {
+    containerStyles,
+    sectionHeaderStyles,
+    headerRowStyles,
+    outlineButtonStyles,
+    primaryButtonStyles,
+    secondaryButtonStyles,
+    dangerButtonStyles,
+    inputStyles,
+    flexColumn,
+} from "@styles/common-styles";
+import { colors, spacing, borderRadius } from "@styles/theme";
+
+/**
+ * Clock controls panel for master client
+ *
+ * Provides UI to create, start, pause, adjust, and destroy
+ * countdown clocks. Shows a list of active clocks with
+ * per-clock controls.
+ *
+ * @example
+ * ```html
+ * <clock-controls></clock-controls>
+ * ```
+ */
+export class ClockControls extends BaseComponent {
+    private clockService!: MasterClockService;
+    private animationFrameId: number | null = null;
+
+    override connectedCallback(): void {
+        super.connectedCallback();
+
+        this.clockService = ServiceRegistry.get<MasterClockService>("MasterClockService");
+
+        this.render();
+        this.setupEventListeners();
+        this.setupSubscriptions();
+    }
+
+    override disconnectedCallback(): void {
+        super.disconnectedCallback();
+
+        if (this.animationFrameId !== null) {
+            cancelAnimationFrame(this.animationFrameId);
+        }
+    }
+
+    protected override getStyles(): string {
+        return `
+            :host {
+                display: block;
+            }
+
+            ${containerStyles()}
+            ${sectionHeaderStyles()}
+            ${headerRowStyles()}
+            ${primaryButtonStyles()}
+            ${secondaryButtonStyles()}
+            ${dangerButtonStyles()}
+            ${outlineButtonStyles()}
+            ${inputStyles()}
+            ${flexColumn(spacing.sm)}
+
+            .section-header {
+                margin-bottom: ${spacing.sm};
+            }
+
+            .create-form {
+                display: flex;
+                gap: ${spacing.sm};
+                align-items: end;
+            }
+
+            .create-form .field {
+                display: flex;
+                flex-direction: column;
+                gap: ${spacing.xs};
+            }
+
+            .create-form label {
+                font-size: 0.625rem;
+                color: ${colors.gray[500]};
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }
+
+            .create-form input {
+                width: 5rem;
+            }
+
+            .clock-list {
+                display: flex;
+                flex-direction: column;
+                gap: ${spacing.sm};
+            }
+
+            .clock-item {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: ${spacing.sm};
+                padding: ${spacing.sm};
+                background: ${colors.gray[900]};
+                border-radius: ${borderRadius.sm};
+            }
+
+            .clock-info {
+                display: flex;
+                align-items: center;
+                gap: ${spacing.sm};
+                min-width: 0;
+            }
+
+            .clock-id {
+                font-size: 0.75rem;
+                color: ${colors.gray[200]};
+                font-weight: 500;
+            }
+
+            .clock-time {
+                font-family: 'Courier New', monospace;
+                font-size: 0.875rem;
+                font-weight: 600;
+                color: ${colors.white};
+            }
+
+            .clock-actions {
+                display: flex;
+                gap: ${spacing.xs};
+                flex-shrink: 0;
+            }
+
+            .clock-actions button {
+                padding: ${spacing.xs};
+                font-size: 0.625rem;
+            }
+
+            .empty {
+                font-size: 0.75rem;
+                color: ${colors.gray[500]};
+                text-align: center;
+                padding: ${spacing.md};
+            }
+        `;
+    }
+
+    protected override render(): void {
+        if (!this.shadowRoot) {
+            return;
+        }
+
+        this.shadowRoot.innerHTML = `
+            ${this.styleTag(this.getStyles())}
+
+            <div class="container">
+                <div class="section-header">Clocks</div>
+
+                <div class="flex-col">
+                    <div class="create-form">
+                        <div class="field">
+                            <label for="clock-id">Name</label>
+                            <input type="text" id="clock-id" placeholder="timer-1" />
+                        </div>
+                        <div class="field">
+                            <label for="clock-duration">Seconds</label>
+                            <input type="number" id="clock-duration" value="30" min="1" />
+                        </div>
+                        <button class="primary" id="create-btn" type="button">Create</button>
+                    </div>
+
+                    <div class="clock-list" id="clock-list">
+                        <div class="empty">No active clocks</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    private setupEventListeners(): void {
+        const createBtn = this.shadowRoot?.querySelector("#create-btn");
+        createBtn?.addEventListener("click", () => this.handleCreate());
+    }
+
+    private setupSubscriptions(): void {
+        this.subscribe(
+            this.clockService.getClocks$(),
+            (clocks) => {
+                this.renderClockList(clocks);
+
+                if (clocks.size > 0) {
+                    this.startUpdateLoop();
+                } else {
+                    this.stopUpdateLoop();
+                }
+            },
+        );
+    }
+
+    private handleCreate(): void {
+        const idInput = this.shadowRoot?.querySelector("#clock-id") as HTMLInputElement;
+        const durationInput = this.shadowRoot?.querySelector("#clock-duration") as HTMLInputElement;
+
+        if (!idInput || !durationInput) {
+            return;
+        }
+
+        const id = idInput.value.trim() || `clock-${Date.now()}`;
+        const seconds = parseInt(durationInput.value, 10);
+
+        if (isNaN(seconds) || seconds < 1) {
+            return;
+        }
+
+        this.clockService.createClock({
+            id,
+            duration: seconds * 1000,
+            autoStart: true,
+        });
+
+        idInput.value = "";
+    }
+
+    private renderClockList(clocks: Map<string, ClockState>): void {
+        const list = this.shadowRoot?.querySelector("#clock-list");
+        if (!list) {
+            return;
+        }
+
+        if (clocks.size === 0) {
+            list.innerHTML = '<div class="empty">No active clocks</div>';
+            return;
+        }
+
+        list.innerHTML = "";
+
+        for (const [id, clock] of clocks) {
+            const item = document.createElement("div");
+            item.className = "clock-item";
+            item.dataset.clockId = id;
+
+            const remaining = getRemainingTime(clock);
+
+            item.innerHTML = `
+                <div class="clock-info">
+                    <span class="clock-id">${id}</span>
+                    <span class="clock-time">${formatTime(remaining)}</span>
+                </div>
+                <div class="clock-actions">
+                    <button class="secondary toggle-btn" type="button">
+                        ${clock.running ? "Pause" : "Start"}
+                    </button>
+                    <button class="outline-button adjust-btn" data-delta="30000" type="button">+30s</button>
+                    <button class="outline-button adjust-btn" data-delta="-30000" type="button">-30s</button>
+                    <button class="danger destroy-btn" type="button">X</button>
+                </div>
+            `;
+
+            // Bind button handlers
+            const toggleBtn = item.querySelector(".toggle-btn") as HTMLButtonElement;
+            toggleBtn.addEventListener("click", () => {
+                if (clock.running) {
+                    this.clockService.pauseClock(id);
+                } else {
+                    this.clockService.startClock(id);
+                }
+            });
+
+            const adjustBtns = item.querySelectorAll(".adjust-btn");
+            for (const btn of Array.from(adjustBtns)) {
+                btn.addEventListener("click", () => {
+                    const delta = parseInt((btn as HTMLElement).dataset.delta ?? "0", 10);
+                    this.clockService.adjustClock(id, delta);
+                });
+            }
+
+            const destroyBtn = item.querySelector(".destroy-btn") as HTMLButtonElement;
+            destroyBtn.addEventListener("click", () => {
+                this.clockService.destroyClock(id);
+            });
+
+            list.appendChild(item);
+        }
+    }
+
+    // -- Live time update loop --
+
+    private startUpdateLoop(): void {
+        if (this.animationFrameId !== null) {
+            return;
+        }
+
+        const tick = (): void => {
+            this.updateClockTimes();
+            this.animationFrameId = requestAnimationFrame(tick);
+        };
+
+        this.animationFrameId = requestAnimationFrame(tick);
+    }
+
+    private stopUpdateLoop(): void {
+        if (this.animationFrameId !== null) {
+            cancelAnimationFrame(this.animationFrameId);
+            this.animationFrameId = null;
+        }
+    }
+
+    private updateClockTimes(): void {
+        const list = this.shadowRoot?.querySelector("#clock-list");
+        if (!list) {
+            return;
+        }
+
+        for (const [id, clock] of this.clockService.getClocks()) {
+            const item = list.querySelector(`[data-clock-id="${id}"]`);
+            if (!item) {
+                continue;
+            }
+
+            const timeEl = item.querySelector(".clock-time");
+            if (timeEl) {
+                timeEl.textContent = formatTime(getRemainingTime(clock));
+            }
+        }
+    }
+}

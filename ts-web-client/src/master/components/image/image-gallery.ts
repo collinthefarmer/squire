@@ -1,8 +1,15 @@
+import { map, distinctUntilChanged } from "rxjs";
 import { BaseComponent } from "@components/base/base-component";
 import { ServiceRegistry } from "@services/service-registry";
 import type { AssetService } from "@master/services/asset-service";
-import { sectionHeaderStyles, containerStyles } from "@styles/common-styles";
-import { colors, spacing, borderRadius } from "@styles/theme";
+import type { ImageToolbarService } from "@master/services/image-toolbar-service";
+import {
+    containerStyles,
+    sectionHeaderStyles,
+    outlineButtonStyles,
+    headerRowStyles,
+} from "@styles/common-styles";
+import { spacing } from "@styles/theme";
 
 /**
  * Image gallery container component
@@ -27,14 +34,17 @@ import { colors, spacing, borderRadius } from "@styles/theme";
  */
 export class ImageGallery extends BaseComponent {
     private assetService!: AssetService;
+    private imageToolbarService!: ImageToolbarService;
 
     override connectedCallback(): void {
         super.connectedCallback();
 
         this.assetService = ServiceRegistry.get<AssetService>("AssetService");
+        this.imageToolbarService = ServiceRegistry.get<ImageToolbarService>("ImageToolbarService");
 
         this.render();
         this.loadAssets();
+        this.setupSubscriptions();
     }
 
     protected override getStyles(): string {
@@ -45,37 +55,10 @@ export class ImageGallery extends BaseComponent {
 
             ${containerStyles()}
             ${sectionHeaderStyles()}
-
-            .container {
-                background: ${colors.gray[800]};
-                border-radius: ${borderRadius.lg};
-                padding: ${spacing.md};
-            }
+            ${outlineButtonStyles()}
+            ${headerRowStyles()}
 
             .section-header {
-                margin-bottom: ${spacing.sm};
-            }
-
-            .refresh-button {
-                background: transparent;
-                border: 1px solid ${colors.gray[600]};
-                color: ${colors.gray[200]};
-                padding: ${spacing.xs} ${spacing.sm};
-                border-radius: ${borderRadius.sm};
-                font-size: 0.75rem;
-                cursor: pointer;
-                transition: all 0.15s ease;
-            }
-
-            .refresh-button:hover {
-                background: ${colors.gray[700]};
-                border-color: ${colors.gray[500]};
-            }
-
-            .header-row {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
                 margin-bottom: ${spacing.sm};
             }
         `;
@@ -92,7 +75,7 @@ export class ImageGallery extends BaseComponent {
             <div class="container">
                 <div class="header-row">
                     <div class="section-header">Images</div>
-                    <button class="refresh-button" type="button">Refresh</button>
+                    <button class="outline-button" type="button">Refresh</button>
                 </div>
                 <image-asset-grid></image-asset-grid>
             </div>
@@ -101,12 +84,29 @@ export class ImageGallery extends BaseComponent {
         this.setupEventListeners();
     }
 
+    /**
+     * Sync toolbar aspect ratio to the asset grid so draggable
+     * children render the correct shadow preview.
+     */
+    private setupSubscriptions(): void {
+        this.subscribe(
+            this.imageToolbarService.getSettings$().pipe(
+                map((s) => s.aspectRatio),
+                distinctUntilChanged(),
+            ),
+            (aspectRatio) => {
+                const grid = this.shadowRoot?.querySelector("image-asset-grid");
+                grid?.setAttribute("aspect-ratio", aspectRatio);
+            },
+        );
+    }
+
     private setupEventListeners(): void {
         if (!this.shadowRoot) {
             return;
         }
 
-        const refreshButton = this.shadowRoot.querySelector(".refresh-button");
+        const refreshButton = this.shadowRoot.querySelector(".outline-button");
         if (refreshButton) {
             refreshButton.addEventListener("click", () => {
                 this.loadAssets();

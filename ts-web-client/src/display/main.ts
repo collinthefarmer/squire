@@ -5,10 +5,12 @@ import { ConnectionService } from "@services/connection-service";
 import { ConfigService } from "@services/config-service";
 import { AudioService } from "@display/services/audio-service";
 import { VisualService } from "@display/services/visual-service";
+import { DisplayClockService } from "@display/services/clock-service";
 import { AudioEnableModal } from "@display/components/audio-enable-modal";
 import { AudioPlayer } from "@display/components/audio-player";
 import { AudioChannelCard } from "@display/components/audio-channel-card";
 import { VisualRenderer } from "@display/components/visual-renderer";
+import { ClockRenderer } from "@display/components/clock-renderer";
 
 const logger = new Logger("DisplayClient");
 
@@ -28,6 +30,7 @@ function init(): void {
     const connection = new ConnectionService(eventBus, config);
     const audioService = new AudioService(eventBus, config);
     const visualService = new VisualService(eventBus);
+    const clockService = new DisplayClockService(eventBus);
 
     // Register singletons
     ServiceRegistry.register("ConfigService", config);
@@ -35,12 +38,14 @@ function init(): void {
     ServiceRegistry.register("ConnectionService", connection);
     ServiceRegistry.register("AudioService", audioService);
     ServiceRegistry.register("VisualService", visualService);
+    ServiceRegistry.register("ClockService", clockService);
 
     // Register components
     customElements.define("audio-enable-modal", AudioEnableModal);
     customElements.define("audio-channel-card", AudioChannelCard);
     customElements.define("audio-player", AudioPlayer);
     customElements.define("visual-renderer", VisualRenderer);
+    customElements.define("clock-renderer", ClockRenderer);
 
     // Show audio enable modal before connecting
     // This ensures user interaction unlocks audio context for autoplay

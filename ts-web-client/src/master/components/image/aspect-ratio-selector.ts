@@ -1,6 +1,6 @@
 import { BaseComponent } from "@components/base/base-component";
 import type { AspectRatioMode } from "@types";
-import { colors, spacing, borderRadius } from "@styles/theme";
+import { segmentedButtonStyles } from "@styles/common-styles";
 
 /**
  * Aspect ratio selector with flush radio button styling
@@ -25,43 +25,7 @@ export class AspectRatioSelector extends BaseComponent {
                 display: block;
             }
 
-            .button-group {
-                display: flex;
-                border-radius: ${borderRadius.md};
-                overflow: hidden;
-                border: 1px solid ${colors.gray[600]};
-            }
-
-            .option {
-                flex: 1;
-                padding: ${spacing.sm} ${spacing.md};
-                background: ${colors.gray[800]};
-                color: ${colors.gray[200]};
-                border: none;
-                font-size: 0.75rem;
-                font-weight: 500;
-                cursor: pointer;
-                transition: all 0.15s ease;
-                text-align: center;
-            }
-
-            .option:not(:last-child) {
-                border-right: 1px solid ${colors.gray[600]};
-            }
-
-            .option:hover:not(.selected) {
-                background: ${colors.gray[700]};
-            }
-
-            .option.selected {
-                background: ${colors.blue[600]};
-                color: ${colors.white};
-            }
-
-            .option:focus {
-                outline: none;
-                box-shadow: inset 0 0 0 2px ${colors.blue[400]};
-            }
+            ${segmentedButtonStyles()}
         `;
     }
 
