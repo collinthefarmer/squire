@@ -248,13 +248,15 @@ export class CanvasOverlay extends BaseComponent {
         this.activeDragId = null;
         this.pendingScale = null;
 
+        // Always include scale — even if unchanged during this drag —
+        // so the EventStore replay preserves it. Without this, a
+        // drag-only transform would overwrite a prior scale change
+        // with undefined, resetting scale to 1.0 on replay.
+        const finalScale = scale ?? obj.scale;
+
         const provider = this.providers.get(obj.type);
         if (provider) {
-            provider.transformObject(
-                objectId,
-                newPosition,
-                scale !== null ? scale : undefined,
-            );
+            provider.transformObject(objectId, newPosition, finalScale);
         }
     }
 
