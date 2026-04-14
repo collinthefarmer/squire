@@ -133,7 +133,7 @@ Some state is best computed client-side from event timestamps rather than mainta
 
 When using client-computed state, **event timestamps are critical**. The `metadata.timestamp` on lifecycle events (start, pause, resume) is what clients use to reconstruct timing. Ensure these timestamps are preserved accurately through the EventStore replay path.
 
-### 4.3 EventStore Replay
+### 4.3 EventStore Replay and the Folding Pattern
 
 When adding a new event domain, you must add replay support to the EventStore (`server/src/core/events/event-store.ts`):
 
@@ -143,6 +143,18 @@ When adding a new event domain, you must add replay support to the EventStore (`
 4. Include the new map in `getReplayEvents()`
 
 If you skip this, new clients will never see existing state for your domain.
+
+**The folding pattern:** Mutation events (transform, update, config) should be **folded into the stored creation event** rather than stored as separate replay entries. On replay, clients receive a single creation event per entity with the current effective state — no sequence of mutations to reconstruct.
+
+This prevents a class of bugs where mutation events carry optional fields: if a later mutation omits a field that an earlier one set, the client reducer skips the `undefined` field and the value is lost.
+
+**Examples in the codebase:**
+- `audio.volume` folds the new volume into the stored `audio.play` event's payload
+- `visual.image.transform` folds position/scale into the stored `visual.image.set` event
+- `ui.clock.update` folds position/zIndex/visible into the stored `ui.clock.create` event
+- `audio.resume` adjusts the stored play event's timestamp to account for pause duration
+
+**When NOT to fold:** Lifecycle events that build a timeline (clock `start`/`pause`/`adjust`) must be stored in sequence because clients compute elapsed time from the event timestamps. Only fold property changes that replace previous values.
 
 ---
 

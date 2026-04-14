@@ -206,39 +206,69 @@ export class EventStore {
         }
     }
 
+    /**
+     * Update image replay state using the folding pattern:
+     * mutation events (transform, effect, layer_config) are folded
+     * back into the stored set event rather than stored separately.
+     * On replay, clients receive a single set event per layer with
+     * the current effective state — no sequence of mutations to replay.
+     *
+     * This mirrors the audio pattern where volume changes fold into
+     * the stored play event.
+     */
     private updateImageStore(event: Event): void {
         const payload = event.payload as { layer: string };
         const layerId = payload.layer;
 
         switch (event.type) {
             case "visual.image.set":
-                // Start fresh for this layer
                 this.currentImageState.set(layerId, [event]);
                 break;
 
             case "visual.image.clear":
-                // Remove from replay
                 this.currentImageState.delete(layerId);
                 break;
 
             case "visual.image.transform": {
-                // Replace any existing transform event
-                const transformEvents = this.currentImageState.get(layerId);
-                if (transformEvents) {
-                    const filtered = transformEvents.filter(
-                        (e) => e.type !== "visual.image.transform",
-                    );
-                    filtered.push(event);
-                    this.currentImageState.set(layerId, filtered);
+                // Fold position/scale/rotation into the stored set event
+                const events = this.currentImageState.get(layerId);
+                if (!events) {
+                    break;
                 }
+
+                const setIndex = events.findIndex((e) => e.type === "visual.image.set");
+                if (setIndex === -1) {
+                    break;
+                }
+
+                const setEvent = events[setIndex];
+                const transformPayload = event.payload as {
+                    position?: unknown;
+                    scale?: number;
+                    rotation?: number;
+                };
+
+                events[setIndex] = {
+                    ...setEvent,
+                    payload: {
+                        ...(setEvent.payload as Record<string, unknown>),
+                        ...(transformPayload.position !== undefined
+                            ? { position: transformPayload.position }
+                            : {}),
+                        ...(transformPayload.scale !== undefined
+                            ? { scale: transformPayload.scale }
+                            : {}),
+                    },
+                };
                 break;
             }
 
             case "visual.image.effect": {
-                // Replace any existing effect event (effects are always complete)
-                const effectEvents = this.currentImageState.get(layerId);
-                if (effectEvents) {
-                    const filtered = effectEvents.filter(
+                // Fold effects into the stored set event as a separate field
+                // (set event doesn't have effects, so we store alongside)
+                const events = this.currentImageState.get(layerId);
+                if (events) {
+                    const filtered = events.filter(
                         (e) => e.type !== "visual.image.effect",
                     );
                     filtered.push(event);
@@ -248,10 +278,10 @@ export class EventStore {
             }
 
             case "visual.image.layer_config": {
-                // Replace any existing config event
-                const configEvents = this.currentImageState.get(layerId);
-                if (configEvents) {
-                    const filtered = configEvents.filter(
+                // Fold config into the stored set event as a separate field
+                const events = this.currentImageState.get(layerId);
+                if (events) {
+                    const filtered = events.filter(
                         (e) => e.type !== "visual.image.layer_config",
                     );
                     filtered.push(event);
@@ -262,6 +292,14 @@ export class EventStore {
         }
     }
 
+    /**
+     * Update clock replay state.
+     *
+     * Lifecycle events (start, pause, adjust) are stored in sequence
+     * because clients need the full timeline to compute elapsed time.
+     * Property updates (position, zIndex, visible) are folded into
+     * the stored create event using the folding pattern.
+     */
     private updateClockStore(event: Event): void {
         const payload = event.payload as { id: string };
         const clockId = payload.id;
@@ -278,7 +316,6 @@ export class EventStore {
             case "ui.clock.start": {
                 const events = this.currentClockState.get(clockId);
                 if (events) {
-                    // Only the latest start matters — remove any previous
                     const filtered = events.filter((e) => e.type !== "ui.clock.start");
                     filtered.push(event);
                     this.currentClockState.set(clockId, filtered);
@@ -296,12 +333,39 @@ export class EventStore {
             }
 
             case "ui.clock.update": {
+                // Fold position/zIndex/visible into the stored create event
                 const events = this.currentClockState.get(clockId);
-                if (events) {
-                    const filtered = events.filter((e) => e.type !== "ui.clock.update");
-                    filtered.push(event);
-                    this.currentClockState.set(clockId, filtered);
+                if (!events) {
+                    break;
                 }
+
+                const createIndex = events.findIndex((e) => e.type === "ui.clock.create");
+                if (createIndex === -1) {
+                    break;
+                }
+
+                const createEvent = events[createIndex];
+                const updatePayload = event.payload as {
+                    position?: unknown;
+                    zIndex?: number;
+                    visible?: boolean;
+                };
+
+                events[createIndex] = {
+                    ...createEvent,
+                    payload: {
+                        ...(createEvent.payload as Record<string, unknown>),
+                        ...(updatePayload.position !== undefined
+                            ? { position: updatePayload.position }
+                            : {}),
+                        ...(updatePayload.zIndex !== undefined
+                            ? { zIndex: updatePayload.zIndex }
+                            : {}),
+                        ...(updatePayload.visible !== undefined
+                            ? { visible: updatePayload.visible }
+                            : {}),
+                    },
+                };
                 break;
             }
         }
