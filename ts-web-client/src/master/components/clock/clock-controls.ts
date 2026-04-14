@@ -1,3 +1,5 @@
+import { interval, animationFrameScheduler, type Subscription } from "rxjs";
+import { takeUntil } from "rxjs";
 import { BaseComponent } from "@components/base/base-component";
 import { ServiceRegistry } from "@services/service-registry";
 import type { MasterClockService } from "@master/services/clock-service";
@@ -32,7 +34,7 @@ import { colors, spacing, borderRadius } from "@styles/theme";
  */
 export class ClockControls extends BaseComponent {
     private clockService!: MasterClockService;
-    private animationFrameId: number | null = null;
+    private animationSub: Subscription | null = null;
 
     override connectedCallback(): void {
         super.connectedCallback();
@@ -46,10 +48,7 @@ export class ClockControls extends BaseComponent {
 
     override disconnectedCallback(): void {
         super.disconnectedCallback();
-
-        if (this.animationFrameId !== null) {
-            cancelAnimationFrame(this.animationFrameId);
-        }
+        this.animationSub?.unsubscribe();
     }
 
     protected override getStyles(): string {
@@ -324,23 +323,18 @@ export class ClockControls extends BaseComponent {
     // -- Live time update loop --
 
     private startUpdateLoop(): void {
-        if (this.animationFrameId !== null) {
+        if (this.animationSub) {
             return;
         }
 
-        const tick = (): void => {
-            this.updateClockTimes();
-            this.animationFrameId = requestAnimationFrame(tick);
-        };
-
-        this.animationFrameId = requestAnimationFrame(tick);
+        this.animationSub = interval(0, animationFrameScheduler)
+            .pipe(takeUntil(this.destroy$))
+            .subscribe(() => this.updateClockTimes());
     }
 
     private stopUpdateLoop(): void {
-        if (this.animationFrameId !== null) {
-            cancelAnimationFrame(this.animationFrameId);
-            this.animationFrameId = null;
-        }
+        this.animationSub?.unsubscribe();
+        this.animationSub = null;
     }
 
     private updateClockTimes(): void {

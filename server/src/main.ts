@@ -282,8 +282,8 @@ async function main() {
                 // Replay events from EventStore (preserves original timestamps)
                 const replayEvents = eventStore.getReplayEvents();
 
-                for (const event of replayEvents) {
-                    ws.send(JSON.stringify(event));
+                if (replayEvents.length > 0) {
+                    ws.send(JSON.stringify(replayEvents));
                 }
 
                 logger.debug(`Client ${clientId} synced with ${replayEvents.length} events`);

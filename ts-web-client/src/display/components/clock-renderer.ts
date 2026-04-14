@@ -1,3 +1,5 @@
+import { interval, animationFrameScheduler, type Subscription } from "rxjs";
+import { takeUntil } from "rxjs";
 import { BaseComponent } from "@components/base/base-component";
 import { ServiceRegistry } from "@services/service-registry";
 import type { DisplayClockService } from "@display/services/clock-service";
@@ -16,7 +18,7 @@ import { colors, alpha, transitions } from "@styles/theme";
  */
 export class ClockRenderer extends BaseComponent {
     private clockService!: DisplayClockService;
-    private animationFrameId: number | null = null;
+    private animationSub: Subscription | null = null;
     private clocks: Map<string, ClockState> = new Map();
 
     override connectedCallback(): void {
@@ -30,7 +32,7 @@ export class ClockRenderer extends BaseComponent {
 
     override disconnectedCallback(): void {
         super.disconnectedCallback();
-        this.stopAnimationLoop();
+        this.animationSub?.unsubscribe();
     }
 
     protected override getStyles(): string {
@@ -165,23 +167,18 @@ export class ClockRenderer extends BaseComponent {
     // -- Animation loop --
 
     private startAnimationLoop(): void {
-        if (this.animationFrameId !== null) {
+        if (this.animationSub) {
             return;
         }
 
-        const tick = (): void => {
-            this.updateAllClocks();
-            this.animationFrameId = requestAnimationFrame(tick);
-        };
-
-        this.animationFrameId = requestAnimationFrame(tick);
+        this.animationSub = interval(0, animationFrameScheduler)
+            .pipe(takeUntil(this.destroy$))
+            .subscribe(() => this.updateAllClocks());
     }
 
     private stopAnimationLoop(): void {
-        if (this.animationFrameId !== null) {
-            cancelAnimationFrame(this.animationFrameId);
-            this.animationFrameId = null;
-        }
+        this.animationSub?.unsubscribe();
+        this.animationSub = null;
     }
 
     private updateAllClocks(): void {

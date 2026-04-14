@@ -10,15 +10,16 @@ import { colors } from "@styles/theme";
  * Visual renderer component
  *
  * Renders image layers on full-screen canvas with transforms and effects.
- * Uses shared canvas-renderer utilities for drawing logic.
+ * Uses requestAnimationFrame to coalesce rapid state updates (e.g.,
+ * batched replay events) into a single render per frame.
  */
 export class VisualRenderer extends BaseComponent {
     private canvas: HTMLCanvasElement | null = null;
     private ctx: CanvasRenderingContext2D | null = null;
     private imageCache!: ImageCache;
     private resizeObserver: ResizeObserver | null = null;
-    private pendingLayers: Map<string, ImageLayerState> | null = null;
-    private isRendering = false;
+    private latestLayers: Map<string, ImageLayerState> = new Map();
+    private renderFrameId: number | null = null;
 
     override connectedCallback(): void {
         super.connectedCallback();
@@ -33,13 +34,18 @@ export class VisualRenderer extends BaseComponent {
         const visualService = ServiceRegistry.get<VisualService>("VisualService");
 
         this.subscribe(visualService.getLayers$(), (layers) => {
-            this.drawAllLayers(layers);
+            this.latestLayers = layers;
+            this.requestRender();
         });
     }
 
     override disconnectedCallback(): void {
         super.disconnectedCallback();
         this.resizeObserver?.disconnect();
+
+        if (this.renderFrameId !== null) {
+            cancelAnimationFrame(this.renderFrameId);
+        }
     }
 
     protected override getStyles(): string {
@@ -67,9 +73,6 @@ export class VisualRenderer extends BaseComponent {
         `;
     }
 
-    /**
-     * Setup canvas and context
-     */
     private setupCanvas(): void {
         this.canvas = this.shadowRoot!.querySelector("canvas");
         if (!this.canvas) {
@@ -84,9 +87,6 @@ export class VisualRenderer extends BaseComponent {
         this.resizeCanvas();
     }
 
-    /**
-     * Observe container resize
-     */
     private observeResize(): void {
         this.resizeObserver = new ResizeObserver(() => {
             this.resizeCanvas();
@@ -97,9 +97,6 @@ export class VisualRenderer extends BaseComponent {
         }
     }
 
-    /**
-     * Resize canvas to match container
-     */
     private resizeCanvas(): void {
         if (!this.canvas || !this.shadowRoot?.host) {
             return;
@@ -109,37 +106,27 @@ export class VisualRenderer extends BaseComponent {
         this.canvas.width = rect.width;
         this.canvas.height = rect.height;
 
-        // Redraw on resize
-        const visualService = ServiceRegistry.get<VisualService>("VisualService");
-        this.drawAllLayers(visualService.getLayers());
+        this.requestRender();
     }
 
     /**
-     * Draw all image layers using shared utilities.
+     * Schedule a render on the next animation frame.
      *
-     * Serializes render calls so rapid updates (e.g., event replay
-     * on connect) don't race. If a new update arrives while rendering,
-     * it's queued and drawn after the current render completes.
+     * Multiple calls in the same frame collapse into one render
+     * with the latest layer state. This naturally handles batched
+     * replay events and rapid live updates.
      */
-    private async drawAllLayers(layers: Map<string, ImageLayerState>): Promise<void> {
-        if (!this.ctx || !this.canvas) {
+    private requestRender(): void {
+        if (this.renderFrameId !== null) {
             return;
         }
 
-        if (this.isRendering) {
-            this.pendingLayers = layers;
-            return;
-        }
+        this.renderFrameId = requestAnimationFrame(async () => {
+            this.renderFrameId = null;
 
-        this.isRendering = true;
-        await drawLayers(this.ctx, this.canvas, layers, this.imageCache);
-        this.isRendering = false;
-
-        // If a newer update arrived while rendering, draw it now
-        if (this.pendingLayers) {
-            const next = this.pendingLayers;
-            this.pendingLayers = null;
-            await this.drawAllLayers(next);
-        }
+            if (this.ctx && this.canvas) {
+                await drawLayers(this.ctx, this.canvas, this.latestLayers, this.imageCache);
+            }
+        });
     }
 }

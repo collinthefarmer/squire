@@ -143,21 +143,30 @@ export class ConnectionService {
     /**
      * Handle incoming WebSocket message
      */
+    /**
+     * Handle incoming WebSocket message.
+     *
+     * Replay events arrive as a JSON array (single batch from server).
+     * Live events arrive as single objects. Both are validated and
+     * routed to the EventBus synchronously, ensuring all replay state
+     * is final before any async rendering begins.
+     */
     private handleMessage(event: MessageEvent): void {
         try {
-            const message = JSON.parse(event.data);
+            const parsed = JSON.parse(event.data);
+            const events = Array.isArray(parsed) ? parsed : [parsed];
 
-            // Validate with Zod
-            const result = eventSchema.safeParse(message);
-            if (!result.success) {
-                this.logger.error("Invalid event received", {
-                    errors: result.error.format,
-                });
-                return;
+            for (const message of events) {
+                const result = eventSchema.safeParse(message);
+                if (!result.success) {
+                    this.logger.error("Invalid event received", {
+                        errors: result.error.format,
+                    });
+                    continue;
+                }
+
+                this.eventBus.emit(`server:${result.data.type}`, result.data);
             }
-
-            // Route to EventBus with server: prefix
-            this.eventBus.emit(`server:${result.data.type}`, result.data);
         } catch (error) {
             this.logger.error("Failed to process message", { error });
         }
