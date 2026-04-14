@@ -42,7 +42,7 @@ function init(): void {
     const connection = new ConnectionService(eventBus, config);
     const assetService = new AssetService(config);
     const imageToolbarService = new ImageToolbarService();
-    const visualService = new MasterVisualService(connection);
+    const visualService = new MasterVisualService(connection, eventBus);
     const clockService = new MasterClockService(connection, eventBus);
 
     ServiceRegistry.register("ConfigService", config);
