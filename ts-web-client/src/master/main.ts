@@ -79,8 +79,11 @@ function init(): void {
 
     customElements.define("squire-master-client", SquireMasterClient);
 
-    connection.connect();
-    assetService.refreshAssets();
+    // Fetch assets before connecting so image dimensions are
+    // available when the server replays image events on connect.
+    assetService.refreshAssets().then(() => {
+        connection.connect();
+    });
 }
 
 if (document.readyState === "loading") {
