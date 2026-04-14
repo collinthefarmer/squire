@@ -2,9 +2,11 @@ import { combineLatest, map } from "rxjs";
 import { BaseComponent } from "@components/base/base-component";
 import { ServiceRegistry } from "@services/service-registry";
 import { Logger } from "@utils/logger";
-import type { MasterVisualService, CanvasObject } from "@master/services/visual-service";
-import type { MasterClockService } from "@master/services/clock-service";
+import type { CanvasObject } from "@master/services/visual-service";
+import type { CanvasObjectProvider } from "@master/services/canvas-object-provider";
 import { colors, alpha } from "@styles/theme";
+import { DRAG } from "@shared/constants/drag";
+import { boundsToPercentages, applyDragDelta } from "./display-coordinates";
 import type { IframePreview } from "./iframe-preview";
 
 /**
@@ -21,8 +23,7 @@ import type { IframePreview } from "./iframe-preview";
  */
 export class CanvasOverlay extends BaseComponent {
     private logger = new Logger("CanvasOverlay");
-    private visualService!: MasterVisualService;
-    private clockService!: MasterClockService;
+    private providers = new Map<string, CanvasObjectProvider>();
     private objects: CanvasObject[] = [];
 
     private activeDragId: string | null = null;
@@ -32,14 +33,13 @@ export class CanvasOverlay extends BaseComponent {
     private dragDy = 0;
     private pendingScale: number | null = null;
 
-    private readonly DISPLAY_WIDTH = 1920;
-    private readonly DISPLAY_HEIGHT = 1080;
-
     override connectedCallback(): void {
         super.connectedCallback();
 
-        this.visualService = ServiceRegistry.get<MasterVisualService>("MasterVisualService");
-        this.clockService = ServiceRegistry.get<MasterClockService>("MasterClockService");
+        this.registerProvider("image",
+            ServiceRegistry.get<CanvasObjectProvider>("MasterVisualService"));
+        this.registerProvider("clock",
+            ServiceRegistry.get<CanvasObjectProvider>("MasterClockService"));
 
         this.render();
         this.setupSubscriptions();
@@ -88,13 +88,18 @@ export class CanvasOverlay extends BaseComponent {
         `;
     }
 
+    private registerProvider(type: string, provider: CanvasObjectProvider): void {
+        this.providers.set(type, provider);
+    }
+
     private setupSubscriptions(): void {
-        const combined$ = combineLatest([
-            this.visualService.getCanvasObjects$(),
-            this.clockService.getCanvasObjects$(),
-        ]).pipe(
-            map(([imageObjects, clockObjects]) =>
-                [...imageObjects, ...clockObjects].sort((a, b) => a.zIndex - b.zIndex),
+        const streams = Array.from(this.providers.values()).map(
+            (p) => p.getCanvasObjects$(),
+        );
+
+        const combined$ = combineLatest(streams).pipe(
+            map((arrays) =>
+                arrays.flat().sort((a, b) => a.zIndex - b.zIndex),
             ),
         );
 
@@ -148,21 +153,18 @@ export class CanvasOverlay extends BaseComponent {
             const handle = document.createElement("div");
             handle.className = "overlay-handle";
 
-            const pctLeft = (obj.bounds.x / this.DISPLAY_WIDTH) * 100;
-            const pctTop = (obj.bounds.y / this.DISPLAY_HEIGHT) * 100;
-            const pctWidth = (obj.bounds.width / this.DISPLAY_WIDTH) * 100;
-            const pctHeight = (obj.bounds.height / this.DISPLAY_HEIGHT) * 100;
+            const pct = boundsToPercentages(obj.bounds);
 
-            handle.style.left = `${pctLeft}%`;
-            handle.style.top = `${pctTop}%`;
-            handle.style.width = `${pctWidth}%`;
-            handle.style.height = `${pctHeight}%`;
+            handle.style.left = `${pct.left}%`;
+            handle.style.top = `${pct.top}%`;
+            handle.style.width = `${pct.width}%`;
+            handle.style.height = `${pct.height}%`;
 
             this.logger.debug("  handle", {
                 id: obj.id,
                 type: obj.type,
                 bounds: obj.bounds,
-                pct: { left: pctLeft, top: pctTop, width: pctWidth, height: pctHeight },
+                pct,
             });
 
             draggable.appendChild(handle);
@@ -179,31 +181,17 @@ export class CanvasOverlay extends BaseComponent {
         }
 
         const obj = this.objects.find((o) => o.id === objectId);
-        const handle = this.findHandle(objectId);
-
-        // Use the handle's visual center as the drag origin so the
-        // cursor stays centered. This prevents the handle from
-        // drifting away when CSS transforms shift its visual position.
-        let startX = e.detail.x;
-        let startY = e.detail.y;
-
-        if (handle) {
-            const rect = handle.getBoundingClientRect();
-            startX = rect.left + rect.width / 2;
-            startY = rect.top + rect.height / 2;
-        }
 
         this.activeDragId = objectId;
-        this.dragStartScreenX = startX;
-        this.dragStartScreenY = startY;
+        this.dragStartScreenX = e.detail.x;
+        this.dragStartScreenY = e.detail.y;
         this.dragDx = 0;
         this.dragDy = 0;
         this.pendingScale = null;
 
         this.logger.info("dragStart", {
             objectId,
-            mouseScreen: { x: e.detail.x, y: e.detail.y },
-            handleCenter: { x: startX, y: startY },
+            screen: { x: e.detail.x, y: e.detail.y },
             bounds: obj?.bounds,
             scale: obj?.scale,
         });
@@ -234,47 +222,40 @@ export class CanvasOverlay extends BaseComponent {
             return;
         }
 
-        // Convert screen-space drag delta to display-space pixels
         const dx = (e.detail.x - this.dragStartScreenX) / previewScale;
         const dy = (e.detail.y - this.dragStartScreenY) / previewScale;
+        const newPosition = applyDragDelta(obj.bounds, obj.scale, dx, dy);
 
-        // Recover pre-scale dimensions for correct offset computation
-        const preScaleW = obj.bounds.width / obj.scale;
-        const preScaleH = obj.bounds.height / obj.scale;
-
-        const oldCenterX = obj.bounds.x + obj.bounds.width / 2;
-        const oldCenterY = obj.bounds.y + obj.bounds.height / 2;
-        const newCenterX = oldCenterX + dx;
-        const newCenterY = oldCenterY + dy;
-
-        const newOffsetX = newCenterX - preScaleW / 2;
-        const newOffsetY = newCenterY - preScaleH / 2;
-        const newPosition = { x: `${newOffsetX}px`, y: `${newOffsetY}px` };
+        const objectId = this.activeDragId;
+        const scale = this.pendingScale;
 
         this.logger.info("dragEnd", {
-            objectId: this.activeDragId,
+            objectId,
             type: obj.type,
             previewScale,
             displayDelta: { dx, dy },
-            preScaleDims: { preScaleW, preScaleH },
-            oldCenter: { oldCenterX, oldCenterY },
-            newCenter: { newCenterX, newCenterY },
-            newOffset: { newOffsetX, newOffsetY },
             newPosition,
-            pendingScale: this.pendingScale,
+            pendingScale: scale,
         });
 
-        if (obj.type === "image") {
-            this.visualService.transformImage(this.activeDragId, {
-                position: newPosition,
-                ...(this.pendingScale !== null ? { scale: this.pendingScale } : {}),
-            });
-        } else if (obj.type === "clock") {
-            this.clockService.transformClock(this.activeDragId, newPosition);
+        // Clear drag state BEFORE the service call so the resulting
+        // re-render (triggered by updateOverlay → subscription) isn't
+        // blocked by the activeDragId guard in renderOverlays().
+        const handle = this.findHandle(objectId);
+        if (handle) {
+            handle.style.transform = "";
         }
-
         this.activeDragId = null;
         this.pendingScale = null;
+
+        const provider = this.providers.get(obj.type);
+        if (provider) {
+            provider.transformObject(
+                objectId,
+                newPosition,
+                scale !== null ? scale : undefined,
+            );
+        }
     }
 
     private handleOverlayDragScale(e: CustomEvent): void {
@@ -338,7 +319,7 @@ export class CanvasOverlay extends BaseComponent {
         const iframePreview = this.closest("iframe-preview") as IframePreview | null;
 
         if (!iframePreview) {
-            return 0.5;
+            return DRAG.PREVIEW_SCALE_FALLBACK;
         }
 
         return iframePreview.getPreviewScale();

@@ -1,0 +1,17 @@
+{
+    "providers": {
+        "ollama": {
+            "name": "Ollama",
+            "base_url": "http://localhost:11434/v1/",
+            "type": "openai-compat",
+            "models": [
+                {
+                    "name": "Gemma 4 (Latest)",
+                    "id": "gemma4:latest",
+                    "context_window": 128000,
+                    "default_max_tokens": 20000
+                }
+            ]
+        }
+    }
+}

@@ -25,6 +25,7 @@ export interface ImageToolbarSettings {
     position: ToolbarPosition;
     scale: number;
     imageDimensions: ImageDimensions | null;
+    previewScale: number;
 }
 
 /**
@@ -42,6 +43,7 @@ export class ImageToolbarService {
     private settings$ = new BehaviorSubject<ImageToolbarSettings>({
         layer: "background",
         aspectRatio: "contain",
+        previewScale: 0.5,
         position: { x: 0.5, y: 0.5 },
         scale: 1.0,
         imageDimensions: null,
@@ -117,5 +119,13 @@ export class ImageToolbarService {
         const current = this.settings$.value;
         this.settings$.next({ ...current, imageDimensions: dimensions });
         this.logger.info("Image dimensions updated", { dimensions });
+    }
+
+    /**
+     * Set preview scale (from iframe resize)
+     */
+    setPreviewScale(previewScale: number): void {
+        const current = this.settings$.value;
+        this.settings$.next({ ...current, previewScale });
     }
 }

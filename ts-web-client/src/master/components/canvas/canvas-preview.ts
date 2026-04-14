@@ -11,6 +11,7 @@ import {
 } from "./display-coordinates";
 import { containerStyles, sectionHeaderStyles } from "@styles/common-styles";
 import { spacing } from "@styles/theme";
+import { DISPLAY } from "@shared/constants/display";
 
 /**
  * Canvas preview container for master client
@@ -30,9 +31,6 @@ export class CanvasPreview extends BaseComponent {
     private isDragActive = false;
     private currentDragAsset: string | null = null;
 
-    private readonly DISPLAY_WIDTH = 1920;
-    private readonly DISPLAY_HEIGHT = 1080;
-
     override connectedCallback(): void {
         super.connectedCallback();
 
@@ -41,6 +39,7 @@ export class CanvasPreview extends BaseComponent {
 
         this.render();
         this.setupDragListeners();
+        this.setupPreviewScaleSync();
     }
 
     override disconnectedCallback(): void {
@@ -189,8 +188,8 @@ export class CanvasPreview extends BaseComponent {
         }
 
         const settings = this.imageToolbarService.getSettings();
-        const displayX = settings.position.x * this.DISPLAY_WIDTH;
-        const displayY = settings.position.y * this.DISPLAY_HEIGHT;
+        const displayX = settings.position.x * DISPLAY.WIDTH;
+        const displayY = settings.position.y * DISPLAY.HEIGHT;
 
         this.visualService.handleImageDrop(asset, displayX, displayY);
 
@@ -218,8 +217,8 @@ export class CanvasPreview extends BaseComponent {
             settings.imageDimensions,
             settings.aspectRatio,
             settings.scale,
-            this.DISPLAY_WIDTH,
-            this.DISPLAY_HEIGHT,
+            DISPLAY.WIDTH,
+            DISPLAY.HEIGHT,
         );
 
         if (!overlaps) {
@@ -237,5 +236,29 @@ export class CanvasPreview extends BaseComponent {
 
     private getDropZone(): DropZoneOverlay | null {
         return this.shadowRoot?.querySelector("drop-zone-overlay") as DropZoneOverlay | null;
+    }
+
+    /**
+     * Keep the toolbar's preview scale in sync with the iframe wrapper.
+     * This value propagates to DraggableImage via the asset gallery
+     * attribute chain for shadow sizing.
+     */
+    private setupPreviewScaleSync(): void {
+        const iframePreview = this.getIframePreview();
+        if (!iframePreview) {
+            return;
+        }
+
+        const updateScale = (): void => {
+            this.imageToolbarService.setPreviewScale(
+                iframePreview.getPreviewScale(),
+            );
+        };
+
+        // Initial sync + observe resizes
+        updateScale();
+        const observer = new ResizeObserver(updateScale);
+        observer.observe(iframePreview);
+        this.cleanup.push(() => observer.disconnect());
     }
 }

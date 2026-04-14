@@ -4,6 +4,7 @@ import type { DisplayClockService } from "@display/services/clock-service";
 import type { ClockState } from "@services/clock-state";
 import { CLOCK_DISPLAY, getRemainingTime, formatTime, getUrgency } from "@services/clock-state";
 import { calculatePosition } from "@utils/canvas-renderer";
+import { DISPLAY } from "@shared/constants/display";
 import { colors, alpha, transitions } from "@styles/theme";
 
 /**
@@ -17,9 +18,6 @@ export class ClockRenderer extends BaseComponent {
     private clockService!: DisplayClockService;
     private animationFrameId: number | null = null;
     private clocks: Map<string, ClockState> = new Map();
-
-    private readonly DISPLAY_WIDTH = 1920;
-    private readonly DISPLAY_HEIGHT = 1080;
 
     override connectedCallback(): void {
         super.connectedCallback();
@@ -114,18 +112,18 @@ export class ClockRenderer extends BaseComponent {
     private positionClockElement(el: HTMLElement, clock: ClockState): void {
         const x = calculatePosition(
             clock.position.x,
-            this.DISPLAY_WIDTH,
+            DISPLAY.WIDTH,
             CLOCK_DISPLAY.width,
         );
         const y = calculatePosition(
             clock.position.y,
-            this.DISPLAY_HEIGHT,
+            DISPLAY.HEIGHT,
             CLOCK_DISPLAY.height,
         );
 
         // Convert display-space to viewport percentage for responsive positioning
-        const leftPercent = (x / this.DISPLAY_WIDTH) * 100;
-        const topPercent = (y / this.DISPLAY_HEIGHT) * 100;
+        const leftPercent = (x / DISPLAY.WIDTH) * 100;
+        const topPercent = (y / DISPLAY.HEIGHT) * 100;
 
         el.style.left = `${leftPercent}%`;
         el.style.top = `${topPercent}%`;

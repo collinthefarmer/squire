@@ -1,3 +1,4 @@
+import { DRAG } from "@shared/constants/drag";
 import { ScaleGesture } from "./scale-gesture";
 
 /**
@@ -33,11 +34,9 @@ export class Draggable extends HTMLElement {
     protected currentY = 0;
 
     protected scaleGesture = new ScaleGesture(
-        { min: 0.1, max: 5.0, wheelFactor: 0.1 },
+        { min: DRAG.SCALE_MIN, max: DRAG.SCALE_MAX, wheelFactor: DRAG.WHEEL_FACTOR },
         (scale) => this.handleScaleChange(scale),
     );
-
-    private readonly CLICK_THRESHOLD = 5;
 
     connectedCallback(): void {
         this.style.display = "contents";
@@ -205,7 +204,7 @@ export class Draggable extends HTMLElement {
         const dx = x - this.startX;
         const dy = y - this.startY;
 
-        if (Math.sqrt(dx * dx + dy * dy) < this.CLICK_THRESHOLD) {
+        if (Math.sqrt(dx * dx + dy * dy) < DRAG.CLICK_THRESHOLD) {
             return;
         }
 

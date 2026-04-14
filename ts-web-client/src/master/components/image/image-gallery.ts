@@ -89,15 +89,18 @@ export class ImageGallery extends BaseComponent {
      * children render the correct shadow preview.
      */
     private setupSubscriptions(): void {
+        const settings$ = this.imageToolbarService.getSettings$();
+        const grid = (): Element | null | undefined =>
+            this.shadowRoot?.querySelector("image-asset-grid");
+
         this.subscribe(
-            this.imageToolbarService.getSettings$().pipe(
-                map((s) => s.aspectRatio),
-                distinctUntilChanged(),
-            ),
-            (aspectRatio) => {
-                const grid = this.shadowRoot?.querySelector("image-asset-grid");
-                grid?.setAttribute("aspect-ratio", aspectRatio);
-            },
+            settings$.pipe(map((s) => s.aspectRatio), distinctUntilChanged()),
+            (aspectRatio) => grid()?.setAttribute("aspect-ratio", aspectRatio),
+        );
+
+        this.subscribe(
+            settings$.pipe(map((s) => s.previewScale), distinctUntilChanged()),
+            (previewScale) => grid()?.setAttribute("preview-scale", String(previewScale)),
         );
     }
 

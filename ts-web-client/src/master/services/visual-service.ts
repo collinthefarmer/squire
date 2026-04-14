@@ -5,10 +5,10 @@ import { ServiceRegistry } from "@services/service-registry";
 import type { ConnectionService } from "@services/connection-service";
 import type { ImageToolbarService } from "./image-toolbar-service";
 import { EventBuilder } from "./event-builder";
-import {
-    calculateScaledDimensions,
-    calculatePosition,
-} from "@utils/canvas-renderer";
+import { calculateScaledDimensions } from "@utils/canvas-renderer";
+import { DISPLAY } from "@shared/constants/display";
+import { computeDisplayBounds } from "@master/components/canvas/display-coordinates";
+import type { CanvasObjectProvider } from "./canvas-object-provider";
 import type { AspectRatioMode, ImagePosition, ImageTransition } from "@types";
 
 /**
@@ -53,14 +53,11 @@ interface OverlayEntry {
  * Handles image layer management, provides layer targeting logic,
  * and tracks placed images for canvas overlay interaction.
  */
-export class MasterVisualService {
+export class MasterVisualService implements CanvasObjectProvider {
     private logger = new Logger("MasterVisualService");
     private connectionService: ConnectionService;
 
     private overlays$ = new BehaviorSubject<Map<string, OverlayEntry>>(new Map());
-
-    private readonly DISPLAY_WIDTH = 1920;
-    private readonly DISPLAY_HEIGHT = 1080;
 
     constructor(connectionService: ConnectionService) {
         this.connectionService = connectionService;
@@ -98,24 +95,11 @@ export class MasterVisualService {
             entry.aspectRatio,
             entry.naturalWidth,
             entry.naturalHeight,
-            this.DISPLAY_WIDTH,
-            this.DISPLAY_HEIGHT,
+            DISPLAY.WIDTH,
+            DISPLAY.HEIGHT,
         );
 
-        const posX = calculatePosition(entry.position.x, this.DISPLAY_WIDTH, width);
-        const posY = calculatePosition(entry.position.y, this.DISPLAY_HEIGHT, height);
-
-        const centerX = posX + width / 2;
-        const centerY = posY + height / 2;
-        const scaledW = width * entry.scale;
-        const scaledH = height * entry.scale;
-
-        const bounds = {
-            x: centerX - scaledW / 2,
-            y: centerY - scaledH / 2,
-            width: scaledW,
-            height: scaledH,
-        };
+        const bounds = computeDisplayBounds(entry.position, width, height, entry.scale);
 
         this.logger.debug("computeBounds", {
             input: {
@@ -126,8 +110,6 @@ export class MasterVisualService {
                 scale: entry.scale,
             },
             scaled: { width, height },
-            posOffset: { posX, posY },
-            center: { centerX, centerY },
             bounds,
         });
 
@@ -189,6 +171,13 @@ export class MasterVisualService {
     /**
      * Transform a placed image (reposition, scale, rotate)
      */
+    /**
+     * CanvasObjectProvider implementation — delegates to transformImage.
+     */
+    transformObject(id: string, position: ImagePosition, scale?: number): void {
+        this.transformImage(id, { position, scale });
+    }
+
     transformImage(
         layer: string,
         transform: { position?: ImagePosition; scale?: number; rotation?: number },
@@ -218,15 +207,15 @@ export class MasterVisualService {
         );
         const settings = imageToolbarService.getSettings();
 
-        const imgWidth = settings.imageDimensions?.width ?? this.DISPLAY_WIDTH;
-        const imgHeight = settings.imageDimensions?.height ?? this.DISPLAY_HEIGHT;
+        const imgWidth = settings.imageDimensions?.width ?? DISPLAY.WIDTH;
+        const imgHeight = settings.imageDimensions?.height ?? DISPLAY.HEIGHT;
 
         const { width, height } = calculateScaledDimensions(
             settings.aspectRatio,
             imgWidth,
             imgHeight,
-            this.DISPLAY_WIDTH,
-            this.DISPLAY_HEIGHT,
+            DISPLAY.WIDTH,
+            DISPLAY.HEIGHT,
         );
 
         const posX = displayX - width / 2;

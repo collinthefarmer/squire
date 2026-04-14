@@ -15,7 +15,9 @@ import {
     applyClockUpdate,
 } from "@services/clock-state";
 import { calculatePosition } from "@utils/canvas-renderer";
+import { DISPLAY } from "@shared/constants/display";
 import { EventBuilder } from "./event-builder";
+import type { CanvasObjectProvider } from "./canvas-object-provider";
 import type {
     CanvasObject,
     DisplayBounds,
@@ -37,13 +39,10 @@ import type {
  * entries for the canvas overlay system. Subscribes to server
  * events to receive its own events back for state confirmation.
  */
-export class MasterClockService {
+export class MasterClockService implements CanvasObjectProvider {
     private logger = new Logger("MasterClockService");
     private connectionService: ConnectionService;
     private clocks$ = new BehaviorSubject<Map<string, ClockState>>(new Map());
-
-    private readonly DISPLAY_WIDTH = 1920;
-    private readonly DISPLAY_HEIGHT = 1080;
 
     constructor(connectionService: ConnectionService, eventBus: EventBus) {
         this.connectionService = connectionService;
@@ -89,8 +88,8 @@ export class MasterClockService {
     }
 
     private computeBounds(clock: ClockState): DisplayBounds {
-        const x = calculatePosition(clock.position.x, this.DISPLAY_WIDTH, CLOCK_DISPLAY.width);
-        const y = calculatePosition(clock.position.y, this.DISPLAY_HEIGHT, CLOCK_DISPLAY.height);
+        const x = calculatePosition(clock.position.x, DISPLAY.WIDTH, CLOCK_DISPLAY.width);
+        const y = calculatePosition(clock.position.y, DISPLAY.HEIGHT, CLOCK_DISPLAY.height);
 
         return { x, y, width: CLOCK_DISPLAY.width, height: CLOCK_DISPLAY.height };
     }
@@ -131,6 +130,13 @@ export class MasterClockService {
     /**
      * Reposition a clock on the display.
      */
+    /**
+     * CanvasObjectProvider implementation — delegates to transformClock.
+     */
+    transformObject(id: string, position: ImagePosition, _scale?: number): void {
+        this.transformClock(id, position);
+    }
+
     transformClock(id: string, position: ImagePosition): void {
         this.logger.info("Transforming clock", { id, position });
         this.connectionService.send(EventBuilder.clockUpdate({ id, position }));

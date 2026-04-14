@@ -1,4 +1,6 @@
 import type { AspectRatioMode } from "@types";
+import { DISPLAY } from "@shared/constants/display";
+import { DRAG } from "@shared/constants/drag";
 import { Draggable } from "./draggable";
 import { DragGhost } from "./drag-ghost";
 import { DragShadow } from "./drag-shadow";
@@ -26,9 +28,6 @@ export class DraggableImage extends Draggable {
     private ghost = new DragGhost();
     private shadow = new DragShadow();
     private imageMetadata: { width: number; height: number } | null = null;
-
-    private readonly DISPLAY_WIDTH = 1920;
-    private readonly DISPLAY_HEIGHT = 1080;
 
     protected override onDragStart(x: number, y: number): void {
         this.readImageMetadata();
@@ -102,8 +101,8 @@ export class DraggableImage extends Draggable {
             aspectRatio: this.getAspectRatio(),
             imageWidth: this.imageMetadata.width,
             imageHeight: this.imageMetadata.height,
-            displayWidth: this.DISPLAY_WIDTH,
-            displayHeight: this.DISPLAY_HEIGHT,
+            displayWidth: DISPLAY.WIDTH,
+            displayHeight: DISPLAY.HEIGHT,
             previewScale: this.getPreviewScale(),
             userScale: this.scaleGesture.getScale(),
         });
@@ -118,41 +117,21 @@ export class DraggableImage extends Draggable {
             aspectRatio: this.getAspectRatio(),
             imageWidth: this.imageMetadata.width,
             imageHeight: this.imageMetadata.height,
-            displayWidth: this.DISPLAY_WIDTH,
-            displayHeight: this.DISPLAY_HEIGHT,
+            displayWidth: DISPLAY.WIDTH,
+            displayHeight: DISPLAY.HEIGHT,
             previewScale: this.getPreviewScale(),
             userScale: this.scaleGesture.getScale(),
         });
     }
 
-    private getCanvasWrapper(): HTMLElement | null {
-        const masterClient = document.querySelector("squire-master-client");
-        if (!masterClient?.shadowRoot) {
-            return null;
-        }
-
-        const canvasPreview =
-            masterClient.shadowRoot.querySelector("canvas-preview");
-        if (!canvasPreview?.shadowRoot) {
-            return null;
-        }
-
-        const iframePreview =
-            canvasPreview.shadowRoot.querySelector("iframe-preview");
-        if (!iframePreview?.shadowRoot) {
-            return null;
-        }
-
-        return iframePreview.shadowRoot.querySelector(
-            ".iframe-wrapper",
-        ) as HTMLElement;
-    }
-
     private getPreviewScale(): number {
-        const wrapper = this.getCanvasWrapper();
-        if (!wrapper) {
-            return 0.5;
+        const value = this.getAttribute("data-preview-scale");
+        if (value) {
+            const parsed = parseFloat(value);
+            if (!isNaN(parsed) && parsed > 0) {
+                return parsed;
+            }
         }
-        return wrapper.clientWidth / this.DISPLAY_WIDTH;
+        return DRAG.PREVIEW_SCALE_FALLBACK;
     }
 }

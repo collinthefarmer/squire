@@ -23,9 +23,10 @@ export interface AssetGalleryConfig {
  */
 /**
  * @attr aspect-ratio - Aspect ratio mode forwarded to draggable children ("cover" | "contain")
+ * @attr preview-scale - Preview scale factor forwarded to draggable children
  */
 export class AssetGrid extends BaseComponent {
-    static observedAttributes = ["aspect-ratio"];
+    static observedAttributes = ["aspect-ratio", "preview-scale"];
 
     private assetService!: AssetService;
     private config: AssetGalleryConfig;
@@ -46,11 +47,15 @@ export class AssetGrid extends BaseComponent {
     }
 
     attributeChangedCallback(name: string, _old: string | null, value: string | null): void {
-        if (name !== "aspect-ratio" || !value) {
+        if (!value) {
             return;
         }
 
-        this.syncAspectRatio(value);
+        if (name === "aspect-ratio") {
+            this.syncDraggableAttribute("data-aspect-ratio", value);
+        } else if (name === "preview-scale") {
+            this.syncDraggableAttribute("data-preview-scale", value);
+        }
     }
 
     protected override getStyles(): string {
@@ -229,6 +234,11 @@ export class AssetGrid extends BaseComponent {
             draggable.setAttribute("data-image-height", String(asset.height));
             draggable.setAttribute("data-aspect-ratio", aspectRatio);
 
+            const previewScale = this.getAttribute("preview-scale");
+            if (previewScale) {
+                draggable.setAttribute("data-preview-scale", previewScale);
+            }
+
             const item = document.createElement(
                 this.config.assetElement,
             ) as ImageHandle;
@@ -240,14 +250,14 @@ export class AssetGrid extends BaseComponent {
         }
     }
 
-    private syncAspectRatio(aspectRatio: string): void {
+    private syncDraggableAttribute(attrName: string, value: string): void {
         const grid = this.shadowRoot?.querySelector("ul");
         if (!grid) {
             return;
         }
 
         for (const draggable of Array.from(grid.querySelectorAll("squire-draggable"))) {
-            draggable.setAttribute("data-aspect-ratio", aspectRatio);
+            draggable.setAttribute(attrName, value);
         }
     }
 }

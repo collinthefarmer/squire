@@ -12,5 +12,8 @@
     },
     "peerDependencies": {
         "typescript": "^5"
+    },
+    "dependencies": {
+        "imgkit": "^2.2.1"
     }
 }
