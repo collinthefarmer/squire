@@ -163,8 +163,9 @@ async function main() {
     const imageResizeService = new ImageResizeService();
 
     // Start WebSocket server
+    const PORT = parseInt(process.env.PORT ?? "3000", 10);
     const server = Bun.serve<{ clientId: string }>({
-        port: 3000,
+        port: PORT,
 
         async fetch(req, server) {
             // Upgrade HTTP to WebSocket
@@ -320,8 +321,8 @@ async function main() {
     });
 
     logger.info(`Server running on ${server.hostname}:${server.port}`);
-    logger.info("WebSocket endpoint: ws://localhost:3000");
-    logger.info("Health check: http://localhost:3000/health");
+    logger.info(`WebSocket endpoint: ws://localhost:${PORT}`);
+    logger.info(`Health check: http://localhost:${PORT}/health`);
 }
 
 // Start server

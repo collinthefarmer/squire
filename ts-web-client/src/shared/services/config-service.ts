@@ -1,81 +1,80 @@
 /**
  * Configuration service
  *
- * Manages client configuration including WebSocket URLs and other settings
+ * Derives server endpoints from the browser's location by default.
+ * Ports can be overridden via query parameters:
+ *   ?serverPort=3000&displayPort=3001
  */
+
+const DEFAULT_SERVER_PORT = 3000;
+const DEFAULT_DISPLAY_PORT = 3001;
+
 export interface ClientConfig {
-    wsUrl: string;
-    apiUrl: string;
+    wsUrl?: string;
+    apiUrl?: string;
+    displayUrl?: string;
     clientType: "display" | "master";
 }
 
 export class ConfigService {
-    private config: ClientConfig;
+    private wsUrl: string;
+    private apiUrl: string;
+    private displayUrl: string;
+    private clientType: "display" | "master";
 
-    constructor(config?: Partial<ClientConfig>) {
-        this.config = {
-            wsUrl: this.getDefaultWebSocketUrl(),
-            apiUrl: this.getDefaultApiUrl(),
-            clientType: "display",
-            ...config,
-        };
+    constructor(config: ClientConfig) {
+        const serverPort = this.getQueryParam("serverPort") ?? DEFAULT_SERVER_PORT;
+        const displayPort = this.getQueryParam("displayPort") ?? DEFAULT_DISPLAY_PORT;
+
+        this.wsUrl = config.wsUrl ?? this.buildUrl("ws", serverPort);
+        this.apiUrl = config.apiUrl ?? this.buildUrl("http", serverPort);
+        this.displayUrl = config.displayUrl ?? this.buildUrl("http", displayPort);
+        this.clientType = config.clientType;
     }
 
-    /**
-     * Get WebSocket URL
-     */
     getWebSocketUrl(): string {
-        return this.config.wsUrl;
+        return this.wsUrl;
     }
 
-    /**
-     * Get API URL
-     */
     getApiUrl(): string {
-        return this.config.apiUrl;
+        return this.apiUrl;
     }
 
-    /**
-     * Get client type
-     */
+    getDisplayUrl(): string {
+        return this.displayUrl;
+    }
+
     getClientType(): "display" | "master" {
-        return this.config.clientType;
+        return this.clientType;
     }
 
-    /**
-     * Update configuration
-     */
-    updateConfig(updates: Partial<ClientConfig>): void {
-        this.config = { ...this.config, ...updates };
-    }
-
-    /**
-     * Get default WebSocket URL based on current location
-     */
-    private getDefaultWebSocketUrl(): string {
+    private buildUrl(scheme: "ws" | "http", port: number | string): string {
         if (typeof window === "undefined") {
-            return "ws://localhost:3000";
+            return `${scheme}://localhost:${port}`;
         }
 
-        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const isSecure = window.location.protocol === "https:";
+        const protocol = scheme === "ws"
+            ? (isSecure ? "wss:" : "ws:")
+            : (isSecure ? "https:" : "http:");
         const host = window.location.hostname;
-        const port = window.location.port || "3000";
 
         return `${protocol}//${host}:${port}`;
     }
 
-    /**
-     * Get default API URL based on current location
-     */
-    private getDefaultApiUrl(): string {
+    private getQueryParam(name: string): number | null {
         if (typeof window === "undefined") {
-            return "http://localhost:3000";
+            return null;
         }
 
-        const protocol = window.location.protocol;
-        const host = window.location.hostname;
-        const port = window.location.port || "3000";
+        const params = new URLSearchParams(window.location.search);
+        const value = params.get(name);
 
-        return `${protocol}//${host}:${port}`;
+        if (value === null) {
+            return null;
+        }
+
+        const parsed = parseInt(value, 10);
+        return isNaN(parsed) ? null : parsed;
     }
 }

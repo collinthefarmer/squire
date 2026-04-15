@@ -1,4 +1,6 @@
 import { BaseComponent } from "@components/base/base-component";
+import { ServiceRegistry } from "@services/service-registry";
+import type { ConfigService } from "@services/config-service";
 import { colors, borderRadius } from "@styles/theme";
 
 /**
@@ -68,12 +70,14 @@ export class IframePreview extends BaseComponent {
             return;
         }
 
+        const config = ServiceRegistry.get<ConfigService>("ConfigService");
+
         this.shadowRoot.innerHTML = `
             ${this.styleTag(this.getStyles())}
 
             <div class="iframe-wrapper">
                 <iframe
-                    src="http://localhost:3001"
+                    src="${config.getDisplayUrl()}"
                     title="Display Preview"
                     loading="lazy"
                 ></iframe>
@@ -98,7 +102,9 @@ export class IframePreview extends BaseComponent {
      * Get the current preview scale factor (container width / 1920).
      */
     getPreviewScale(): number {
-        const wrapper = this.shadowRoot?.querySelector(".iframe-wrapper") as HTMLElement;
+        const wrapper = this.shadowRoot?.querySelector(
+            ".iframe-wrapper",
+        ) as HTMLElement;
         if (!wrapper) {
             return 0.5;
         }
@@ -120,8 +126,12 @@ export class IframePreview extends BaseComponent {
     }
 
     private updateScale(): void {
-        const wrapper = this.shadowRoot?.querySelector(".iframe-wrapper") as HTMLElement;
-        const iframe = this.shadowRoot?.querySelector("iframe") as HTMLIFrameElement;
+        const wrapper = this.shadowRoot?.querySelector(
+            ".iframe-wrapper",
+        ) as HTMLElement;
+        const iframe = this.shadowRoot?.querySelector(
+            "iframe",
+        ) as HTMLIFrameElement;
         if (!wrapper || !iframe) {
             return;
         }

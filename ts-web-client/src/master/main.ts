@@ -34,11 +34,7 @@ import { AspectRatioSelector } from "@master/components/image/aspect-ratio-selec
  * Initialize master client
  */
 function init(): void {
-    const config = new ConfigService({
-        wsUrl: "ws://localhost:3000",
-        apiUrl: "http://localhost:3000",
-        clientType: "master",
-    });
+    const config = new ConfigService({ clientType: "master" });
 
     const eventBus = new EventBus();
     const connection = new ConnectionService(eventBus, config);

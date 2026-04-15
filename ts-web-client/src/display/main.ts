@@ -22,11 +22,7 @@ function init(): void {
     logger.info("Initializing display client");
 
     // Initialize services in dependency order
-    const config = new ConfigService({
-        wsUrl: "ws://localhost:3000",
-        apiUrl: "http://localhost:3000",
-        clientType: "display",
-    });
+    const config = new ConfigService({ clientType: "display" });
     const eventBus = new EventBus();
     const connection = new ConnectionService(eventBus, config);
     const audioService = new AudioService(eventBus, config);
