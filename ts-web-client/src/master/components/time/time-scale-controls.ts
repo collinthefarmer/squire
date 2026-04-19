@@ -8,7 +8,7 @@ import {
     sectionHeaderStyles,
     segmentedButtonStyles,
 } from "@styles/common-styles";
-import { colors, spacing } from "@styles/theme";
+import { colors, spacing, fontSize } from "@styles/theme";
 
 /**
  * Time-scale controls for master client
@@ -51,7 +51,7 @@ export class TimeScaleControls extends BaseComponent {
             }
 
             .scale-display {
-                font-size: 0.75rem;
+                font-size: ${fontSize.sm};
                 color: ${colors.gray[500]};
                 text-align: center;
                 margin-top: ${spacing.xs};

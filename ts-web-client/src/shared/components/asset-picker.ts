@@ -1,15 +1,24 @@
 import { BaseComponent } from "@components/base/base-component";
+import { emitDomEvent, type AppEventMap, type AssetChangeDetail } from "@utils/dom-events";
 import { ServiceRegistry } from "@services/service-registry";
 import type { AssetService, ImageAsset } from "@master/services/asset-service";
 import { selectStyles, labelStyles, flexColumn } from "@styles/common-styles";
-import { spacing, colors } from "@styles/theme";
+import { spacing, colors, fontSize } from "@styles/theme";
 
 export type AssetType = "audio" | "image";
+
+/**
+ * Keys of AppEventMap whose detail is AssetChangeDetail,
+ * used to constrain which event names a picker can emit.
+ */
+type AssetPickerEventName = {
+    [K in keyof AppEventMap]: AppEventMap[K] extends AssetChangeDetail ? K : never;
+}[keyof AppEventMap];
 
 export interface AssetPickerConfig {
     assetType: AssetType;
     label: string;
-    eventName: string;
+    eventName: AssetPickerEventName;
     placeholder: string;
 }
 
@@ -50,11 +59,11 @@ export class AssetPicker extends BaseComponent {
             ${selectStyles()}
 
             label {
-                font-size: 0.875rem;
+                font-size: ${fontSize.base};
             }
 
             select {
-                font-size: 0.875rem;
+                font-size: ${fontSize.base};
                 cursor: pointer;
             }
 
@@ -106,13 +115,7 @@ export class AssetPicker extends BaseComponent {
 
         select.addEventListener("change", () => {
             this.selectedAsset = select.value;
-            this.dispatchEvent(
-                new CustomEvent(this.config.eventName, {
-                    detail: { asset: this.selectedAsset },
-                    bubbles: true,
-                    composed: true,
-                })
-            );
+            emitDomEvent(this, this.config.eventName, { asset: this.selectedAsset });
         });
     }
 

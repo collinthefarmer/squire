@@ -1,8 +1,25 @@
 /**
  * Theme utilities for web components
  *
- * Provides shared color palette and design tokens
+ * Provides shared color palette and design tokens.
+ * All spatial values are anchored to a baseline grid via the
+ * --grid-unit CSS custom property (default 0.25rem / 4px).
  */
+
+/**
+ * Return a CSS calc() expression equal to `n` baseline grid units.
+ *
+ * References var(--grid-unit) so all sizing scales when
+ * the custom property is changed on :root.
+ *
+ * @example gu(3)   → "calc(var(--grid-unit) * 3)"   // 12px at default 4px unit
+ * @example gu(0)   → "0"
+ * @example gu(3.5) → "calc(var(--grid-unit) * 3.5)"  // 14px — half-units for type
+ */
+export function gu(n: number): string {
+    if (n === 0) return "0";
+    return `calc(var(--grid-unit) * ${n})`;
+}
 
 export const colors = {
     // Master client dark theme
@@ -44,19 +61,43 @@ export const colors = {
 } as const;
 
 export const spacing = {
-    xs: "0.25rem",
-    sm: "0.5rem",
-    md: "0.75rem",
-    lg: "1rem",
-    xl: "1.5rem",
-    "2xl": "2rem",
+    xs:    gu(1),   // 4px
+    sm:    gu(2),   // 8px
+    md:    gu(3),   // 12px
+    lg:    gu(4),   // 16px
+    xl:    gu(6),   // 24px
+    "2xl": gu(8),   // 32px
 } as const;
 
 export const borderRadius = {
-    sm: "0.25rem",
-    md: "0.375rem",
-    lg: "0.5rem",
+    sm:   gu(1),    // 4px
+    md:   gu(2),    // 8px
+    lg:   gu(3),    // 12px
     full: "9999px",
+} as const;
+
+export const fontSize = {
+    xs:    gu(2.5), // 10px — tiny labels
+    sm:    gu(3),   // 12px — secondary text
+    base:  gu(3.5), // 14px — body/default
+    md:    gu(4),   // 16px — sub-headings
+    lg:    gu(4.5), // 18px — section headers
+    xl:    gu(5),   // 20px — large headers
+    "2xl": gu(6),   // 24px — titles
+    "3xl": gu(8),   // 32px — hero titles
+} as const;
+
+export const sizing = {
+    thumbnail:     gu(30),  // 120px
+    inputMin:      gu(20),  // 80px
+    valueDisplay:  gu(12),  // 48px
+    sidebarWidth:  gu(70),  // 280px
+    maxWidth:      gu(350), // 1400px
+    statusDot:     gu(2),   // 8px
+    checkboxSm:    gu(4),   // 16px
+    checkboxLg:    gu(5),   // 20px
+    sliderThumb:   gu(4),   // 16px
+    sliderTrack:   gu(2),   // 8px
 } as const;
 
 export const transitions = {

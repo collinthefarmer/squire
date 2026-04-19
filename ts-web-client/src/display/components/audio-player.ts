@@ -4,7 +4,13 @@ import type { AudioService } from "@display/services/audio-service";
 import type { AudioChannelState } from "@types";
 import { AudioChannelCard } from "./audio-channel-card";
 import { flexColumn } from "@styles/common-styles";
-import { colors, spacing, borderRadius, alpha, transitions } from "@styles/theme";
+import {
+    colors,
+    spacing,
+    borderRadius,
+    alpha,
+    transitions,
+} from "@styles/theme";
 
 const COLLAPSE_DELAY = 3000;
 
@@ -31,7 +37,7 @@ export class AudioPlayer extends BaseComponent {
         });
 
         this.latestChannels = audioService.getChannels();
-        this.renderView();
+        this.render();
     }
 
     override disconnectedCallback(): void {
@@ -114,38 +120,7 @@ export class AudioPlayer extends BaseComponent {
         `;
     }
 
-    private onChannelsUpdate(channels: Map<string, AudioChannelState>): void {
-        this.latestChannels = channels;
-        this.resetCollapseTimer();
-
-        if (channels.size > 0) {
-            this.viewMode = "expanded";
-        }
-
-        this.renderView();
-        this.startCollapseTimer();
-    }
-
-    private startCollapseTimer(): void {
-        if (this.latestChannels.size === 0) {
-            return;
-        }
-
-        this.collapseTimer = window.setTimeout(() => {
-            this.collapseTimer = null;
-            this.viewMode = "condensed";
-            this.renderView();
-        }, COLLAPSE_DELAY);
-    }
-
-    private resetCollapseTimer(): void {
-        if (this.collapseTimer !== null) {
-            clearTimeout(this.collapseTimer);
-            this.collapseTimer = null;
-        }
-    }
-
-    private renderView(): void {
+    protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
@@ -164,11 +139,45 @@ export class AudioPlayer extends BaseComponent {
         }
     }
 
+    private onChannelsUpdate(channels: Map<string, AudioChannelState>): void {
+        this.latestChannels = channels;
+        this.resetCollapseTimer();
+
+        if (channels.size > 0) {
+            this.viewMode = "expanded";
+        }
+
+        this.render();
+        this.startCollapseTimer();
+    }
+
+    private startCollapseTimer(): void {
+        if (this.latestChannels.size === 0) {
+            return;
+        }
+
+        this.collapseTimer = window.setTimeout(() => {
+            this.collapseTimer = null;
+            this.viewMode = "condensed";
+            this.render();
+        }, COLLAPSE_DELAY);
+    }
+
+    private resetCollapseTimer(): void {
+        if (this.collapseTimer !== null) {
+            clearTimeout(this.collapseTimer);
+            this.collapseTimer = null;
+        }
+    }
+
     private renderCondensed(channels: AudioChannelState[]): void {
-        const dots = channels.map((ch) =>
-            `<div class="dot ${ch.playing ? "playing" : "paused"}"
+        const dots = channels
+            .map(
+                (ch) =>
+                    `<div class="dot ${ch.playing ? "playing" : "paused"}"
                   title="${ch.id}: ${ch.playing ? "Playing" : "Paused"}"></div>`,
-        ).join("");
+            )
+            .join("");
 
         this.shadowRoot!.innerHTML = `
             ${this.styleTag(this.getStyles())}

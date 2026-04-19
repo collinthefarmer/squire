@@ -1,15 +1,18 @@
 import { BaseComponent } from "@components/base/base-component";
-import { colors, spacing, borderRadius } from "@styles/theme";
+import type { SidebarTabs } from "./sidebar-tabs";
+import { colors, spacing, borderRadius, fontSize, sizing } from "@styles/theme";
 
 /**
  * Squire master client root component
  *
- * Container for audio and image control panels
+ * Lays out the canvas preview alongside a tabbed sidebar
+ * with Image, Time, and Audio controls.
  */
 export class SquireMasterClient extends BaseComponent {
     override connectedCallback(): void {
         super.connectedCallback();
         this.render();
+        this.initTabs();
     }
 
     protected override getStyles(): string {
@@ -21,7 +24,7 @@ export class SquireMasterClient extends BaseComponent {
             }
 
             .master-client {
-                max-width: 1400px;
+                max-width: ${sizing.maxWidth};
                 margin: 0 auto;
                 padding: ${spacing["2xl"]};
             }
@@ -31,42 +34,44 @@ export class SquireMasterClient extends BaseComponent {
             }
 
             .title {
-                font-size: 2rem;
+                font-size: ${fontSize["3xl"]};
                 font-weight: 700;
                 color: ${colors.gray[50]};
                 margin-bottom: ${spacing.sm};
             }
 
             .subtitle {
-                font-size: 1rem;
+                font-size: ${fontSize.md};
                 color: ${colors.gray[500]};
             }
 
             .preview-section {
-                margin-bottom: ${spacing["2xl"]};
                 display: grid;
-                grid-template-columns: 1fr 280px;
+                grid-template-columns: minmax(0, 1fr) ${sizing.sidebarWidth};
                 gap: ${spacing.xl};
+                margin-bottom: ${spacing.xl};
             }
 
             .preview-main {
-                flex: 1;
+                min-width: 0;
             }
 
-            .preview-sidebar {
+            .bottom-section {
+                display: block;
+            }
+
+            .tab-panel {
                 display: flex;
                 flex-direction: column;
                 gap: ${spacing.md};
+                flex: 1;
+                min-height: 0;
             }
 
             @media (max-width: 1200px) {
                 .preview-section {
                     grid-template-columns: 1fr;
                 }
-            }
-
-            .controls-container {
-                display: block;
             }
 
             .status-bar {
@@ -80,13 +85,13 @@ export class SquireMasterClient extends BaseComponent {
                 display: flex;
                 align-items: center;
                 gap: ${spacing.md};
-                font-size: 0.875rem;
+                font-size: ${fontSize.base};
                 color: ${colors.gray[200]};
             }
 
             .status-indicator {
-                width: 0.5rem;
-                height: 0.5rem;
+                width: ${sizing.statusDot};
+                height: ${sizing.statusDot};
                 border-radius: ${borderRadius.full};
                 background: ${colors.green[500]};
                 animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
@@ -121,16 +126,23 @@ export class SquireMasterClient extends BaseComponent {
                     <div class="preview-main">
                         <canvas-preview></canvas-preview>
                     </div>
-                    <div class="preview-sidebar">
-                        <image-toolbar></image-toolbar>
-                        <image-gallery></image-gallery>
-                        <clock-controls></clock-controls>
-                        <time-scale-controls></time-scale-controls>
-                    </div>
+                    <sidebar-tabs>
+                        <div slot="image" class="tab-panel">
+                            <image-toolbar></image-toolbar>
+                            <image-gallery></image-gallery>
+                        </div>
+                        <div slot="time" class="tab-panel">
+                            <clock-controls></clock-controls>
+                            <time-scale-controls></time-scale-controls>
+                        </div>
+                        <div slot="audio" class="tab-panel">
+                            <audio-controls></audio-controls>
+                        </div>
+                    </sidebar-tabs>
                 </div>
 
-                <div class="controls-container">
-                    <audio-controls></audio-controls>
+                <div class="bottom-section">
+                    <slot name="bottom"></slot>
                 </div>
             </div>
 
@@ -139,5 +151,15 @@ export class SquireMasterClient extends BaseComponent {
                 <span>Connected to server</span>
             </div>
         `;
+    }
+
+    private initTabs(): void {
+        const tabs = this.shadowRoot?.querySelector("sidebar-tabs") as SidebarTabs | null;
+
+        tabs?.setTabs([
+            { id: "image", label: "Image" },
+            { id: "time", label: "Time" },
+            { id: "audio", label: "Audio" },
+        ]);
     }
 }

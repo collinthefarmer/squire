@@ -1,6 +1,8 @@
 import { BehaviorSubject, type Observable } from "rxjs";
+import { map, distinctUntilChanged } from "rxjs";
 import { Logger } from "@utils/logger";
-import type { AspectRatioMode } from "@types";
+import { DRAG } from "@shared/constants/drag";
+import { LAYER } from "@shared/constants/layer";
 
 /**
  * Position using normalized 0-1 values
@@ -21,7 +23,6 @@ export interface ImageDimensions {
 
 export interface ImageToolbarSettings {
     layer: string;
-    aspectRatio: AspectRatioMode;
     position: ToolbarPosition;
     scale: number;
     imageDimensions: ImageDimensions | null;
@@ -37,17 +38,15 @@ export interface ImageToolbarSettings {
 export class ImageToolbarService {
     private logger = new Logger("ImageToolbarService");
 
-    private readonly MIN_SCALE = 0.1;
-    private readonly MAX_SCALE = 5.0;
-
     private settings$ = new BehaviorSubject<ImageToolbarSettings>({
-        layer: "background",
-        aspectRatio: "contain",
+        layer: LAYER.DEFAULT,
         previewScale: 0.5,
         position: { x: 0.5, y: 0.5 },
         scale: 1.0,
         imageDimensions: null,
     });
+
+    private registeredLayers$ = new BehaviorSubject<string[]>([LAYER.DEFAULT]);
 
     /**
      * Get settings as observable for reactive updates
@@ -73,15 +72,6 @@ export class ImageToolbarService {
     }
 
     /**
-     * Set aspect ratio mode
-     */
-    setAspectRatio(aspectRatio: AspectRatioMode): void {
-        const current = this.settings$.value;
-        this.settings$.next({ ...current, aspectRatio });
-        this.logger.info("Aspect ratio updated", { aspectRatio });
-    }
-
-    /**
      * Set position (normalized 0-1 values)
      */
     setPosition(position: ToolbarPosition): void {
@@ -96,8 +86,8 @@ export class ImageToolbarService {
     setScale(scale: number): void {
         const current = this.settings$.value;
         const clampedScale = Math.max(
-            this.MIN_SCALE,
-            Math.min(this.MAX_SCALE, scale),
+            DRAG.SCALE_MIN,
+            Math.min(DRAG.SCALE_MAX, scale),
         );
         this.settings$.next({ ...current, scale: clampedScale });
         this.logger.info("Scale updated", { scale: clampedScale });
@@ -127,5 +117,79 @@ export class ImageToolbarService {
     setPreviewScale(previewScale: number): void {
         const current = this.settings$.value;
         this.settings$.next({ ...current, previewScale });
+    }
+
+    // -- Layer registry --
+
+    getRegisteredLayers$(): Observable<string[]> {
+        return this.registeredLayers$.asObservable();
+    }
+
+    getRegisteredLayers(): string[] {
+        return this.registeredLayers$.value;
+    }
+
+    /**
+     * Get the currently selected layer as an observable.
+     * Derived from settings$ to avoid a separate subject.
+     */
+    getSelectedLayer$(): Observable<string> {
+        return this.settings$.pipe(
+            map((s) => s.layer),
+            distinctUntilChanged(),
+        );
+    }
+
+    /**
+     * Add a named layer to the registry and select it.
+     * Duplicate names are ignored.
+     */
+    registerLayer(name: string): void {
+        const current = this.registeredLayers$.value;
+        if (current.includes(name)) {
+            this.setLayer(name);
+            return;
+        }
+
+        this.registeredLayers$.next([...current, name]);
+        this.setLayer(name);
+        this.logger.info("Layer registered", { name });
+    }
+
+    /**
+     * Remove a named layer from the registry.
+     * If it was selected, falls back to the first remaining layer.
+     */
+    unregisterLayer(name: string): void {
+        const current = this.registeredLayers$.value;
+        const filtered = current.filter((l) => l !== name);
+
+        if (filtered.length === 0) {
+            filtered.push(LAYER.DEFAULT);
+        }
+
+        this.registeredLayers$.next(filtered);
+
+        if (this.settings$.value.layer === name) {
+            this.setLayer(filtered[0] ?? LAYER.DEFAULT);
+        }
+
+        this.logger.info("Layer unregistered", { name });
+    }
+
+    /**
+     * Ensure all server-known layer IDs appear in the registry.
+     * Preserves existing order; new layers are appended.
+     */
+    syncServerLayers(serverLayerIds: string[]): void {
+        const current = this.registeredLayers$.value;
+        const missing = serverLayerIds.filter((id) => !current.includes(id));
+
+        if (missing.length === 0) {
+            return;
+        }
+
+        this.registeredLayers$.next([...current, ...missing]);
+        this.logger.info("Synced server layers", { added: missing });
     }
 }

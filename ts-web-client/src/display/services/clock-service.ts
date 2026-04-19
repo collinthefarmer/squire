@@ -34,8 +34,10 @@ import type {
 export class DisplayClockService {
     private logger = new Logger("DisplayClockService");
     private clocks$ = new BehaviorSubject<Map<string, ClockState>>(new Map());
+    private timeScaleService: TimeScaleService;
 
     constructor(private eventBus: EventBus) {
+        this.timeScaleService = ServiceRegistry.get<TimeScaleService>("TimeScaleService");
         this.setupEventListeners();
         this.setupTimeScaleListener();
     }
@@ -61,12 +63,7 @@ export class DisplayClockService {
     }
 
     private getTimeScale(): number {
-        try {
-            const ts = ServiceRegistry.get<TimeScaleService>("TimeScaleService");
-            return ts.getScale();
-        } catch {
-            return 1.0;
-        }
+        return this.timeScaleService.getScale();
     }
 
     private setupEventListeners(): void {

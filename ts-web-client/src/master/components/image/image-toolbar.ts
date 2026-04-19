@@ -1,30 +1,37 @@
+import { combineLatest } from "rxjs";
 import { BaseComponent } from "@components/base/base-component";
+import { onDomEvent } from "@utils/dom-events";
 import { ServiceRegistry } from "@services/service-registry";
 import type { ImageToolbarService } from "@master/services/image-toolbar-service";
-import type { AspectRatioMode } from "@types";
-import { containerStyles, sectionHeaderStyles, labelStyles } from "@styles/common-styles";
+import type { MasterVisualService } from "@master/services/visual-service";
+import type { LayerControlPanel, LayerEntry } from "./layer-control-panel";
+import type { ImageLayerState } from "@types";
+import { containerStyles, sectionHeaderStyles } from "@styles/common-styles";
 import { colors, spacing, borderRadius } from "@styles/theme";
 
 /**
  * Image toolbar container component
  *
  * Provides controls for configuring how dropped images are placed:
- * - Layer selector
- * - Aspect ratio selector (cover/contain)
- * - Visual position control
+ * - Layer control panel (add, select, reorder, toggle, remove)
  *
- * Coordinates child components and updates ImageToolbarService with settings.
+ * Orchestrates communication between the layer panel, toolbar service,
+ * and visual service. Event handlers are thin — they delegate to
+ * service methods rather than containing business logic.
  */
 export class ImageToolbar extends BaseComponent {
     private imageToolbarService!: ImageToolbarService;
+    private visualService!: MasterVisualService;
 
     override connectedCallback(): void {
         super.connectedCallback();
 
         this.imageToolbarService = ServiceRegistry.get<ImageToolbarService>("ImageToolbarService");
+        this.visualService = ServiceRegistry.get<MasterVisualService>("MasterVisualService");
 
         this.render();
         this.setupEventListeners();
+        this.setupSubscriptions();
     }
 
     protected override getStyles(): string {
@@ -35,7 +42,6 @@ export class ImageToolbar extends BaseComponent {
 
             ${containerStyles()}
             ${sectionHeaderStyles()}
-            ${labelStyles()}
 
             .toolbar {
                 background: ${colors.gray[800]};
@@ -50,23 +56,6 @@ export class ImageToolbar extends BaseComponent {
                 margin-bottom: 0;
             }
 
-            .control-group {
-                display: flex;
-                flex-direction: column;
-                gap: ${spacing.xs};
-            }
-
-            .control-row {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: ${spacing.sm};
-            }
-
-            label {
-                font-size: 0.625rem;
-                text-transform: uppercase;
-                letter-spacing: 0.05em;
-            }
         `;
     }
 
@@ -79,19 +68,7 @@ export class ImageToolbar extends BaseComponent {
             ${this.styleTag(this.getStyles())}
 
             <div class="toolbar">
-                <div class="section-header">Image Settings</div>
-
-                <div class="control-row">
-                    <div class="control-group">
-                        <label>Layer</label>
-                        <layer-selector></layer-selector>
-                    </div>
-                    <div class="control-group">
-                        <label>Fit</label>
-                        <aspect-ratio-selector></aspect-ratio-selector>
-                    </div>
-                </div>
-
+                <layer-control-panel></layer-control-panel>
             </div>
         `;
     }
@@ -101,14 +78,84 @@ export class ImageToolbar extends BaseComponent {
             return;
         }
 
-        this.shadowRoot.addEventListener("layer-change", ((e: CustomEvent) => {
-            this.imageToolbarService.setLayer(e.detail.layer);
-        }) as EventListener);
+        this.cleanup.push(
+            onDomEvent(this.shadowRoot, "layer-select", (e) => {
+                this.imageToolbarService.setLayer(e.detail.layer);
+            }),
 
-        this.shadowRoot.addEventListener("aspect-ratio-change", ((e: CustomEvent) => {
-            const aspectRatio = e.detail.aspectRatio as AspectRatioMode;
-            this.imageToolbarService.setAspectRatio(aspectRatio);
-        }) as EventListener);
+            onDomEvent(this.shadowRoot, "layer-add", (e) => {
+                this.imageToolbarService.registerLayer(e.detail.name);
+            }),
 
+            onDomEvent(this.shadowRoot, "layer-remove", (e) => {
+                const serverLayer = this.visualService.getLayers().get(e.detail.layer);
+                if (serverLayer?.imageRef) {
+                    this.visualService.clearImage(e.detail.layer);
+                }
+                this.imageToolbarService.unregisterLayer(e.detail.layer);
+            }),
+
+            onDomEvent(this.shadowRoot, "layer-clear", (e) => {
+                this.visualService.clearImage(e.detail.layer);
+            }),
+
+            onDomEvent(this.shadowRoot, "layer-visibility", (e) => {
+                this.visualService.setLayerConfig(e.detail.layer, { visible: e.detail.visible });
+            }),
+
+            onDomEvent(this.shadowRoot, "layer-reorder", (e) => {
+                this.visualService.reorderLayers(e.detail.order);
+            }),
+
+            onDomEvent(this.shadowRoot, "layer-aspect-ratio", (e) => {
+                const current = this.visualService.getLayers().get(e.detail.layer);
+                if (current?.imageRef) {
+                    this.visualService.setImage(e.detail.layer, current.imageRef, {
+                        aspectRatio: e.detail.aspectRatio,
+                    });
+                }
+            }),
+        );
+    }
+
+    private setupSubscriptions(): void {
+        this.subscribe(
+            combineLatest([
+                this.imageToolbarService.getRegisteredLayers$(),
+                this.visualService.getLayers$(),
+                this.imageToolbarService.getSelectedLayer$(),
+            ]),
+            ([registered, serverLayers, selectedLayer]) => {
+                this.imageToolbarService.syncServerLayers(Array.from(serverLayers.keys()));
+
+                const entries = this.computeLayerEntries(registered, serverLayers, selectedLayer);
+                this.getPanel()?.setLayers(entries);
+            },
+        );
+    }
+
+    private computeLayerEntries(
+        registered: string[],
+        serverLayers: Map<string, ImageLayerState>,
+        selectedLayer: string,
+    ): LayerEntry[] {
+        const entries: LayerEntry[] = registered.map((id) => {
+            const server = serverLayers.get(id);
+            return {
+                id,
+                imageRef: server?.imageRef ?? null,
+                aspectRatio: server?.aspectRatio ?? "contain",
+                zIndex: server?.zIndex ?? 0,
+                visible: server?.visible ?? true,
+                selected: id === selectedLayer,
+            };
+        });
+
+        entries.sort((a, b) => b.zIndex - a.zIndex);
+        return entries;
+    }
+
+    private getPanel(): LayerControlPanel | null {
+        return this.shadowRoot?.querySelector("layer-control-panel") as LayerControlPanel | null;
     }
 }

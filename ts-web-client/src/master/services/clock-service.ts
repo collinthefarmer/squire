@@ -44,21 +44,18 @@ import type {
 export class MasterClockService implements CanvasObjectProvider {
     private logger = new Logger("MasterClockService");
     private connectionService: ConnectionService;
+    private timeScaleService: TimeScaleService;
     private clocks$ = new BehaviorSubject<Map<string, ClockState>>(new Map());
 
     constructor(connectionService: ConnectionService, eventBus: EventBus) {
         this.connectionService = connectionService;
+        this.timeScaleService = ServiceRegistry.get<TimeScaleService>("TimeScaleService");
         this.setupEventListeners(eventBus);
         this.setupTimeScaleListener(eventBus);
     }
 
     private getTimeScale(): number {
-        try {
-            const ts = ServiceRegistry.get<TimeScaleService>("TimeScaleService");
-            return ts.getScale();
-        } catch {
-            return 1.0;
-        }
+        return this.timeScaleService.getScale();
     }
 
     private setupTimeScaleListener(eventBus: EventBus): void {

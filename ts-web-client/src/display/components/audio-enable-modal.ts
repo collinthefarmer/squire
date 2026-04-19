@@ -1,4 +1,5 @@
 import { BaseComponent } from "@components/base/base-component";
+import { emitDomEvent } from "@utils/dom-events";
 import { Logger } from "@utils/logger";
 import { primaryButtonStyles, cardStyles } from "@styles/common-styles";
 import { colors, spacing, borderRadius, alpha } from "@styles/theme";
@@ -55,13 +56,7 @@ export class AudioEnableModal extends BaseComponent {
             this.dialog.close();
         }
 
-        // Emit custom event for parent components/services to handle
-        this.dispatchEvent(
-            new CustomEvent("audio-enabled", {
-                bubbles: true,
-                composed: true,
-            })
-        );
+        emitDomEvent(this, "audio-enabled");
 
         // Remove the modal from DOM after closing
         this.remove();

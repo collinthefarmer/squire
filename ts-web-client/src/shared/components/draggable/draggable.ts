@@ -1,4 +1,5 @@
 import { DRAG } from "@shared/constants/drag";
+import { emitDomEvent, type DragStartDetail } from "@utils/dom-events";
 import { ScaleGesture } from "./scale-gesture";
 
 /**
@@ -16,6 +17,7 @@ import { ScaleGesture } from "./scale-gesture";
  * @fires drag-scale - When scale changes during drag { detail: { data, scale } }
  *
  * @attr data-drag-data - Data to include in drag events
+ * @attr data-drag-source - Optional source tag included in all events for filtering
  *
  * @example
  * ```html
@@ -65,7 +67,7 @@ export class Draggable extends HTMLElement {
     protected onScaleChange(_scale: number): void {}
 
     /** Returns extra fields merged into drag-start and drag-click event details. */
-    protected getExtraDetail(): Record<string, unknown> {
+    protected getExtraDetail(): Partial<DragStartDetail> {
         return {};
     }
 
@@ -213,19 +215,18 @@ export class Draggable extends HTMLElement {
         this.moveDrag(x, y);
     }
 
+    private dragData(): string {
+        return this.dataset.dragData ?? "";
+    }
+
     private emitClick(): void {
-        this.dispatchEvent(
-            new CustomEvent("drag-click", {
-                detail: {
-                    data: this.dataset.dragData,
-                    x: this.startX,
-                    y: this.startY,
-                    ...this.getExtraDetail(),
-                },
-                bubbles: true,
-                composed: true,
-            }),
-        );
+        emitDomEvent(this, "drag-click", {
+            data: this.dragData(),
+            source: this.dataset.dragSource,
+            x: this.startX,
+            y: this.startY,
+            ...this.getExtraDetail(),
+        });
     }
 
     private startDrag(x: number, y: number): void {
@@ -241,19 +242,14 @@ export class Draggable extends HTMLElement {
 
         this.scaleGesture.attach();
 
-        this.dispatchEvent(
-            new CustomEvent("drag-start", {
-                detail: {
-                    data: this.dataset.dragData,
-                    element: this,
-                    x,
-                    y,
-                    ...this.getExtraDetail(),
-                },
-                bubbles: true,
-                composed: true,
-            }),
-        );
+        emitDomEvent(this, "drag-start", {
+            data: this.dragData(),
+            source: this.dataset.dragSource,
+            element: this,
+            x,
+            y,
+            ...this.getExtraDetail(),
+        });
     }
 
     private moveDrag(x: number, y: number): void {
@@ -262,17 +258,12 @@ export class Draggable extends HTMLElement {
 
         this.onDragMove(x, y);
 
-        this.dispatchEvent(
-            new CustomEvent("drag-move", {
-                detail: {
-                    data: this.dataset.dragData,
-                    x,
-                    y,
-                },
-                bubbles: true,
-                composed: true,
-            }),
-        );
+        emitDomEvent(this, "drag-move", {
+            data: this.dragData(),
+            source: this.dataset.dragSource,
+            x,
+            y,
+        });
     }
 
     private endDrag(x: number, y: number): void {
@@ -284,17 +275,12 @@ export class Draggable extends HTMLElement {
         this.dragPhase = "idle";
         this.scaleGesture.detach();
 
-        this.dispatchEvent(
-            new CustomEvent("drag-end", {
-                detail: {
-                    data: this.dataset.dragData,
-                    x,
-                    y,
-                },
-                bubbles: true,
-                composed: true,
-            }),
-        );
+        emitDomEvent(this, "drag-end", {
+            data: this.dragData(),
+            source: this.dataset.dragSource,
+            x,
+            y,
+        });
 
         document.body.style.userSelect = "";
         document.body.style.cursor = "";
@@ -307,16 +293,11 @@ export class Draggable extends HTMLElement {
     private handleScaleChange(scale: number): void {
         this.onScaleChange(scale);
 
-        this.dispatchEvent(
-            new CustomEvent("drag-scale", {
-                detail: {
-                    data: this.dataset.dragData,
-                    scale,
-                },
-                bubbles: true,
-                composed: true,
-            }),
-        );
+        emitDomEvent(this, "drag-scale", {
+            data: this.dragData(),
+            source: this.dataset.dragSource,
+            scale,
+        });
     }
 
     private cleanup(): void {

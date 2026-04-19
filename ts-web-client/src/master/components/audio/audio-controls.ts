@@ -1,4 +1,5 @@
 import { BaseComponent } from "@components/base/base-component";
+import { onDomEvent } from "@utils/dom-events";
 import { ServiceRegistry } from "@services/service-registry";
 import { EventBuilder } from "@master/services/event-builder";
 import type { ConnectionService } from "@services/connection-service";
@@ -7,7 +8,7 @@ import {
     sectionHeaderStyles,
     flexColumn,
 } from "@styles/common-styles";
-import { spacing } from "@styles/theme";
+import { spacing, fontSize } from "@styles/theme";
 
 /**
  * Audio controls container component
@@ -49,7 +50,7 @@ export class AudioControls extends BaseComponent {
             }
 
             .header {
-                font-size: 1.125rem;
+                font-size: ${fontSize.lg};
             }
         `;
     }
@@ -79,39 +80,39 @@ export class AudioControls extends BaseComponent {
             return;
         }
 
-        this.shadowRoot.addEventListener("channel-change", ((
-            e: CustomEvent,
-        ) => {
-            this.currentChannel = e.detail.channel;
-        }) as EventListener);
+        this.cleanup.push(
+            onDomEvent(this.shadowRoot, "channel-change", (e) => {
+                this.currentChannel = e.detail.channel;
+            }),
 
-        this.shadowRoot.addEventListener("asset-change", ((e: CustomEvent) => {
-            this.currentAsset = e.detail.asset;
-        }) as EventListener);
+            onDomEvent(this.shadowRoot, "asset-change", (e) => {
+                this.currentAsset = e.detail.asset;
+            }),
 
-        this.shadowRoot.addEventListener("volume-change", ((e: CustomEvent) => {
-            this.currentVolume = e.detail.volume;
-        }) as EventListener);
+            onDomEvent(this.shadowRoot, "volume-change", (e) => {
+                this.currentVolume = e.detail.volume;
+            }),
 
-        this.shadowRoot.addEventListener("loop-change", ((e: CustomEvent) => {
-            this.currentLoop = e.detail.loop;
-        }) as EventListener);
+            onDomEvent(this.shadowRoot, "loop-change", (e) => {
+                this.currentLoop = e.detail.loop;
+            }),
 
-        this.shadowRoot.addEventListener("play-request", () => {
-            this.handlePlay();
-        });
+            onDomEvent(this.shadowRoot, "play-request", () => {
+                this.handlePlay();
+            }),
 
-        this.shadowRoot.addEventListener("pause-request", () => {
-            this.handlePause();
-        });
+            onDomEvent(this.shadowRoot, "pause-request", () => {
+                this.handlePause();
+            }),
 
-        this.shadowRoot.addEventListener("resume-request", () => {
-            this.handleResume();
-        });
+            onDomEvent(this.shadowRoot, "resume-request", () => {
+                this.handleResume();
+            }),
 
-        this.shadowRoot.addEventListener("stop-request", () => {
-            this.handleStop();
-        });
+            onDomEvent(this.shadowRoot, "stop-request", () => {
+                this.handleStop();
+            }),
+        );
     }
 
     private handlePlay(): void {

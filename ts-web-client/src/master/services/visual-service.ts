@@ -19,6 +19,7 @@ import { DISPLAY } from "@shared/constants/display";
 import { computeDisplayBounds } from "@master/components/canvas/display-coordinates";
 import type { CanvasObjectProvider } from "./canvas-object-provider";
 import type {
+    BlendMode,
     AspectRatioMode,
     ImagePosition,
     ImageTransition,
@@ -29,6 +30,17 @@ import type {
     ImageEffectEvent,
     ImageLayerConfigEvent,
 } from "@types";
+
+/**
+ * Subset of layer config fields that can be updated via
+ * the visual.image.layer_config event.
+ */
+export interface LayerConfigUpdate {
+    opacity?: number;
+    blendMode?: BlendMode;
+    zIndex?: number;
+    visible?: boolean;
+}
 
 /**
  * Bounding box in display-space pixels (1920×1080)
@@ -62,11 +74,15 @@ export interface CanvasObject {
 export class MasterVisualService implements CanvasObjectProvider {
     private logger = new Logger("MasterVisualService");
     private connectionService: ConnectionService;
+    private assetService: AssetService;
+    private imageToolbarService: ImageToolbarService;
 
     private layers$ = new BehaviorSubject<Map<string, ImageLayerState>>(new Map());
 
     constructor(connectionService: ConnectionService, eventBus: EventBus) {
         this.connectionService = connectionService;
+        this.assetService = ServiceRegistry.get<AssetService>("AssetService");
+        this.imageToolbarService = ServiceRegistry.get<ImageToolbarService>("ImageToolbarService");
         this.setupEventListeners(eventBus);
     }
 
@@ -126,23 +142,55 @@ export class MasterVisualService implements CanvasObjectProvider {
     }
 
     private resolveImageDimensions(imageRef: string): { width: number; height: number } {
-        try {
-            const assetService = ServiceRegistry.get<AssetService>("AssetService");
-            const assets = assetService.getImageAssets();
-            const asset = assets.find((a: ImageAsset) => a.name === imageRef);
-            if (asset) {
-                return { width: asset.width, height: asset.height };
-            }
-        } catch {
-            // AssetService not registered yet (unlikely but safe)
+        const assets = this.assetService.getImageAssets();
+        const asset = assets.find((a) => a.name === imageRef);
+        if (asset) {
+            return { width: asset.width, height: asset.height };
         }
         return { width: DISPLAY.WIDTH, height: DISPLAY.HEIGHT };
     }
 
-    // -- Layer targeting --
+    // -- Layer access --
+
+    getLayers$(): Observable<Map<string, ImageLayerState>> {
+        return this.layers$.asObservable();
+    }
+
+    getLayers(): Map<string, ImageLayerState> {
+        return this.layers$.value;
+    }
 
     getTargetLayer(_x: number, _y: number): string {
         return "background";
+    }
+
+    // -- Layer configuration --
+
+    setLayerConfig(layer: string, config: LayerConfigUpdate): void {
+        this.logger.info("Setting layer config", { layer, ...config });
+        const event = EventBuilder.layerConfig({ layer, ...config });
+        this.connectionService.send(event);
+    }
+
+    /**
+     * Apply a new layer ordering by assigning descending z-index values.
+     * The first element gets the highest z-index (rendered on top).
+     * Only sends events for layers whose z-index actually changed.
+     */
+    reorderLayers(order: string[]): void {
+        const layers = this.layers$.value;
+
+        this.logger.info("Reordering layers", { order });
+
+        for (let i = 0; i < order.length; i++) {
+            const id = order[i] as string;
+            const zIndex = order.length - 1 - i;
+            const current = layers.get(id);
+
+            if (current && current.zIndex !== zIndex) {
+                this.setLayerConfig(id, { zIndex });
+            }
+        }
     }
 
     // -- Image commands --
@@ -208,46 +256,72 @@ export class MasterVisualService implements CanvasObjectProvider {
      * broadcasts the event back and the event handler processes it.
      */
     handleImageDrop(imageRef: string, displayX: number, displayY: number): void {
-        const imageToolbarService = ServiceRegistry.get<ImageToolbarService>(
-            "ImageToolbarService",
+        const settings = this.imageToolbarService.getSettings();
+
+        // Auto-create a new layer if the selected one already has an image
+        let targetLayer = settings.layer;
+        const existingLayer = this.layers$.value.get(targetLayer);
+        if (existingLayer?.imageRef) {
+            targetLayer = this.generateLayerName();
+            this.imageToolbarService.registerLayer(targetLayer);
+        }
+
+        const position = this.computeDropPosition(
+            displayX, displayY,
+            "contain",
+            settings.imageDimensions?.width ?? DISPLAY.WIDTH,
+            settings.imageDimensions?.height ?? DISPLAY.HEIGHT,
         );
-        const settings = imageToolbarService.getSettings();
-
-        const imgWidth = settings.imageDimensions?.width ?? DISPLAY.WIDTH;
-        const imgHeight = settings.imageDimensions?.height ?? DISPLAY.HEIGHT;
-
-        const { width, height } = calculateScaledDimensions(
-            settings.aspectRatio,
-            imgWidth,
-            imgHeight,
-            DISPLAY.WIDTH,
-            DISPLAY.HEIGHT,
-        );
-
-        const posX = displayX - width / 2;
-        const posY = displayY - height / 2;
-
-        const position: ImagePosition = {
-            x: `${posX}px`,
-            y: `${posY}px`,
-        };
 
         this.logger.info("Handling image drop", {
-            imageRef,
-            layer: settings.layer,
-            displayCenter: { displayX, displayY },
-            naturalDimensions: { imgWidth, imgHeight },
-            scaledDimensions: { width, height },
-            aspectRatio: settings.aspectRatio,
-            position,
-            scale: settings.scale,
+            imageRef, layer: targetLayer,
+            position, scale: settings.scale,
         });
 
-        this.setImage(settings.layer, imageRef, {
-            aspectRatio: settings.aspectRatio,
+        this.setImage(targetLayer, imageRef, {
+            aspectRatio: "contain",
             position,
             scale: settings.scale,
         });
+    }
+
+    /**
+     * Convert a display-space center point into a pixel-based ImagePosition,
+     * accounting for the image's scaled dimensions so the center of the
+     * placed image aligns with the drop point.
+     */
+    private computeDropPosition(
+        displayX: number,
+        displayY: number,
+        aspectRatio: AspectRatioMode,
+        imgWidth: number,
+        imgHeight: number,
+    ): ImagePosition {
+        const { width, height } = calculateScaledDimensions(
+            aspectRatio, imgWidth, imgHeight,
+            DISPLAY.WIDTH, DISPLAY.HEIGHT,
+        );
+
+        return {
+            x: `${displayX - width / 2}px`,
+            y: `${displayY - height / 2}px`,
+        };
+    }
+
+    // -- Helpers --
+
+    private generateLayerName(): string {
+        const existing = new Set(this.layers$.value.keys());
+        const registered = this.imageToolbarService.getRegisteredLayers();
+        for (const name of registered) {
+            existing.add(name);
+        }
+
+        let i = 1;
+        while (existing.has(`layer-${i}`)) {
+            i++;
+        }
+        return `layer-${i}`;
     }
 
     // -- Server event handling --

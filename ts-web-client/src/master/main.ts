@@ -27,31 +27,36 @@ import { ImageGallery } from "@master/components/image/image-gallery";
 import { ClockControls } from "@master/components/clock/clock-controls";
 import { TimeScaleControls } from "@master/components/time/time-scale-controls";
 import { ImageToolbar } from "@master/components/image/image-toolbar";
-import { LayerSelector } from "@master/components/image/layer-selector";
-import { AspectRatioSelector } from "@master/components/image/aspect-ratio-selector";
+import { LayerControlPanel } from "@master/components/image/layer-control-panel";
+import { SidebarTabs } from "@master/components/sidebar-tabs";
 
 /**
  * Initialize master client
  */
 function init(): void {
     const config = new ConfigService({ clientType: "master" });
+    ServiceRegistry.register("ConfigService", config);
 
     const eventBus = new EventBus();
-    const connection = new ConnectionService(eventBus, config);
-    const assetService = new AssetService(config);
-    const imageToolbarService = new ImageToolbarService();
-    const visualService = new MasterVisualService(connection, eventBus);
-    const clockService = new MasterClockService(connection, eventBus);
-    const timeScaleService = new TimeScaleService(eventBus);
-
-    ServiceRegistry.register("ConfigService", config);
     ServiceRegistry.register("EventBus", eventBus);
+
+    const connection = new ConnectionService(eventBus, config);
     ServiceRegistry.register("ConnectionService", connection);
+
+    const assetService = new AssetService(config);
     ServiceRegistry.register("AssetService", assetService);
+
+    const imageToolbarService = new ImageToolbarService();
     ServiceRegistry.register("ImageToolbarService", imageToolbarService);
-    ServiceRegistry.register("MasterVisualService", visualService);
-    ServiceRegistry.register("MasterClockService", clockService);
+
+    const timeScaleService = new TimeScaleService(eventBus);
     ServiceRegistry.register("TimeScaleService", timeScaleService);
+
+    const visualService = new MasterVisualService(connection, eventBus);
+    ServiceRegistry.register("MasterVisualService", visualService);
+
+    const clockService = new MasterClockService(connection, eventBus);
+    ServiceRegistry.register("MasterClockService", clockService);
 
     customElements.define("squire-draggable", DraggableImage);
     customElements.define("squire-draggable-handle", Draggable);
@@ -64,9 +69,7 @@ function init(): void {
     customElements.define("volume-control", VolumeControl);
     customElements.define("audio-controls", AudioControls);
 
-    customElements.define("layer-selector", LayerSelector);
-    customElements.define("aspect-ratio-selector", AspectRatioSelector);
-
+    customElements.define("layer-control-panel", LayerControlPanel);
     customElements.define("image-toolbar", ImageToolbar);
     customElements.define("image-gallery", ImageGallery);
 
@@ -78,6 +81,7 @@ function init(): void {
     customElements.define("canvas-overlay", CanvasOverlay);
     customElements.define("canvas-preview", CanvasPreview);
 
+    customElements.define("sidebar-tabs", SidebarTabs);
     customElements.define("squire-master-client", SquireMasterClient);
 
     // Fetch assets before connecting so image dimensions are

@@ -1,4 +1,5 @@
 import type { AspectRatioMode } from "@types";
+import type { DragStartDetail } from "@utils/dom-events";
 import { DISPLAY } from "@shared/constants/display";
 import { DRAG } from "@shared/constants/drag";
 import { Draggable } from "./draggable";
@@ -59,7 +60,7 @@ export class DraggableImage extends Draggable {
         this.shadow.position(this.currentX, this.currentY);
     }
 
-    protected override getExtraDetail(): Record<string, unknown> {
+    protected override getExtraDetail(): Partial<DragStartDetail> {
         this.readImageMetadata();
 
         return {

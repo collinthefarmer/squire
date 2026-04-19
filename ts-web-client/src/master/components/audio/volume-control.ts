@@ -1,11 +1,12 @@
 import { BaseComponent } from "@components/base/base-component";
+import { emitDomEvent } from "@utils/dom-events";
 import {
     rangeInputStyles,
     checkboxStyles,
     labelStyles,
     flexColumn,
 } from "@styles/common-styles";
-import { spacing, colors } from "@styles/theme";
+import { spacing, colors, fontSize, sizing } from "@styles/theme";
 
 /**
  * Volume control component
@@ -48,7 +49,7 @@ export class VolumeControl extends BaseComponent {
             ${checkboxStyles()}
 
             label {
-                font-size: 0.875rem;
+                font-size: ${fontSize.base};
             }
 
             input[type="range"] {
@@ -57,9 +58,9 @@ export class VolumeControl extends BaseComponent {
             }
 
             .volume-value {
-                min-width: 3rem;
+                min-width: ${sizing.valueDisplay};
                 text-align: right;
-                font-size: 0.875rem;
+                font-size: ${fontSize.base};
                 color: ${colors.gray[500]};
             }
 
@@ -70,8 +71,8 @@ export class VolumeControl extends BaseComponent {
             }
 
             input[type="checkbox"] {
-                width: 1rem;
-                height: 1rem;
+                width: ${sizing.checkboxSm};
+                height: ${sizing.checkboxSm};
             }
         `;
     }
@@ -119,24 +120,12 @@ export class VolumeControl extends BaseComponent {
         volumeSlider.addEventListener("input", () => {
             this.volume = parseFloat(volumeSlider.value);
             volumeValue.textContent = `${Math.round(this.volume * 100)}%`;
-            this.dispatchEvent(
-                new CustomEvent("volume-change", {
-                    detail: { volume: this.volume },
-                    bubbles: true,
-                    composed: true,
-                }),
-            );
+            emitDomEvent(this, "volume-change", { volume: this.volume });
         });
 
         loopCheckbox.addEventListener("change", () => {
             this.loop = loopCheckbox.checked;
-            this.dispatchEvent(
-                new CustomEvent("loop-change", {
-                    detail: { loop: this.loop },
-                    bubbles: true,
-                    composed: true,
-                }),
-            );
+            emitDomEvent(this, "loop-change", { loop: this.loop });
         });
     }
 

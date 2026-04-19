@@ -1,4 +1,5 @@
 import { Logger } from "@utils/logger";
+import "@utils/dom-events";
 import { ServiceRegistry } from "@services/service-registry";
 import { EventBus } from "@services/event-bus";
 import { ConnectionService } from "@services/connection-service";
@@ -21,23 +22,27 @@ const logger = new Logger("DisplayClient");
 function init(): void {
     logger.info("Initializing display client");
 
-    // Initialize services in dependency order
+    // Initialize and register services in dependency order
     const config = new ConfigService({ clientType: "display" });
-    const eventBus = new EventBus();
-    const connection = new ConnectionService(eventBus, config);
-    const audioService = new AudioService(eventBus, config);
-    const visualService = new VisualService(eventBus);
-    const clockService = new DisplayClockService(eventBus);
-    const timeScaleService = new TimeScaleService(eventBus);
-
-    // Register singletons
     ServiceRegistry.register("ConfigService", config);
+
+    const eventBus = new EventBus();
     ServiceRegistry.register("EventBus", eventBus);
+
+    const connection = new ConnectionService(eventBus, config);
     ServiceRegistry.register("ConnectionService", connection);
+
+    const audioService = new AudioService(eventBus, config);
     ServiceRegistry.register("AudioService", audioService);
+
+    const visualService = new VisualService(eventBus);
     ServiceRegistry.register("VisualService", visualService);
-    ServiceRegistry.register("ClockService", clockService);
+
+    const timeScaleService = new TimeScaleService(eventBus);
     ServiceRegistry.register("TimeScaleService", timeScaleService);
+
+    const clockService = new DisplayClockService(eventBus);
+    ServiceRegistry.register("ClockService", clockService);
 
     // Register components
     customElements.define("audio-enable-modal", AudioEnableModal);
@@ -63,6 +68,11 @@ function showAudioEnableModal(onEnabled: () => void): void {
 
     modal.addEventListener("audio-enabled", () => {
         logger.info("Audio enabled, proceeding with connection");
+
+        if (window.parent !== window) {
+            window.parent.postMessage({ type: "squire:audio-enabled" }, "*");
+        }
+
         onEnabled();
     });
 

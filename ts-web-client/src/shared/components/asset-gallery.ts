@@ -2,10 +2,11 @@ import { BaseComponent } from "@components/base/base-component";
 import type { BaseAssetComponent } from "@components/base/base-asset-component";
 import type { Draggable } from "@components/draggable/draggable";
 import type { ImageHandle } from "@components/image-handle";
+import { onDomEvent, emitDomEvent } from "@utils/dom-events";
 import { ServiceRegistry } from "@services/service-registry";
 import type { AssetService, ImageAsset } from "@master/services/asset-service";
 import { labelStyles } from "@styles/common-styles";
-import { colors, spacing, borderRadius } from "@styles/theme";
+import { colors, spacing, borderRadius, fontSize, sizing } from "@styles/theme";
 
 export type AssetType = "audio" | "image";
 
@@ -26,7 +27,7 @@ export interface AssetGalleryConfig {
  * @attr preview-scale - Preview scale factor forwarded to draggable children
  */
 export class AssetGrid extends BaseComponent {
-    static observedAttributes = ["aspect-ratio", "preview-scale"];
+    static observedAttributes = ["preview-scale"];
 
     private assetService!: AssetService;
     private config: AssetGalleryConfig;
@@ -51,9 +52,7 @@ export class AssetGrid extends BaseComponent {
             return;
         }
 
-        if (name === "aspect-ratio") {
-            this.syncDraggableAttribute("data-aspect-ratio", value);
-        } else if (name === "preview-scale") {
+        if (name === "preview-scale") {
             this.syncDraggableAttribute("data-preview-scale", value);
         }
     }
@@ -67,7 +66,7 @@ export class AssetGrid extends BaseComponent {
             ${labelStyles()}
 
             label {
-                font-size: 0.875rem;
+                font-size: ${fontSize.base};
                 margin-bottom: ${spacing.sm};
                 display: block;
             }
@@ -82,9 +81,10 @@ export class AssetGrid extends BaseComponent {
                 margin: 0;
                 padding: 0;
                 display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+                grid-template-columns: repeat(auto-fill, minmax(${sizing.thumbnail}, 1fr));
                 gap: ${spacing.sm};
-                max-height: 300px;
+                flex: 1;
+                min-height: 0;
                 overflow-y: auto;
                 padding: ${spacing.xs};
                 background: ${colors.gray[900]};
@@ -94,7 +94,7 @@ export class AssetGrid extends BaseComponent {
             ul:empty::after {
                 content: "No assets available";
                 color: ${colors.gray[500]};
-                font-size: 0.75rem;
+                font-size: ${fontSize.sm};
                 text-align: center;
                 padding: ${spacing.md};
                 grid-column: 1 / -1;
@@ -139,50 +139,34 @@ export class AssetGrid extends BaseComponent {
             return;
         }
 
-        this.shadowRoot.addEventListener("drag-start", ((e: CustomEvent) => {
-            this.dispatchEvent(
-                new CustomEvent("asset-drag-start", {
-                    detail: {
-                        assetType: this.config.assetType,
-                        asset: e.detail.data,
-                        x: e.detail.x,
-                        y: e.detail.y,
-                    },
-                    bubbles: true,
-                    composed: true,
-                }),
-            );
-        }) as EventListener);
+        this.cleanup.push(
+            onDomEvent(this.shadowRoot, "drag-start", (e) => {
+                emitDomEvent(this, "asset-drag-start", {
+                    assetType: this.config.assetType,
+                    asset: e.detail.data,
+                    x: e.detail.x,
+                    y: e.detail.y,
+                });
+            }),
 
-        this.shadowRoot.addEventListener("drag-end", ((e: CustomEvent) => {
-            this.dispatchEvent(
-                new CustomEvent("asset-drag-end", {
-                    detail: {
-                        assetType: this.config.assetType,
-                        asset: e.detail.data,
-                        x: e.detail.x,
-                        y: e.detail.y,
-                    },
-                    bubbles: true,
-                    composed: true,
-                }),
-            );
-        }) as EventListener);
+            onDomEvent(this.shadowRoot, "drag-end", (e) => {
+                emitDomEvent(this, "asset-drag-end", {
+                    assetType: this.config.assetType,
+                    asset: e.detail.data,
+                    x: e.detail.x,
+                    y: e.detail.y,
+                });
+            }),
 
-        this.shadowRoot.addEventListener("drag-click", ((e: CustomEvent) => {
-            this.dispatchEvent(
-                new CustomEvent("asset-click", {
-                    detail: {
-                        assetType: this.config.assetType,
-                        asset: e.detail.data,
-                        imageWidth: e.detail.imageWidth,
-                        imageHeight: e.detail.imageHeight,
-                    },
-                    bubbles: true,
-                    composed: true,
-                }),
-            );
-        }) as EventListener);
+            onDomEvent(this.shadowRoot, "drag-click", (e) => {
+                emitDomEvent(this, "asset-click", {
+                    assetType: this.config.assetType,
+                    asset: e.detail.data,
+                    imageWidth: e.detail.imageWidth,
+                    imageHeight: e.detail.imageHeight,
+                });
+            }),
+        );
     }
 
     private updateAudioAssetGrid(assets: string[]): void {
@@ -219,7 +203,7 @@ export class AssetGrid extends BaseComponent {
 
         grid.innerHTML = "";
 
-        const aspectRatio = this.getAttribute("aspect-ratio") ?? "contain";
+        const aspectRatio = "contain";
 
         for (const asset of assets) {
             const li = document.createElement("li");

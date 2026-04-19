@@ -18,7 +18,7 @@ import {
     checkboxStyles,
     flexColumn,
 } from "@styles/common-styles";
-import { colors, spacing, borderRadius } from "@styles/theme";
+import { colors, spacing, borderRadius, fontSize, sizing } from "@styles/theme";
 
 /**
  * Clock controls panel for master client
@@ -86,14 +86,14 @@ export class ClockControls extends BaseComponent {
             }
 
             .create-form label {
-                font-size: 0.625rem;
+                font-size: ${fontSize.xs};
                 color: ${colors.gray[500]};
                 text-transform: uppercase;
                 letter-spacing: 0.05em;
             }
 
             .create-form input {
-                width: 5rem;
+                width: ${sizing.inputMin};
             }
 
             .clock-list {
@@ -120,14 +120,14 @@ export class ClockControls extends BaseComponent {
             }
 
             .clock-id {
-                font-size: 0.75rem;
+                font-size: ${fontSize.sm};
                 color: ${colors.gray[200]};
                 font-weight: 500;
             }
 
             .clock-time {
                 font-family: 'Courier New', monospace;
-                font-size: 0.875rem;
+                font-size: ${fontSize.base};
                 font-weight: 600;
                 color: ${colors.white};
             }
@@ -140,11 +140,11 @@ export class ClockControls extends BaseComponent {
 
             .clock-actions button {
                 padding: ${spacing.xs};
-                font-size: 0.625rem;
+                font-size: ${fontSize.xs};
             }
 
             .empty {
-                font-size: 0.75rem;
+                font-size: ${fontSize.sm};
                 color: ${colors.gray[500]};
                 text-align: center;
                 padding: ${spacing.md};

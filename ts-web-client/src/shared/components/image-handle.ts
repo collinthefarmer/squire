@@ -1,7 +1,7 @@
 import { BaseAssetComponent } from "@components/base/base-asset-component";
 import { ServiceRegistry } from "@services/service-registry";
 import type { ConfigService } from "@services/config-service";
-import { colors, spacing, borderRadius, transitions } from "@styles/theme";
+import { colors, spacing, borderRadius, transitions, fontSize, sizing } from "@styles/theme";
 
 /**
  * Image thumbnail component for asset galleries
@@ -22,7 +22,7 @@ export class ImageHandle extends BaseAssetComponent {
     private configService!: ConfigService;
 
     /** Thumbnail size for resized image requests (2x display size for retina) */
-    private readonly THUMBNAIL_SIZE = 160;
+    private readonly THUMBNAIL_SIZE = 240;
 
     get asset(): string {
         return this._asset;
@@ -75,20 +75,20 @@ export class ImageHandle extends BaseAssetComponent {
 
                 img {
                     display: block;
-                    max-width: 80px;
-                    max-height: 80px;
+                    max-width: ${sizing.thumbnail};
+                    max-height: ${sizing.thumbnail};
                     width: auto;
                     height: auto;
                 }
 
                 .placeholder {
-                    width: 80px;
-                    height: 80px;
+                    width: ${sizing.thumbnail};
+                    height: ${sizing.thumbnail};
                     display: flex;
                     align-items: center;
                     justify-content: center;
                     color: ${colors.gray[500]};
-                    font-size: 0.625rem;
+                    font-size: ${fontSize.xs};
                     text-align: center;
                     padding: ${spacing.xs};
                     box-sizing: border-box;

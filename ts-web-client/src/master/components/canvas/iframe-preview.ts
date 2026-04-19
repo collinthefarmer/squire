@@ -20,6 +20,7 @@ import { colors, borderRadius } from "@styles/theme";
  */
 export class IframePreview extends BaseComponent {
     private resizeObserver: ResizeObserver | null = null;
+    private config!: ConfigService;
 
     private readonly PREVIEW_WIDTH = 1920;
     private readonly PREVIEW_HEIGHT = 1080;
@@ -27,6 +28,7 @@ export class IframePreview extends BaseComponent {
     override connectedCallback(): void {
         super.connectedCallback();
 
+        this.config = ServiceRegistry.get<ConfigService>("ConfigService");
         this.render();
         this.setupResizeObserver();
     }
@@ -62,6 +64,7 @@ export class IframePreview extends BaseComponent {
                 display: block;
                 transform-origin: top left;
             }
+
         `;
     }
 
@@ -70,14 +73,12 @@ export class IframePreview extends BaseComponent {
             return;
         }
 
-        const config = ServiceRegistry.get<ConfigService>("ConfigService");
-
         this.shadowRoot.innerHTML = `
             ${this.styleTag(this.getStyles())}
 
             <div class="iframe-wrapper">
                 <iframe
-                    src="${config.getDisplayUrl()}"
+                    src="${this.config.getDisplayUrl()}"
                     title="Display Preview"
                     loading="lazy"
                 ></iframe>

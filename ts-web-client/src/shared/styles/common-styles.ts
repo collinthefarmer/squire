@@ -4,7 +4,7 @@
  * Provides reusable style blocks that can be composed in component templates
  */
 
-import { colors, spacing, borderRadius, transitions, alpha } from "@styles/theme";
+import { colors, spacing, borderRadius, transitions, alpha, fontSize, sizing } from "@styles/theme";
 
 /**
  * Base reset styles for select elements
@@ -67,7 +67,7 @@ export function inputStyles(): string {
 export function rangeInputStyles(): string {
     return `
         input[type="range"] {
-            height: 0.5rem;
+            height: ${sizing.sliderTrack};
             background: ${colors.gray[800]};
             border-radius: ${borderRadius.sm};
             cursor: pointer;
@@ -78,16 +78,16 @@ export function rangeInputStyles(): string {
         input[type="range"]::-webkit-slider-thumb {
             appearance: none;
             -webkit-appearance: none;
-            width: 1rem;
-            height: 1rem;
+            width: ${sizing.sliderThumb};
+            height: ${sizing.sliderThumb};
             background: ${colors.blue[500]};
             border-radius: ${borderRadius.full};
             cursor: pointer;
         }
 
         input[type="range"]::-moz-range-thumb {
-            width: 1rem;
-            height: 1rem;
+            width: ${sizing.sliderThumb};
+            height: ${sizing.sliderThumb};
             background: ${colors.blue[500]};
             border: none;
             border-radius: ${borderRadius.full};
@@ -102,8 +102,8 @@ export function rangeInputStyles(): string {
 export function checkboxStyles(): string {
     return `
         input[type="checkbox"] {
-            width: 1.25rem;
-            height: 1.25rem;
+            width: ${sizing.checkboxLg};
+            height: ${sizing.checkboxLg};
             cursor: pointer;
             accent-color: ${colors.blue[500]};
         }
@@ -259,7 +259,7 @@ export function labelStyles(): string {
     return `
         label {
             display: block;
-            font-size: 0.875rem;
+            font-size: ${fontSize.base};
             font-weight: 500;
             color: ${colors.gray[200]};
             margin-bottom: ${spacing.xs};
@@ -327,7 +327,7 @@ export function containerStyles(): string {
 export function sectionHeaderStyles(): string {
     return `
         .section-header {
-            font-size: 1.25rem;
+            font-size: ${fontSize.xl};
             font-weight: 600;
             padding-bottom: ${spacing.md};
             margin-bottom: ${spacing.lg};
@@ -342,7 +342,7 @@ export function sectionHeaderStyles(): string {
 export function sectionTitleStyles(): string {
     return `
         .section-title {
-            font-size: 1rem;
+            font-size: ${fontSize.md};
             font-weight: 600;
             margin-bottom: ${spacing.md};
             color: ${colors.gray[100]};
@@ -356,9 +356,9 @@ export function sectionTitleStyles(): string {
 export function valueDisplayStyles(): string {
     return `
         .value-display {
-            min-width: 3rem;
+            min-width: ${sizing.valueDisplay};
             text-align: right;
-            font-size: 0.875rem;
+            font-size: ${fontSize.base};
             color: ${colors.gray[500]};
         }
     `;
@@ -389,7 +389,7 @@ export function sliderRowStyles(): string {
         }
 
         .slider-row label {
-            min-width: 5rem;
+            min-width: ${sizing.inputMin};
         }
 
         .slider-row input[type="range"] {
@@ -409,7 +409,7 @@ export function outlineButtonStyles(): string {
             color: ${colors.gray[200]};
             padding: ${spacing.xs} ${spacing.sm};
             border-radius: ${borderRadius.sm};
-            font-size: 0.75rem;
+            font-size: ${fontSize.sm};
             cursor: pointer;
             transition: ${transitions.fast};
         }
@@ -452,7 +452,7 @@ export function segmentedButtonStyles(): string {
             background: ${colors.gray[800]};
             color: ${colors.gray[200]};
             border: none;
-            font-size: 0.75rem;
+            font-size: ${fontSize.sm};
             font-weight: 500;
             cursor: pointer;
             transition: ${transitions.fast};

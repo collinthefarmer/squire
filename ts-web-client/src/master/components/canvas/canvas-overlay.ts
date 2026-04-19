@@ -1,5 +1,7 @@
 import { combineLatest, map } from "rxjs";
 import { BaseComponent } from "@components/base/base-component";
+import { onDomEvent } from "@utils/dom-events";
+import type { DragStartDetail, DragMoveDetail, DragEndDetail, DragScaleDetail } from "@utils/dom-events";
 import { ServiceRegistry } from "@services/service-registry";
 import { Logger } from "@utils/logger";
 import type { CanvasObject } from "@master/services/visual-service";
@@ -117,18 +119,27 @@ export class CanvasOverlay extends BaseComponent {
         // Stop overlay drag events from propagating to document,
         // where canvas-preview's gallery drag handlers would
         // misinterpret them as asset placement drags.
-        const stop = (handler: (e: CustomEvent) => void) => {
-            return ((e: CustomEvent) => {
+        this.cleanup.push(
+            onDomEvent(this.shadowRoot, "drag-start", (e) => {
                 e.stopPropagation();
-                handler(e);
-            }) as EventListener;
-        };
-
-        this.shadowRoot.addEventListener("drag-start", stop((e) => this.handleOverlayDragStart(e)));
-        this.shadowRoot.addEventListener("drag-move", stop((e) => this.handleOverlayDragMove(e)));
-        this.shadowRoot.addEventListener("drag-end", stop((e) => this.handleOverlayDragEnd(e)));
-        this.shadowRoot.addEventListener("drag-scale", stop((e) => this.handleOverlayDragScale(e)));
-        this.shadowRoot.addEventListener("drag-click", stop(() => {}));
+                this.handleOverlayDragStart(e);
+            }),
+            onDomEvent(this.shadowRoot, "drag-move", (e) => {
+                e.stopPropagation();
+                this.handleOverlayDragMove(e);
+            }),
+            onDomEvent(this.shadowRoot, "drag-end", (e) => {
+                e.stopPropagation();
+                this.handleOverlayDragEnd(e);
+            }),
+            onDomEvent(this.shadowRoot, "drag-scale", (e) => {
+                e.stopPropagation();
+                this.handleOverlayDragScale(e);
+            }),
+            onDomEvent(this.shadowRoot, "drag-click", (e) => {
+                e.stopPropagation();
+            }),
+        );
     }
 
     private renderOverlays(): void {
@@ -174,7 +185,7 @@ export class CanvasOverlay extends BaseComponent {
 
     // -- Drag event handlers --
 
-    private handleOverlayDragStart(e: CustomEvent): void {
+    private handleOverlayDragStart(e: CustomEvent<DragStartDetail>): void {
         const objectId = e.detail.data;
         if (!objectId) {
             return;
@@ -197,7 +208,7 @@ export class CanvasOverlay extends BaseComponent {
         });
     }
 
-    private handleOverlayDragMove(e: CustomEvent): void {
+    private handleOverlayDragMove(e: CustomEvent<DragMoveDetail>): void {
         if (!this.activeDragId) {
             return;
         }
@@ -209,7 +220,7 @@ export class CanvasOverlay extends BaseComponent {
         this.updateHandleTransform();
     }
 
-    private handleOverlayDragEnd(e: CustomEvent): void {
+    private handleOverlayDragEnd(e: CustomEvent<DragEndDetail>): void {
         if (!this.activeDragId) {
             return;
         }
@@ -258,7 +269,7 @@ export class CanvasOverlay extends BaseComponent {
         }
     }
 
-    private handleOverlayDragScale(e: CustomEvent): void {
+    private handleOverlayDragScale(e: CustomEvent<DragScaleDetail>): void {
         if (!this.activeDragId) {
             return;
         }

@@ -6,10 +6,9 @@ import type { ImageToolbarService } from "@master/services/image-toolbar-service
 import {
     containerStyles,
     sectionHeaderStyles,
-    outlineButtonStyles,
     headerRowStyles,
 } from "@styles/common-styles";
-import { spacing } from "@styles/theme";
+import { colors, spacing, borderRadius, fontSize, transitions } from "@styles/theme";
 
 /**
  * Image gallery container component
@@ -18,19 +17,7 @@ import { spacing } from "@styles/theme";
  * component to enable drag-and-drop image placement on layers.
  *
  * @fires asset-drag-start - When image drag begins
- *   - detail.assetType: "image"
- *   - detail.asset: string (filename)
- *   - detail.x, detail.y: number (coordinates)
- *
  * @fires asset-drag-end - When image drag ends
- *   - detail.assetType: "image"
- *   - detail.asset: string (filename)
- *   - detail.x, detail.y: number (coordinates)
- *
- * @example
- * ```html
- * <image-gallery></image-gallery>
- * ```
  */
 export class ImageGallery extends BaseComponent {
     private assetService!: AssetService;
@@ -50,16 +37,45 @@ export class ImageGallery extends BaseComponent {
     protected override getStyles(): string {
         return `
             :host {
-                display: block;
+                display: flex;
+                flex-direction: column;
+                flex: 1;
+                min-height: 0;
             }
 
             ${containerStyles()}
             ${sectionHeaderStyles()}
-            ${outlineButtonStyles()}
             ${headerRowStyles()}
 
+            .container {
+                display: flex;
+                flex-direction: column;
+                flex: 1;
+                min-height: 0;
+            }
+
             .section-header {
-                margin-bottom: ${spacing.sm};
+                margin-bottom: 0;
+            }
+
+            .icon-btn {
+                background: transparent;
+                border: none;
+                color: ${colors.gray[500]};
+                cursor: pointer;
+                padding: ${spacing.xs};
+                font-size: ${fontSize.lg};
+                border-radius: ${borderRadius.sm};
+                transition: ${transitions.fast};
+                line-height: 1;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .icon-btn:hover {
+                background: ${colors.gray[700]};
+                color: ${colors.gray[200]};
             }
         `;
     }
@@ -75,7 +91,7 @@ export class ImageGallery extends BaseComponent {
             <div class="container">
                 <div class="header-row">
                     <div class="section-header">Images</div>
-                    <button class="outline-button" type="button">Refresh</button>
+                    <button class="icon-btn" id="refresh-btn" type="button" title="Refresh">⟳</button>
                 </div>
                 <image-asset-grid></image-asset-grid>
             </div>
@@ -84,19 +100,10 @@ export class ImageGallery extends BaseComponent {
         this.setupEventListeners();
     }
 
-    /**
-     * Sync toolbar aspect ratio to the asset grid so draggable
-     * children render the correct shadow preview.
-     */
     private setupSubscriptions(): void {
         const settings$ = this.imageToolbarService.getSettings$();
         const grid = (): Element | null | undefined =>
             this.shadowRoot?.querySelector("image-asset-grid");
-
-        this.subscribe(
-            settings$.pipe(map((s) => s.aspectRatio), distinctUntilChanged()),
-            (aspectRatio) => grid()?.setAttribute("aspect-ratio", aspectRatio),
-        );
 
         this.subscribe(
             settings$.pipe(map((s) => s.previewScale), distinctUntilChanged()),
@@ -105,16 +112,9 @@ export class ImageGallery extends BaseComponent {
     }
 
     private setupEventListeners(): void {
-        if (!this.shadowRoot) {
-            return;
-        }
-
-        const refreshButton = this.shadowRoot.querySelector(".outline-button");
-        if (refreshButton) {
-            refreshButton.addEventListener("click", () => {
-                this.loadAssets();
-            });
-        }
+        this.shadowRoot?.querySelector("#refresh-btn")?.addEventListener("click", () => {
+            this.loadAssets();
+        });
     }
 
     private async loadAssets(): Promise<void> {

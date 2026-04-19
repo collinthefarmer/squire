@@ -1,6 +1,7 @@
 import { BaseComponent } from "@components/base/base-component";
+import { emitDomEvent } from "@utils/dom-events";
 import { selectStyles, labelStyles, flexColumn } from "@styles/common-styles";
-import { spacing } from "@styles/theme";
+import { spacing, fontSize } from "@styles/theme";
 
 /**
  * Channel selector component
@@ -31,7 +32,7 @@ export class ChannelSelector extends BaseComponent {
             ${selectStyles()}
 
             select {
-                font-size: 0.875rem;
+                font-size: ${fontSize.base};
                 cursor: pointer;
             }
         `;
@@ -67,13 +68,7 @@ export class ChannelSelector extends BaseComponent {
 
         select.addEventListener("change", () => {
             this.selectedChannel = select.value;
-            this.dispatchEvent(
-                new CustomEvent("channel-change", {
-                    detail: { channel: this.selectedChannel },
-                    bubbles: true,
-                    composed: true,
-                }),
-            );
+            emitDomEvent(this, "channel-change", { channel: this.selectedChannel });
         });
     }
 

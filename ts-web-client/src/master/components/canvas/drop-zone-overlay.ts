@@ -1,5 +1,5 @@
 import { BaseComponent } from "@components/base/base-component";
-import { colors, spacing, borderRadius, alpha } from "@styles/theme";
+import { colors, spacing, borderRadius, alpha, fontSize } from "@styles/theme";
 
 /**
  * Visual overlay indicating a valid drop target.
@@ -54,7 +54,7 @@ export class DropZoneOverlay extends BaseComponent {
 
             .text {
                 color: ${colors.white};
-                font-size: 1rem;
+                font-size: ${fontSize.md};
                 font-weight: 500;
                 text-shadow: 0 1px 3px ${alpha(colors.black, 0.5)};
                 padding: ${spacing.md};

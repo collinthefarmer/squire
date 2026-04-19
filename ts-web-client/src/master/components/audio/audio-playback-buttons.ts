@@ -1,11 +1,12 @@
 import { BaseComponent } from "@components/base/base-component";
+import { emitDomEvent } from "@utils/dom-events";
 import {
     secondaryButtonStyles,
     successButtonStyles,
     dangerButtonStyles,
     grid,
 } from "@styles/common-styles";
-import { spacing } from "@styles/theme";
+import { spacing, fontSize } from "@styles/theme";
 
 /**
  * Audio playback buttons component
@@ -35,7 +36,7 @@ export class AudioPlaybackButtons extends BaseComponent {
             ${dangerButtonStyles()}
 
             button {
-                font-size: 0.875rem;
+                font-size: ${fontSize.base};
             }
         `;
     }
@@ -75,40 +76,9 @@ export class AudioPlaybackButtons extends BaseComponent {
             return;
         }
 
-        playBtn.addEventListener("click", () => {
-            this.dispatchEvent(
-                new CustomEvent("play-request", {
-                    bubbles: true,
-                    composed: true,
-                }),
-            );
-        });
-
-        pauseBtn.addEventListener("click", () => {
-            this.dispatchEvent(
-                new CustomEvent("pause-request", {
-                    bubbles: true,
-                    composed: true,
-                }),
-            );
-        });
-
-        resumeBtn.addEventListener("click", () => {
-            this.dispatchEvent(
-                new CustomEvent("resume-request", {
-                    bubbles: true,
-                    composed: true,
-                }),
-            );
-        });
-
-        stopBtn.addEventListener("click", () => {
-            this.dispatchEvent(
-                new CustomEvent("stop-request", {
-                    bubbles: true,
-                    composed: true,
-                }),
-            );
-        });
+        playBtn.addEventListener("click", () => emitDomEvent(this, "play-request"));
+        pauseBtn.addEventListener("click", () => emitDomEvent(this, "pause-request"));
+        resumeBtn.addEventListener("click", () => emitDomEvent(this, "resume-request"));
+        stopBtn.addEventListener("click", () => emitDomEvent(this, "stop-request"));
     }
 }

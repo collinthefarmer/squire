@@ -1,4 +1,5 @@
 import { BaseComponent } from "@components/base/base-component";
+import { emitDomEvent } from "@utils/dom-events";
 import type { BlendMode } from "@types";
 import {
     flexColumn,
@@ -12,7 +13,7 @@ import {
     sliderRowStyles,
     valueDisplayStyles,
 } from "@styles/common-styles";
-import { spacing } from "@styles/theme";
+import { spacing, fontSize, sizing } from "@styles/theme";
 
 /**
  * Layer config controls component
@@ -62,11 +63,11 @@ export class LayerConfigControls extends BaseComponent {
             }
 
             label {
-                font-size: 0.875rem;
+                font-size: ${fontSize.base};
             }
 
             select, input[type="number"] {
-                font-size: 0.875rem;
+                font-size: ${fontSize.base};
             }
 
             select {
@@ -78,12 +79,12 @@ export class LayerConfigControls extends BaseComponent {
             }
 
             input[type="checkbox"] {
-                width: 1rem;
-                height: 1rem;
+                width: ${sizing.checkboxSm};
+                height: ${sizing.checkboxSm};
             }
 
             button {
-                font-size: 0.875rem;
+                font-size: ${fontSize.base};
             }
         `;
     }
@@ -163,18 +164,12 @@ export class LayerConfigControls extends BaseComponent {
         });
 
         applyBtn.addEventListener("click", () => {
-            this.dispatchEvent(
-                new CustomEvent("apply-config", {
-                    detail: {
-                        opacity: this.opacity,
-                        blendMode: this.blendMode,
-                        zIndex: this.zIndex,
-                        visible: this.visible,
-                    },
-                    bubbles: true,
-                    composed: true,
-                })
-            );
+            emitDomEvent(this, "apply-config", {
+                opacity: this.opacity,
+                blendMode: this.blendMode,
+                zIndex: this.zIndex,
+                visible: this.visible,
+            });
         });
     }
 }
