@@ -1,8 +1,12 @@
 import { BaseComponent } from "@components/base/base-component";
+import { cssSheet } from "@styles/adopt-styles";
 import { ServiceRegistry } from "@services/service-registry";
 import { observeResize } from "@utils/observe-resize";
 import type { ConfigService } from "@services/config-service";
-import { colors, borderRadius } from "@styles/theme";
+// @ts-expect-error — Bun imports CSS as text
+import iframePreviewCss from "./iframe-preview.css" with { type: "text" };
+// @ts-expect-error — Bun imports CSS as text
+import commonCss from "@styles/common.css" with { type: "text" };
 
 /**
  * Scaled iframe preview of the display client.
@@ -24,6 +28,8 @@ export class IframePreview extends BaseComponent {
         super.connectedCallback();
 
         this.config = ServiceRegistry.get<ConfigService>("ConfigService");
+        this.adoptStyles(cssSheet(commonCss), cssSheet(iframePreviewCss));
+
         this.render();
 
         const wrapper = this.shadowRoot?.querySelector(".iframe-wrapper");
@@ -32,45 +38,12 @@ export class IframePreview extends BaseComponent {
             this.subscribe(observeResize(wrapper), () => this.updateScale());
         }
     }
-
-    protected override getStyles(): string {
-        return `
-            :host {
-                display: block;
-                position: relative;
-            }
-
-            .iframe-wrapper {
-                position: relative;
-                width: 100%;
-                aspect-ratio: 16 / 9;
-                background: ${colors.black};
-                border-radius: ${borderRadius.md};
-                overflow: hidden;
-            }
-
-            iframe {
-                position: absolute;
-                top: 0;
-                left: 0;
-                width: 1920px;
-                height: 1080px;
-                border: none;
-                display: block;
-                transform-origin: top left;
-            }
-
-        `;
-    }
-
-    protected override render(): void {
+protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
 
         this.shadowRoot.innerHTML = `
-            ${this.styleTag(this.getStyles())}
-
             <div class="iframe-wrapper">
                 <iframe
                     src="${this.config.getDisplayUrl()}"

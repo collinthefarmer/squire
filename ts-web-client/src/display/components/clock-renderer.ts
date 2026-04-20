@@ -1,4 +1,5 @@
 import { interval, animationFrameScheduler, type Subscription } from "rxjs";
+import { cssSheet } from "@styles/adopt-styles";
 import { takeUntil } from "rxjs/operators";
 import { BaseComponent } from "@components/base/base-component";
 import { ServiceRegistry } from "@services/service-registry";
@@ -12,7 +13,12 @@ import {
 } from "@services/clock-state";
 import { calculatePosition } from "@utils/canvas-renderer";
 import { DISPLAY } from "@shared/constants/display";
-import { colors, alpha, transitions } from "@styles/theme";
+import { colors } from "@styles/theme";
+
+// @ts-expect-error — Bun imports CSS as text
+import clockRendererCss from "./clock-renderer.css" with { type: "text" };
+// @ts-expect-error — Bun imports CSS as text
+import commonCss from "@styles/common.css" with { type: "text" };
 
 /**
  * Clock renderer component for display client
@@ -32,6 +38,8 @@ export class ClockRenderer extends BaseComponent {
         this.clockService =
             ServiceRegistry.get<DisplayClockService>("ClockService");
 
+        this.adoptStyles(cssSheet(commonCss), cssSheet(clockRendererCss));
+
         this.render();
         this.setupSubscriptions();
     }
@@ -40,39 +48,12 @@ export class ClockRenderer extends BaseComponent {
         super.disconnectedCallback();
         this.animationSub?.unsubscribe();
     }
-
-    protected override getStyles(): string {
-        return `
-            :host {
-                display: block;
-                position: fixed;
-                inset: 0;
-                pointer-events: none;
-                z-index: 10;
-            }
-
-            .clock {
-                position: absolute;
-                font-family: 'Courier New', monospace;
-                font-size: 2rem;
-                font-weight: 700;
-                text-align: center;
-                padding: 0.5rem 1.5rem;
-                border-radius: 0.5rem;
-                background: ${alpha(colors.black, 0.6)};
-                min-width: 120px;
-                transition: ${transitions.normal};
-            }
-        `;
-    }
-
-    protected override render(): void {
+protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
 
         this.shadowRoot.innerHTML = `
-            ${this.styleTag(this.getStyles())}
             <div class="clock-container"></div>
         `;
     }

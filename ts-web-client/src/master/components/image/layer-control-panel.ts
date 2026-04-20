@@ -1,9 +1,15 @@
 import { BehaviorSubject, fromEvent } from "rxjs";
+import { cssSheet } from "@styles/adopt-styles";
 import { debounceTime } from "rxjs/operators";
 import { BaseComponent } from "@components/base/base-component";
 import { onDomEvent, emitDomEvent } from "@utils/dom-events";
 import type { AspectRatioMode } from "@types";
 import { LAYER } from "@shared/constants/layer";
+
+// @ts-expect-error — Bun imports CSS as text
+import layerControlPanelCss from "./layer-control-panel.css" with { type: "text" };
+// @ts-expect-error — Bun imports CSS as text
+import commonCss from "@styles/common.css" with { type: "text" };
 import {
     headerRowStyles,
     sectionHeaderStyles,
@@ -75,203 +81,19 @@ export class LayerControlPanel extends BaseComponent {
     override connectedCallback(): void {
         super.connectedCallback();
 
+        this.adoptStyles(cssSheet(commonCss), cssSheet(layerControlPanelCss));
+
         this.render();
         this.setupActionListeners();
         this.setupDragListeners();
         this.setupSubscriptions();
     }
-
-    protected override getStyles(): string {
-        return `
-            :host {
-                display: block;
-            }
-
-            ${sectionHeaderStyles()}
-            ${headerRowStyles()}
-            ${outlineButtonStyles()}
-            ${inputStyles()}
-
-            .header-row {
-                padding-bottom: ${spacing.md};
-                margin-bottom: ${spacing.lg};
-                border-bottom: 2px solid ${colors.gray[700]};
-            }
-
-            .section-header {
-                padding-bottom: 0;
-                margin-bottom: 0;
-                border-bottom: none;
-            }
-
-            .layer-list {
-                display: flex;
-                flex-direction: column;
-                gap: ${spacing.xs};
-                max-height: 240px;
-                overflow-y: auto;
-                margin-top: ${spacing.xl};
-            }
-
-            .layer-row {
-                display: flex;
-                align-items: center;
-                gap: ${spacing.sm};
-                padding: ${spacing.sm} ${spacing.md};
-                background: ${colors.gray[800]};
-                border-radius: ${borderRadius.md};
-                border-left: 3px solid transparent;
-                border-top: 2px solid transparent;
-                border-bottom: 2px solid transparent;
-                cursor: grab;
-                transition: ${transitions.fast};
-                user-select: none;
-            }
-
-            .layer-row:active {
-                cursor: grabbing;
-            }
-
-            .layer-row:hover {
-                background: ${colors.gray[700]};
-            }
-
-            .layer-row.selected {
-                border-left-color: ${colors.blue[500]};
-                background: ${alpha(colors.blue[500], 0.1)};
-            }
-
-            .layer-row.drop-before {
-                border-top-color: ${colors.blue[400]};
-            }
-
-            .layer-row.drop-after {
-                border-bottom-color: ${colors.blue[400]};
-            }
-
-            .layer-row.dragging {
-                opacity: 0.4;
-            }
-
-            .layer-name {
-                font-size: ${fontSize.sm};
-                font-weight: 500;
-                color: ${colors.gray[200]};
-                min-width: 0;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-            }
-
-            .layer-image {
-                flex: 1;
-                font-size: ${fontSize.xs};
-                color: ${colors.gray[500]};
-                min-width: 0;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-                text-align: right;
-            }
-
-            .layer-actions {
-                display: flex;
-                gap: 2px;
-                flex-shrink: 0;
-            }
-
-            .icon-btn {
-                background: transparent;
-                border: none;
-                color: ${colors.gray[500]};
-                cursor: pointer;
-                padding: ${spacing.xs} ${spacing.sm};
-                font-size: ${fontSize.lg};
-                border-radius: ${borderRadius.sm};
-                transition: ${transitions.fast};
-                line-height: 1;
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-            }
-
-            .icon-btn:hover {
-                background: ${colors.gray[700]};
-                color: ${colors.gray[200]};
-            }
-
-            .icon-btn.active {
-                color: ${colors.green[400]};
-            }
-
-            .icon-btn.danger:hover {
-                color: ${colors.red[500]};
-            }
-
-            .icon-btn.selected {
-                color: ${colors.blue[400]};
-            }
-
-            .add-row {
-                display: flex;
-                gap: ${spacing.sm};
-                align-items: center;
-                padding: ${spacing.md} ${spacing.md};
-                border: 1px solid ${colors.blue[500]};
-                border-radius: ${borderRadius.md};
-                margin-top: ${spacing.sm};
-                animation: add-row-in 0.15s ease-out;
-            }
-
-            @keyframes add-row-in {
-                from {
-                    opacity: 0;
-                    transform: translateY(-4px);
-                }
-                to {
-                    opacity: 1;
-                    transform: translateY(0);
-                }
-            }
-
-            .add-row input {
-                flex: 1;
-                padding: ${spacing.sm} ${spacing.md};
-                font-size: ${fontSize.sm};
-                background: ${colors.gray[800]};
-                border: 1px solid ${colors.gray[600]};
-                border-radius: ${borderRadius.sm};
-                color: ${colors.gray[200]};
-            }
-
-            .add-row input:focus {
-                outline: none;
-                border-color: ${colors.blue[400]};
-            }
-
-            .add-btn {
-                font-size: ${fontSize.sm};
-                font-weight: 600;
-                padding: ${spacing.xs} ${spacing.sm};
-            }
-
-            .empty-state {
-                font-size: ${fontSize.sm};
-                color: ${colors.gray[500]};
-                text-align: center;
-                padding: ${spacing.md};
-            }
-        `;
-    }
-
-    protected override render(): void {
+protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
 
         this.shadowRoot.innerHTML = `
-            ${this.styleTag(this.getStyles())}
-
             <div class="header-row">
                 <div class="section-header">Layers</div>
                 <button class="outline-button add-btn" id="add-btn" type="button">Add Layer +</button>

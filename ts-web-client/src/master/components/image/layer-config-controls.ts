@@ -1,4 +1,5 @@
 import { BaseComponent } from "@components/base/base-component";
+import { cssSheet } from "@styles/adopt-styles";
 import { emitDomEvent } from "@utils/dom-events";
 import type { BlendMode } from "@types";
 import {
@@ -13,7 +14,10 @@ import {
     sliderRowStyles,
     valueDisplayStyles,
 } from "@styles/common-styles";
-import { spacing, fontSize, sizing } from "@styles/theme";
+// @ts-expect-error — Bun imports CSS as text
+import layerConfigControlsCss from "./layer-config-controls.css" with { type: "text" };
+// @ts-expect-error — Bun imports CSS as text
+import commonCss from "@styles/common.css" with { type: "text" };
 
 /**
  * Layer config controls component
@@ -28,75 +32,17 @@ export class LayerConfigControls extends BaseComponent {
 
     override connectedCallback(): void {
         super.connectedCallback();
+        this.adoptStyles(cssSheet(commonCss), cssSheet(layerConfigControlsCss));
+
         this.render();
         this.setupEventListeners();
     }
-
-    protected override getStyles(): string {
-        return `
-            :host {
-                display: block;
-            }
-
-            .layer-config-controls {
-                ${flexColumn(spacing.lg)}
-            }
-
-            ${sectionTitleStyles()}
-            ${labelStyles()}
-            ${selectStyles()}
-            ${inputStyles()}
-            ${rangeInputStyles()}
-            ${checkboxStyles()}
-            ${sliderRowStyles()}
-            ${valueDisplayStyles()}
-            ${primaryButtonStyles()}
-
-            .form-group {
-                ${flexColumn(spacing.sm)}
-            }
-
-            .checkbox-row {
-                display: flex;
-                align-items: center;
-                gap: ${spacing.sm};
-            }
-
-            label {
-                font-size: ${fontSize.base};
-            }
-
-            select, input[type="number"] {
-                font-size: ${fontSize.base};
-            }
-
-            select {
-                cursor: pointer;
-            }
-
-            input[type="range"] {
-                outline: none;
-            }
-
-            input[type="checkbox"] {
-                width: ${sizing.checkboxSm};
-                height: ${sizing.checkboxSm};
-            }
-
-            button {
-                font-size: ${fontSize.base};
-            }
-        `;
-    }
-
-    protected override render(): void {
+protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
 
         this.shadowRoot.innerHTML = `
-            ${this.styleTag(this.getStyles())}
-
             <div class="layer-config-controls">
                 <div class="section-title">Layer Configuration</div>
 

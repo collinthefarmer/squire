@@ -1,7 +1,11 @@
 import { BaseComponent } from "@components/base/base-component";
+import { cssSheet } from "@styles/adopt-styles";
 import { emitDomEvent } from "@utils/dom-events";
 import { selectStyles, labelStyles, flexColumn } from "@styles/common-styles";
-import { spacing, fontSize } from "@styles/theme";
+// @ts-expect-error — Bun imports CSS as text
+import channelSelectorCss from "./channel-selector.css" with { type: "text" };
+// @ts-expect-error — Bun imports CSS as text
+import commonCss from "@styles/common.css" with { type: "text" };
 
 /**
  * Channel selector component
@@ -14,38 +18,17 @@ export class ChannelSelector extends BaseComponent {
     override connectedCallback(): void {
         super.connectedCallback();
 
+        this.adoptStyles(cssSheet(commonCss), cssSheet(channelSelectorCss));
+
         this.render();
         this.setupEventListeners();
     }
-
-    protected override getStyles(): string {
-        return `
-            :host {
-                display: block;
-            }
-
-            .channel-selector {
-                ${flexColumn(spacing.sm)}
-            }
-
-            ${labelStyles()}
-            ${selectStyles()}
-
-            select {
-                font-size: ${fontSize.base};
-                cursor: pointer;
-            }
-        `;
-    }
-
-    protected override render(): void {
+protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
 
         this.shadowRoot.innerHTML = `
-            ${this.styleTag(this.getStyles())}
-
             <div class="channel-selector">
                 <label for="channel">Channel</label>
                 <select id="channel">

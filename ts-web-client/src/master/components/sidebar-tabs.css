@@ -1,0 +1,53 @@
+:host {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.tab-bar {
+    display: flex;
+    gap: var(--spacing-xs);
+    padding: 0 var(--spacing-xs);
+    border-bottom: 1px solid var(--color-gray-700);
+    margin-bottom: var(--spacing-md);
+    flex-shrink: 0;
+}
+
+.tab-btn {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--color-gray-500);
+    cursor: pointer;
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: var(--font-sm);
+    font-weight: 500;
+    transition: var(--transition-fast);
+    margin-bottom: -1px;
+}
+
+.tab-btn:hover {
+    color: var(--color-gray-200);
+}
+
+.tab-btn.active {
+    color: var(--color-blue-400);
+    border-bottom-color: var(--color-blue-400);
+}
+
+.tab-content {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.tab-panel {
+    display: none;
+    height: 100%;
+}
+
+.tab-panel.active {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}

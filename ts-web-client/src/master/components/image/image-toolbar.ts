@@ -1,4 +1,5 @@
 import { combineLatest } from "rxjs";
+import { cssSheet } from "@styles/adopt-styles";
 import { BaseComponent } from "@components/base/base-component";
 import { onDomEvent } from "@utils/dom-events";
 import { ServiceRegistry } from "@services/service-registry";
@@ -7,7 +8,10 @@ import type { MasterVisualService } from "@master/services/visual-service";
 import type { LayerControlPanel, LayerEntry } from "./layer-control-panel";
 import type { ImageLayerState } from "@types";
 import { containerStyles, sectionHeaderStyles } from "@styles/common-styles";
-import { colors, spacing, borderRadius } from "@styles/theme";
+// @ts-expect-error — Bun imports CSS as text
+import imageToolbarCss from "./image-toolbar.css" with { type: "text" };
+// @ts-expect-error — Bun imports CSS as text
+import commonCss from "@styles/common.css" with { type: "text" };
 
 /**
  * Image toolbar container component
@@ -29,44 +33,18 @@ export class ImageToolbar extends BaseComponent {
         this.imageToolbarService = ServiceRegistry.get<ImageToolbarService>("ImageToolbarService");
         this.visualService = ServiceRegistry.get<MasterVisualService>("MasterVisualService");
 
+        this.adoptStyles(cssSheet(commonCss), cssSheet(imageToolbarCss));
+
         this.render();
         this.setupEventListeners();
         this.setupSubscriptions();
     }
-
-    protected override getStyles(): string {
-        return `
-            :host {
-                display: block;
-            }
-
-            ${containerStyles()}
-            ${sectionHeaderStyles()}
-
-            .toolbar {
-                background: ${colors.gray[800]};
-                border-radius: ${borderRadius.lg};
-                padding: ${spacing.md};
-                display: flex;
-                flex-direction: column;
-                gap: ${spacing.md};
-            }
-
-            .section-header {
-                margin-bottom: 0;
-            }
-
-        `;
-    }
-
-    protected override render(): void {
+protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
 
         this.shadowRoot.innerHTML = `
-            ${this.styleTag(this.getStyles())}
-
             <div class="toolbar">
                 <layer-control-panel></layer-control-panel>
             </div>

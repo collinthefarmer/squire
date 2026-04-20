@@ -1,8 +1,12 @@
 import { BaseComponent } from "@components/base/base-component";
+import { cssSheet } from "@styles/adopt-styles";
 import { emitDomEvent } from "@utils/dom-events";
 import { Logger } from "@utils/logger";
 import { primaryButtonStyles, cardStyles } from "@styles/common-styles";
-import { colors, spacing, borderRadius, alpha } from "@styles/theme";
+// @ts-expect-error — Bun imports CSS as text
+import audioEnableModalCss from "./audio-enable-modal.css" with { type: "text" };
+// @ts-expect-error — Bun imports CSS as text
+import commonCss from "@styles/common.css" with { type: "text" };
 
 /**
  * Modal component for enabling audio playback
@@ -20,6 +24,8 @@ export class AudioEnableModal extends BaseComponent {
 
     override connectedCallback(): void {
         super.connectedCallback();
+        this.adoptStyles(cssSheet(commonCss), cssSheet(audioEnableModalCss));
+
         this.render();
         this.setupEventListeners();
         this.showModal();
@@ -98,110 +104,8 @@ export class AudioEnableModal extends BaseComponent {
             }
         });
     }
-
-    protected override getStyles(): string {
-        return `
-            :host {
-                font-family: system-ui, -apple-system, sans-serif;
-            }
-
-            dialog {
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                max-width: 100%;
-                max-height: 100%;
-                margin: 0;
-                padding: 0;
-                border: none;
-                background: transparent;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-
-            dialog::backdrop {
-                background: ${alpha(colors.black, 0.85)};
-                backdrop-filter: blur(4px);
-            }
-
-            dialog:not([open]) {
-                display: none;
-            }
-
-            .modal-content {
-                background: ${colors.gray[900]};
-                border: 1px solid ${colors.gray[700]};
-                border-radius: ${borderRadius.lg};
-                padding: ${spacing["2xl"]};
-                max-width: 400px;
-                text-align: center;
-                color: ${colors.gray[100]};
-                box-shadow: 0 25px 50px -12px ${alpha(colors.black, 0.5)};
-            }
-
-            .icon {
-                font-size: 3rem;
-                margin-bottom: ${spacing.lg};
-                line-height: 1;
-            }
-
-            h2 {
-                margin: 0 0 ${spacing.md} 0;
-                font-size: 1.5rem;
-                font-weight: 600;
-                color: ${colors.white};
-            }
-
-            p {
-                margin: 0 0 ${spacing.xl} 0;
-                font-size: 1rem;
-                line-height: 1.5;
-                color: ${colors.gray[500]};
-            }
-
-            ${primaryButtonStyles()}
-
-            .enable-button {
-                padding: ${spacing.md} ${spacing.xl};
-                font-size: 1.125rem;
-                display: inline-flex;
-                align-items: center;
-                gap: ${spacing.sm};
-            }
-
-            .enable-button:focus {
-                outline: 2px solid ${colors.blue[400]};
-                outline-offset: 2px;
-            }
-
-            .button-icon {
-                font-size: 1.25rem;
-            }
-
-            @keyframes modal-appear {
-                from {
-                    opacity: 0;
-                    transform: scale(0.95);
-                }
-                to {
-                    opacity: 1;
-                    transform: scale(1);
-                }
-            }
-
-            dialog[open] .modal-content {
-                animation: modal-appear 0.2s ease-out;
-            }
-        `;
-    }
-
-    protected override render(): void {
+protected override render(): void {
         this.shadowRoot!.innerHTML = `
-            ${this.styleTag(this.getStyles())}
-
             <dialog
                 id="audio-dialog"
                 role="alertdialog"

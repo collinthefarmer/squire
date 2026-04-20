@@ -1,4 +1,5 @@
 import { interval, animationFrameScheduler, type Subscription } from "rxjs";
+import { cssSheet } from "@styles/adopt-styles";
 import { takeUntil } from "rxjs/operators";
 import { BaseComponent } from "@components/base/base-component";
 import { ServiceRegistry } from "@services/service-registry";
@@ -18,7 +19,10 @@ import {
     checkboxStyles,
     flexColumn,
 } from "@styles/common-styles";
-import { colors, spacing, borderRadius, fontSize, sizing } from "@styles/theme";
+// @ts-expect-error — Bun imports CSS as text
+import clockControlsCss from "./clock-controls.css" with { type: "text" };
+// @ts-expect-error — Bun imports CSS as text
+import commonCss from "@styles/common.css" with { type: "text" };
 
 /**
  * Clock controls panel for master client
@@ -41,6 +45,8 @@ export class ClockControls extends BaseComponent {
 
         this.clockService = ServiceRegistry.get<MasterClockService>("MasterClockService");
 
+        this.adoptStyles(cssSheet(commonCss), cssSheet(clockControlsCss));
+
         this.render();
         this.setupEventListeners();
         this.setupSubscriptions();
@@ -50,116 +56,12 @@ export class ClockControls extends BaseComponent {
         super.disconnectedCallback();
         this.animationSub?.unsubscribe();
     }
-
-    protected override getStyles(): string {
-        return `
-            :host {
-                display: block;
-            }
-
-            ${containerStyles()}
-            ${sectionHeaderStyles()}
-            ${headerRowStyles()}
-            ${primaryButtonStyles()}
-            ${selectStyles()}
-            ${checkboxStyles()}
-            ${secondaryButtonStyles()}
-            ${dangerButtonStyles()}
-            ${outlineButtonStyles()}
-            ${inputStyles()}
-            ${flexColumn(spacing.sm)}
-
-            .section-header {
-                margin-bottom: ${spacing.sm};
-            }
-
-            .create-form {
-                display: flex;
-                gap: ${spacing.sm};
-                align-items: end;
-            }
-
-            .create-form .field {
-                display: flex;
-                flex-direction: column;
-                gap: ${spacing.xs};
-            }
-
-            .create-form label {
-                font-size: ${fontSize.xs};
-                color: ${colors.gray[500]};
-                text-transform: uppercase;
-                letter-spacing: 0.05em;
-            }
-
-            .create-form input {
-                width: ${sizing.inputMin};
-            }
-
-            .clock-list {
-                display: flex;
-                flex-direction: column;
-                gap: ${spacing.sm};
-            }
-
-            .clock-item {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                gap: ${spacing.sm};
-                padding: ${spacing.sm};
-                background: ${colors.gray[900]};
-                border-radius: ${borderRadius.sm};
-            }
-
-            .clock-info {
-                display: flex;
-                align-items: center;
-                gap: ${spacing.sm};
-                min-width: 0;
-            }
-
-            .clock-id {
-                font-size: ${fontSize.sm};
-                color: ${colors.gray[200]};
-                font-weight: 500;
-            }
-
-            .clock-time {
-                font-family: 'Courier New', monospace;
-                font-size: ${fontSize.base};
-                font-weight: 600;
-                color: ${colors.white};
-            }
-
-            .clock-actions {
-                display: flex;
-                gap: ${spacing.xs};
-                flex-shrink: 0;
-            }
-
-            .clock-actions button {
-                padding: ${spacing.xs};
-                font-size: ${fontSize.xs};
-            }
-
-            .empty {
-                font-size: ${fontSize.sm};
-                color: ${colors.gray[500]};
-                text-align: center;
-                padding: ${spacing.md};
-            }
-        `;
-    }
-
-    protected override render(): void {
+protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
 
         this.shadowRoot.innerHTML = `
-            ${this.styleTag(this.getStyles())}
-
             <div class="container">
                 <div class="section-header">Clocks</div>
 

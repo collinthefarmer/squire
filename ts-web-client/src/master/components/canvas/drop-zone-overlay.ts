@@ -1,5 +1,9 @@
 import { BaseComponent } from "@components/base/base-component";
-import { colors, spacing, borderRadius, alpha, fontSize } from "@styles/theme";
+import { cssSheet } from "@styles/adopt-styles";
+// @ts-expect-error — Bun imports CSS as text
+import dropZoneOverlayCss from "./drop-zone-overlay.css" with { type: "text" };
+// @ts-expect-error — Bun imports CSS as text
+import commonCss from "@styles/common.css" with { type: "text" };
 
 /**
  * Visual overlay indicating a valid drop target.
@@ -15,62 +19,17 @@ import { colors, spacing, borderRadius, alpha, fontSize } from "@styles/theme";
 export class DropZoneOverlay extends BaseComponent {
     override connectedCallback(): void {
         super.connectedCallback();
+        this.adoptStyles(cssSheet(commonCss), cssSheet(dropZoneOverlayCss));
+
         this.render();
         this.setupEventListeners();
     }
-
-    protected override getStyles(): string {
-        return `
-            :host {
-                position: absolute;
-                inset: 0;
-                display: none;
-                align-items: center;
-                justify-content: center;
-                pointer-events: none;
-                z-index: 10;
-            }
-
-            :host(.active) {
-                display: flex;
-                pointer-events: auto;
-            }
-
-            .overlay {
-                position: absolute;
-                inset: 0;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                background: ${alpha(colors.blue[500], 0.2)};
-                border: 3px dashed ${colors.blue[500]};
-                border-radius: ${borderRadius.md};
-            }
-
-            :host(.hover) .overlay {
-                background: ${alpha(colors.blue[500], 0.4)};
-                border-color: ${colors.blue[400]};
-            }
-
-            .text {
-                color: ${colors.white};
-                font-size: ${fontSize.md};
-                font-weight: 500;
-                text-shadow: 0 1px 3px ${alpha(colors.black, 0.5)};
-                padding: ${spacing.md};
-                background: ${alpha(colors.black, 0.5)};
-                border-radius: ${borderRadius.sm};
-            }
-        `;
-    }
-
-    protected override render(): void {
+protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
 
         this.shadowRoot.innerHTML = `
-            ${this.styleTag(this.getStyles())}
             <div class="overlay">
                 <span class="text">Drop image here</span>
             </div>

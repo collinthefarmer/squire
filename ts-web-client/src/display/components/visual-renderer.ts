@@ -1,4 +1,5 @@
 import { animationFrameScheduler } from "rxjs";
+import { cssSheet } from "@styles/adopt-styles";
 import { observeOn } from "rxjs/operators";
 import { BaseComponent } from "@components/base/base-component";
 import { ServiceRegistry } from "@services/service-registry";
@@ -8,7 +9,10 @@ import type { VisualService } from "@display/services/visual-service";
 import type { ImageLayerState } from "@types";
 import { ImageCache, drawLayers } from "@utils/canvas-renderer";
 import { Logger } from "@utils/logger";
-import { colors } from "@styles/theme";
+// @ts-expect-error — Bun imports CSS as text
+import visualRendererCss from "./visual-renderer.css" with { type: "text" };
+// @ts-expect-error — Bun imports CSS as text
+import commonCss from "@styles/common.css" with { type: "text" };
 
 /**
  * Visual renderer component
@@ -30,6 +34,8 @@ export class VisualRenderer extends BaseComponent {
         const config = ServiceRegistry.get<ConfigService>("ConfigService");
         this.imageCache = new ImageCache(config.getApiUrl());
 
+        this.adoptStyles(cssSheet(commonCss), cssSheet(visualRendererCss));
+
         this.render();
         this.setupCanvas();
 
@@ -47,28 +53,8 @@ export class VisualRenderer extends BaseComponent {
             },
         );
     }
-
-    protected override getStyles(): string {
-        return `
-            :host {
-                display: block;
-                position: fixed;
-                inset: 0;
-                background: ${colors.black};
-                z-index: 0;
-            }
-
-            canvas {
-                width: 100%;
-                height: 100%;
-                display: block;
-            }
-        `;
-    }
-
-    protected override render(): void {
+protected override render(): void {
         this.shadowRoot!.innerHTML = `
-            ${this.styleTag(this.getStyles())}
             <canvas></canvas>
         `;
     }

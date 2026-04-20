@@ -1,4 +1,5 @@
 import { combineLatest, map } from "rxjs";
+import { cssSheet } from "@styles/adopt-styles";
 import { BaseComponent } from "@components/base/base-component";
 import { onDomEvent } from "@utils/dom-events";
 import type { DragStartDetail, DragMoveDetail, DragEndDetail, DragScaleDetail } from "@utils/dom-events";
@@ -6,10 +7,14 @@ import { ServiceRegistry } from "@services/service-registry";
 import { Logger } from "@utils/logger";
 import type { CanvasObject } from "@master/services/visual-service";
 import type { CanvasObjectProvider } from "@master/services/canvas-object-provider";
-import { colors, alpha } from "@styles/theme";
 import { DRAG } from "@shared/constants/drag";
 import { boundsToPercentages, applyDragDelta } from "./display-coordinates";
 import type { IframePreview } from "./iframe-preview";
+
+// @ts-expect-error — Bun imports CSS as text
+import canvasOverlayCss from "./canvas-overlay.css" with { type: "text" };
+// @ts-expect-error — Bun imports CSS as text
+import commonCss from "@styles/common.css" with { type: "text" };
 
 /**
  * Persistent overlay for interacting with placed canvas objects
@@ -43,49 +48,18 @@ export class CanvasOverlay extends BaseComponent {
         this.registerProvider("clock",
             ServiceRegistry.get<CanvasObjectProvider>("MasterClockService"));
 
+        this.adoptStyles(cssSheet(commonCss), cssSheet(canvasOverlayCss));
+
         this.render();
         this.setupSubscriptions();
         this.setupDragListeners();
     }
-
-    protected override getStyles(): string {
-        return `
-            :host {
-                position: absolute;
-                inset: 0;
-                pointer-events: none;
-                z-index: 5;
-            }
-
-            .overlay-container {
-                position: relative;
-                width: 100%;
-                height: 100%;
-            }
-
-            .overlay-handle {
-                position: absolute;
-                pointer-events: auto;
-                border: 1px dashed ${colors.blue[400]};
-                cursor: grab;
-                box-sizing: border-box;
-                transform-origin: center;
-            }
-
-            .overlay-handle:hover {
-                background: ${alpha(colors.blue[500], 0.1)};
-                border-color: ${colors.blue[500]};
-            }
-        `;
-    }
-
-    protected override render(): void {
+protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
 
         this.shadowRoot.innerHTML = `
-            ${this.styleTag(this.getStyles())}
             <div class="overlay-container"></div>
         `;
     }

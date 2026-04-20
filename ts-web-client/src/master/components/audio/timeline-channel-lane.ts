@@ -1,19 +1,13 @@
 import { BaseComponent } from "@components/base/base-component";
-import { stripButtonStyles, levelBarStyles } from "@styles/common-styles";
+import { cssSheet } from "@styles/adopt-styles";
 import { ServiceRegistry } from "@services/service-registry";
-import type {
-    MasterAudioService,
-    MixState,
-} from "@master/services/master-audio-service";
+import type { MasterAudioService } from "@master/services/master-audio-service";
 import type { AudioChannelState } from "@types";
-import {
-    colors,
-    spacing,
-    fontSize,
-    borderRadius,
-    sizing,
-    transitions,
-} from "@styles/theme";
+
+// @ts-expect-error — Bun imports CSS as text
+import timelineChannelLaneCss from "./timeline-channel-lane.css" with { type: "text" };
+// @ts-expect-error — Bun imports CSS as text
+import commonCss from "@styles/common.css" with { type: "text" };
 
 /**
  * Single channel lane in the audio timeline.
@@ -38,6 +32,8 @@ export class TimelineChannelLane extends BaseComponent {
             ServiceRegistry.get<MasterAudioService>("MasterAudioService");
         this.channelId = this.getAttribute("channel") ?? "";
 
+        this.adoptStyles(cssSheet(commonCss), cssSheet(timelineChannelLaneCss));
+
         this.render();
         this.setupInteractions();
         this.setupSubscriptions();
@@ -55,139 +51,12 @@ export class TimelineChannelLane extends BaseComponent {
         const btn = this.shadowRoot?.querySelector("#solo-btn") as HTMLElement;
         btn?.classList.toggle("active", soloed);
     }
-
-    protected override getStyles(): string {
-        return `
-            :host {
-                display: block;
-            }
-
-            ${stripButtonStyles()}
-            ${levelBarStyles()}
-
-            .lane {
-                display: flex;
-                min-height: calc(${sizing.stripBtn} + ${spacing.sm});
-                border-bottom: 1px solid ${colors.gray[800]};
-                transition: ${transitions.fast};
-            }
-
-            .lane:hover {
-                background: ${colors.gray[800]};
-            }
-
-            .lane.muted {
-                opacity: 0.5;
-            }
-
-            /* -- Left button strip -- */
-
-            .lane-strip {
-                display: flex;
-                flex-direction: row;
-                gap: ${spacing.sm};
-                padding: ${spacing.xs};
-                flex-shrink: 0;
-                border-right: 1px solid ${colors.gray[800]};
-                align-items: center;
-            }
-
-            .play-btn {
-                flex: 2;
-            }
-
-            .play-btn.playing {
-                color: ${colors.blue[400]};
-                border-color: ${colors.blue[500]};
-            }
-
-            .mute-btn.active {
-                background: ${colors.red[500]};
-                border-color: ${colors.red[500]};
-                color: ${colors.white};
-            }
-
-            .solo-btn.active {
-                background: ${colors.amber[400]};
-                border-color: ${colors.amber[400]};
-                color: ${colors.gray[900]};
-            }
-
-            /* -- Right body -- */
-
-            .lane-body {
-                flex: 1;
-                min-width: 0;
-                display: flex;
-                flex-direction: column;
-                padding: ${spacing.xs} ${spacing.sm};
-            }
-
-            .lane-label {
-                font-size: ${fontSize.xs};
-                color: ${colors.gray[500]};
-                text-transform: uppercase;
-                letter-spacing: 0.05em;
-                margin-bottom: ${spacing.xs};
-                flex-shrink: 0;
-            }
-
-            .lane-content {
-                flex: 1;
-                min-height: 0;
-            }
-
-            .lane-summary {
-                display: none;
-                align-items: center;
-                gap: ${spacing.sm};
-                height: ${sizing.stripBtn};
-                cursor: pointer;
-                user-select: none;
-            }
-
-            .lane-summary.visible {
-                display: flex;
-            }
-
-            .collapse-toggle {
-                background: transparent;
-                border: none;
-                color: ${colors.gray[500]};
-                cursor: pointer;
-                font-size: ${fontSize.xs};
-                padding: 0;
-                line-height: 1;
-                width: ${spacing.lg};
-                text-align: center;
-            }
-
-            .summary-text {
-                font-size: ${fontSize.xs};
-                color: ${colors.gray[400]};
-                flex: 1;
-            }
-
-            .lane-track {
-                display: flex;
-                flex-direction: column;
-                gap: ${spacing.xs};
-            }
-
-            .lane-track.hidden {
-                display: none;
-            }
-        `;
-    }
-
     protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
 
         this.shadowRoot.innerHTML = `
-            ${this.styleTag(this.getStyles())}
-
             <div class="lane">
                 <div class="lane-strip">
                     <button class="strip-btn play-btn" id="play-btn" title="Play/Pause">▶</button>

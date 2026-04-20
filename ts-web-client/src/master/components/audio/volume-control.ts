@@ -1,4 +1,5 @@
 import { BaseComponent } from "@components/base/base-component";
+import { cssSheet } from "@styles/adopt-styles";
 import { emitDomEvent } from "@utils/dom-events";
 import {
     rangeInputStyles,
@@ -6,7 +7,10 @@ import {
     labelStyles,
     flexColumn,
 } from "@styles/common-styles";
-import { spacing, colors, fontSize, sizing } from "@styles/theme";
+// @ts-expect-error — Bun imports CSS as text
+import volumeControlCss from "./volume-control.css" with { type: "text" };
+// @ts-expect-error — Bun imports CSS as text
+import commonCss from "@styles/common.css" with { type: "text" };
 
 /**
  * Volume control component
@@ -20,71 +24,17 @@ export class VolumeControl extends BaseComponent {
     override connectedCallback(): void {
         super.connectedCallback();
 
+        this.adoptStyles(cssSheet(commonCss), cssSheet(volumeControlCss));
+
         this.render();
         this.setupEventListeners();
     }
-
-    protected override getStyles(): string {
-        return `
-            :host {
-                display: block;
-            }
-
-            .volume-control {
-                ${flexColumn(spacing.lg)}
-            }
-
-            .volume-section {
-                ${flexColumn(spacing.sm)}
-            }
-
-            .volume-row {
-                display: flex;
-                align-items: center;
-                gap: ${spacing.md};
-            }
-
-            ${labelStyles()}
-            ${rangeInputStyles()}
-            ${checkboxStyles()}
-
-            label {
-                font-size: ${fontSize.base};
-            }
-
-            input[type="range"] {
-                flex: 1;
-                outline: none;
-            }
-
-            .volume-value {
-                min-width: ${sizing.valueDisplay};
-                text-align: right;
-                font-size: ${fontSize.base};
-                color: ${colors.gray[500]};
-            }
-
-            .loop-section {
-                display: flex;
-                align-items: center;
-                gap: ${spacing.sm};
-            }
-
-            input[type="checkbox"] {
-                width: ${sizing.checkboxSm};
-                height: ${sizing.checkboxSm};
-            }
-        `;
-    }
-
-    protected override render(): void {
+protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
 
         this.shadowRoot.innerHTML = `
-            ${this.styleTag(this.getStyles())}
-
             <div class="volume-control">
                 <div class="volume-section">
                     <label>Volume</label>

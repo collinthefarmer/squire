@@ -1,4 +1,5 @@
 import { BaseComponent } from "@components/base/base-component";
+import { cssSheet } from "@styles/adopt-styles";
 import { emitDomEvent } from "@utils/dom-events";
 import {
     secondaryButtonStyles,
@@ -6,7 +7,10 @@ import {
     dangerButtonStyles,
     grid,
 } from "@styles/common-styles";
-import { spacing, fontSize } from "@styles/theme";
+// @ts-expect-error — Bun imports CSS as text
+import audioPlaybackButtonsCss from "./audio-playback-buttons.css" with { type: "text" };
+// @ts-expect-error — Bun imports CSS as text
+import commonCss from "@styles/common.css" with { type: "text" };
 
 /**
  * Audio playback buttons component
@@ -17,38 +21,17 @@ export class AudioPlaybackButtons extends BaseComponent {
     override connectedCallback(): void {
         super.connectedCallback();
 
+        this.adoptStyles(cssSheet(commonCss), cssSheet(audioPlaybackButtonsCss));
+
         this.render();
         this.setupEventListeners();
     }
-
-    protected override getStyles(): string {
-        return `
-            :host {
-                display: block;
-            }
-
-            .playback-buttons {
-                ${grid("repeat(2, 1fr)", spacing.sm)}
-            }
-
-            ${secondaryButtonStyles()}
-            ${successButtonStyles()}
-            ${dangerButtonStyles()}
-
-            button {
-                font-size: ${fontSize.base};
-            }
-        `;
-    }
-
-    protected override render(): void {
+protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
 
         this.shadowRoot.innerHTML = `
-            ${this.styleTag(this.getStyles())}
-
             <div class="playback-buttons">
                 <button id="play" class="success">Play</button>
                 <button id="pause" class="secondary">Pause</button>

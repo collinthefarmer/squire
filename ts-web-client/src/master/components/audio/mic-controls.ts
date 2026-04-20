@@ -1,4 +1,5 @@
 import { EMPTY, Observable, animationFrameScheduler, interval } from "rxjs";
+import { cssSheet } from "@styles/adopt-styles";
 import { switchMap } from "rxjs/operators";
 import { BaseComponent } from "@components/base/base-component";
 import { emitDomEvent } from "@utils/dom-events";
@@ -13,7 +14,10 @@ import {
     sliderRowStyles,
     valueDisplayStyles,
 } from "@styles/common-styles";
-import { spacing, colors, fontSize, sizing } from "@styles/theme";
+// @ts-expect-error — Bun imports CSS as text
+import micControlsCss from "./mic-controls.css" with { type: "text" };
+// @ts-expect-error — Bun imports CSS as text
+import commonCss from "@styles/common.css" with { type: "text" };
 
 /**
  * Microphone controls for live audio
@@ -33,87 +37,19 @@ export class MicControls extends BaseComponent {
 
         this.micService = ServiceRegistry.get<MicCaptureService>("MicCaptureService");
 
+        this.adoptStyles(cssSheet(commonCss), cssSheet(micControlsCss));
+
         this.render();
         this.populateDevices();
         this.setupEventListeners();
         this.setupSubscriptions();
     }
-
-
-    protected override getStyles(): string {
-        return `
-            :host {
-                display: block;
-            }
-
-            .mic-controls {
-                ${flexColumn(spacing.lg)}
-            }
-
-            ${labelStyles()}
-            ${selectStyles()}
-            ${rangeInputStyles()}
-            ${checkboxStyles()}
-            ${sliderRowStyles()}
-            ${valueDisplayStyles()}
-
-            .form-group {
-                ${flexColumn(spacing.sm)}
-            }
-
-            label {
-                font-size: ${fontSize.base};
-            }
-
-            select {
-                font-size: ${fontSize.base};
-                cursor: pointer;
-            }
-
-            input[type="range"] {
-                outline: none;
-            }
-
-            .monitor-row {
-                display: flex;
-                align-items: center;
-                gap: ${spacing.sm};
-            }
-
-            input[type="checkbox"] {
-                width: ${sizing.checkboxSm};
-                height: ${sizing.checkboxSm};
-            }
-
-            .meter-container {
-                height: 6px;
-                background: ${colors.gray[700]};
-                border-radius: 3px;
-                overflow: hidden;
-            }
-
-            .meter-fill {
-                height: 100%;
-                width: 0%;
-                background: ${colors.green[500]};
-                border-radius: 3px;
-                transition: width 50ms linear;
-            }
-
-            .meter-fill.hot {
-                background: ${colors.red[500]};
-            }
-        `;
-    }
-
-    protected override render(): void {
+protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
 
         this.shadowRoot.innerHTML = `
-            ${this.styleTag(this.getStyles())}
-
             <div class="mic-controls">
                 <div class="form-group">
                     <label for="mic-device">Microphone</label>

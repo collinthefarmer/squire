@@ -1,0 +1,332 @@
+/*
+ * Common reusable styles for Shadow DOM components.
+ *
+ * Adopt this sheet alongside component-specific styles:
+ *   this.adoptStyles(cssSheet(commonCss), cssSheet(componentCss));
+ */
+
+/* -- Form: Select -- */
+
+select {
+    padding: var(--spacing-sm);
+    background: var(--color-gray-800);
+    color: var(--color-gray-200);
+    border: 1px solid var(--color-gray-700);
+    border-radius: var(--radius-md);
+    transition: var(--transition-fast);
+}
+
+select:hover {
+    border-color: var(--color-gray-600);
+}
+
+select:focus {
+    outline: none;
+    border-color: var(--color-blue-500);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* -- Form: Text/Number Input -- */
+
+input[type="text"],
+input[type="number"] {
+    padding: var(--spacing-sm);
+    background: var(--color-gray-800);
+    color: var(--color-gray-200);
+    border: 1px solid var(--color-gray-700);
+    border-radius: var(--radius-md);
+    transition: var(--transition-fast);
+}
+
+input[type="text"]:hover,
+input[type="number"]:hover {
+    border-color: var(--color-gray-600);
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus {
+    outline: none;
+    border-color: var(--color-blue-500);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* -- Form: Range Slider -- */
+
+input[type="range"] {
+    cursor: pointer;
+    accent-color: var(--color-blue-500);
+}
+
+/* -- Form: Checkbox -- */
+
+input[type="checkbox"] {
+    width: var(--sizing-checkbox-lg);
+    height: var(--sizing-checkbox-lg);
+    cursor: pointer;
+    accent-color: var(--color-blue-500);
+}
+
+/* -- Button: Primary -- */
+
+button.primary {
+    padding: var(--spacing-sm) var(--spacing-lg);
+    background: var(--color-blue-500);
+    color: var(--color-white);
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-weight: 500;
+    transition: var(--transition-fast);
+}
+
+button.primary:hover { background: var(--color-blue-600); }
+button.primary:active { background: var(--color-blue-600); transform: translateY(1px); }
+button.primary:disabled { background: var(--color-gray-600); cursor: not-allowed; opacity: 0.5; }
+
+/* -- Button: Secondary -- */
+
+button.secondary {
+    padding: var(--spacing-sm) var(--spacing-lg);
+    background: var(--color-gray-800);
+    color: var(--color-gray-200);
+    border: 1px solid var(--color-gray-700);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+button.secondary:hover { background: var(--color-gray-700); border-color: var(--color-gray-600); }
+button.secondary:active { transform: translateY(1px); }
+button.secondary:disabled { cursor: not-allowed; opacity: 0.5; }
+
+/* -- Button: Success -- */
+
+button.success {
+    padding: var(--spacing-sm) var(--spacing-lg);
+    background: var(--color-green-600);
+    color: var(--color-white);
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-weight: 500;
+    transition: var(--transition-fast);
+}
+
+button.success:hover { background: var(--color-green-500); }
+button.success:active { transform: translateY(1px); }
+button.success:disabled { background: var(--color-gray-600); cursor: not-allowed; opacity: 0.5; }
+
+/* -- Button: Danger -- */
+
+button.danger {
+    padding: var(--spacing-sm) var(--spacing-lg);
+    background: var(--color-red-600);
+    color: var(--color-white);
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-weight: 500;
+    transition: var(--transition-fast);
+}
+
+button.danger:hover { background: var(--color-red-500); }
+button.danger:active { transform: translateY(1px); }
+button.danger:disabled { background: var(--color-gray-600); cursor: not-allowed; opacity: 0.5; }
+
+/* -- Button: Outline -- */
+
+.outline-button {
+    background: transparent;
+    border: 1px solid var(--color-gray-600);
+    color: var(--color-gray-200);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-sm);
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.outline-button:hover {
+    background: var(--color-gray-700);
+    border-color: var(--color-gray-500);
+}
+
+/* -- Button: Strip (timeline controls) -- */
+
+.strip-btn {
+    width: var(--sizing-strip-btn);
+    height: var(--sizing-strip-btn);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid var(--color-gray-600);
+    border-radius: var(--radius-md);
+    color: var(--color-gray-500);
+    cursor: pointer;
+    font-size: var(--font-xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    transition: var(--transition-fast);
+    padding: 0;
+}
+
+.strip-btn:hover {
+    border-color: var(--color-gray-400);
+    color: var(--color-gray-200);
+}
+
+/* -- Layout: Container -- */
+
+.container {
+    background: var(--color-gray-900);
+    border: 1px solid var(--color-gray-700);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+}
+
+/* -- Layout: Header Row -- */
+
+.header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-sm);
+}
+
+/* -- Layout: Slider Row -- */
+
+.slider-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.slider-row label {
+    min-width: var(--sizing-input-min);
+}
+
+.slider-row input[type="range"] {
+    flex: 1;
+}
+
+/* -- Layout: Card -- */
+
+.card {
+    background: var(--color-gray-900);
+    border: 1px solid var(--color-gray-700);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+}
+
+/* -- Text: Section Header -- */
+
+.section-header {
+    font-size: var(--font-xl);
+    font-weight: 600;
+    padding-bottom: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+    border-bottom: 2px solid var(--color-gray-700);
+}
+
+/* -- Text: Section Title -- */
+
+.section-title {
+    font-size: var(--font-md);
+    font-weight: 600;
+    margin-bottom: var(--spacing-md);
+    color: var(--color-gray-100);
+}
+
+/* -- Text: Label -- */
+
+label {
+    display: block;
+    font-size: var(--font-base);
+    font-weight: 500;
+    color: var(--color-gray-200);
+    margin-bottom: var(--spacing-xs);
+}
+
+/* -- Text: Value Display -- */
+
+.value-display {
+    min-width: var(--sizing-value-display);
+    text-align: right;
+    font-size: var(--font-base);
+    color: var(--color-gray-500);
+}
+
+/* -- Layout: Form Group -- */
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+/* -- Divider -- */
+
+.divider {
+    height: 1px;
+    background: var(--color-gray-700);
+    margin: var(--spacing-lg) 0;
+}
+
+/* -- Level Bar -- */
+
+.level-bar {
+    width: var(--sizing-level-bar);
+    height: var(--sizing-level-bar-h);
+    background: var(--color-gray-700);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.level-bar-fill {
+    height: 100%;
+    background: var(--color-green-500);
+    border-radius: var(--radius-sm);
+    transition: width 0.2s ease;
+}
+
+/* -- Segmented Button Group -- */
+
+.button-group {
+    display: flex;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    border: 1px solid var(--color-gray-600);
+}
+
+.button-group .option {
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--color-gray-800);
+    color: var(--color-gray-200);
+    border: none;
+    font-size: var(--font-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition-fast);
+    flex: 1;
+    text-align: center;
+}
+
+.button-group .option:not(:last-child) {
+    border-right: 1px solid var(--color-gray-600);
+}
+
+.button-group .option:hover:not(.selected) {
+    background: var(--color-gray-700);
+}
+
+.button-group .option.selected {
+    background: var(--color-blue-600);
+    color: var(--color-white);
+}
+
+.button-group .option:focus {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--color-blue-400);
+}

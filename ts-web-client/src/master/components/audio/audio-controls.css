@@ -1,0 +1,77 @@
+:host {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
+.audio-panel {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    gap: var(--spacing-lg);
+}
+
+.section-header {
+    margin-bottom: 0;
+    flex-shrink: 0;
+}
+
+.controls-section {
+    
+    flex-shrink: 0;
+}
+
+label {
+    font-size: var(--font-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+select {
+    font-size: var(--font-sm);
+    cursor: pointer;
+}
+
+input[type="range"] {
+    outline: none;
+}
+
+.divider {
+    margin: 0;
+    flex-shrink: 0;
+}
+
+.live-header {
+    font-size: var(--font-sm);
+    font-weight: 600;
+    color: var(--color-gray-400);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.loop-row,
+.monitor-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+input[type="checkbox"] {
+    width: var(--sizing-checkbox-sm);
+    height: var(--sizing-checkbox-sm);
+}
+
+.go-live-btn {
+    font-size: var(--font-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+}
+
+.go-live-btn.active {
+    background: var(--color-red-500);
+}
+
+.go-live-btn.active:hover {
+    background: var(--color-red-600);
+}

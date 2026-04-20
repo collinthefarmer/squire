@@ -1,0 +1,16 @@
+:host {
+    display: block;
+}
+
+.toolbar {
+    background: var(--color-gray-800);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.section-header {
+    margin-bottom: 0;
+}

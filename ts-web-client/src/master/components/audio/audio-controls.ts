@@ -1,4 +1,5 @@
 import { BaseComponent } from "@components/base/base-component";
+import { cssSheet } from "@styles/adopt-styles";
 import { onDomEvent } from "@utils/dom-events";
 import { ServiceRegistry } from "@services/service-registry";
 import type { MicCaptureService } from "@master/services/mic-capture-service";
@@ -15,7 +16,10 @@ import {
     primaryButtonStyles,
     dividerStyles,
 } from "@styles/common-styles";
-import { spacing, fontSize, colors, sizing } from "@styles/theme";
+// @ts-expect-error — Bun imports CSS as text
+import audioControlsCss from "./audio-controls.css" with { type: "text" };
+// @ts-expect-error — Bun imports CSS as text
+import commonCss from "@styles/common.css" with { type: "text" };
 
 /**
  * Audio controls container component
@@ -39,114 +43,17 @@ export class AudioControls extends BaseComponent {
         this.micCaptureService = ServiceRegistry.get<MicCaptureService>("MicCaptureService");
         this.liveAudioService = ServiceRegistry.get<LiveAudioService>("LiveAudioService");
 
+        this.adoptStyles(cssSheet(commonCss), cssSheet(audioControlsCss));
+
         this.render();
         this.setupEventListeners();
     }
-
-    protected override getStyles(): string {
-        return `
-            :host {
-                display: flex;
-                flex-direction: column;
-                flex: 1;
-                min-height: 0;
-            }
-
-            ${sectionHeaderStyles()}
-            ${selectStyles()}
-            ${labelStyles()}
-            ${rangeInputStyles()}
-            ${checkboxStyles()}
-            ${sliderRowStyles()}
-            ${valueDisplayStyles()}
-            ${primaryButtonStyles()}
-            ${dividerStyles()}
-
-            .audio-panel {
-                display: flex;
-                flex-direction: column;
-                flex: 1;
-                min-height: 0;
-                gap: ${spacing.lg};
-            }
-
-            .section-header {
-                margin-bottom: 0;
-                flex-shrink: 0;
-            }
-
-            .controls-section {
-                ${flexColumn(spacing.md)}
-                flex-shrink: 0;
-            }
-
-            .form-group {
-                ${flexColumn(spacing.xs)}
-            }
-
-            label {
-                font-size: ${fontSize.xs};
-                text-transform: uppercase;
-                letter-spacing: 0.05em;
-            }
-
-            select {
-                font-size: ${fontSize.sm};
-                cursor: pointer;
-            }
-
-            input[type="range"] {
-                outline: none;
-            }
-
-            .divider {
-                margin: 0;
-                flex-shrink: 0;
-            }
-
-            .live-header {
-                font-size: ${fontSize.sm};
-                font-weight: 600;
-                color: ${colors.gray[400]};
-                text-transform: uppercase;
-                letter-spacing: 0.05em;
-            }
-
-            .loop-row,
-            .monitor-row {
-                display: flex;
-                align-items: center;
-                gap: ${spacing.sm};
-            }
-
-            input[type="checkbox"] {
-                width: ${sizing.checkboxSm};
-                height: ${sizing.checkboxSm};
-            }
-
-            .go-live-btn {
-                font-size: ${fontSize.sm};
-                padding: ${spacing.sm} ${spacing.md};
-            }
-
-            .go-live-btn.active {
-                background: ${colors.red[500]};
-            }
-
-            .go-live-btn.active:hover {
-                background: ${colors.red[600]};
-            }
-        `;
-    }
-
-    protected override render(): void {
+protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
 
         this.shadowRoot.innerHTML = `
-            ${this.styleTag(this.getStyles())}
-
             <div class="audio-panel">
                 <div class="section-header">Audio</div>
 

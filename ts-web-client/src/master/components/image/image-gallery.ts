@@ -1,4 +1,5 @@
 import { map, distinctUntilChanged } from "rxjs";
+import { cssSheet } from "@styles/adopt-styles";
 import { BaseComponent } from "@components/base/base-component";
 import { ServiceRegistry } from "@services/service-registry";
 import type { AssetService } from "@master/services/asset-service";
@@ -8,7 +9,10 @@ import {
     sectionHeaderStyles,
     headerRowStyles,
 } from "@styles/common-styles";
-import { colors, spacing, borderRadius, fontSize, transitions } from "@styles/theme";
+// @ts-expect-error — Bun imports CSS as text
+import imageGalleryCss from "./image-gallery.css" with { type: "text" };
+// @ts-expect-error — Bun imports CSS as text
+import commonCss from "@styles/common.css" with { type: "text" };
 
 /**
  * Image gallery container component
@@ -29,65 +33,18 @@ export class ImageGallery extends BaseComponent {
         this.assetService = ServiceRegistry.get<AssetService>("AssetService");
         this.imageToolbarService = ServiceRegistry.get<ImageToolbarService>("ImageToolbarService");
 
+        this.adoptStyles(cssSheet(commonCss), cssSheet(imageGalleryCss));
+
         this.render();
         this.loadAssets();
         this.setupSubscriptions();
     }
-
-    protected override getStyles(): string {
-        return `
-            :host {
-                display: flex;
-                flex-direction: column;
-                flex: 1;
-                min-height: 0;
-            }
-
-            ${containerStyles()}
-            ${sectionHeaderStyles()}
-            ${headerRowStyles()}
-
-            .container {
-                display: flex;
-                flex-direction: column;
-                flex: 1;
-                min-height: 0;
-            }
-
-            .section-header {
-                margin-bottom: 0;
-            }
-
-            .icon-btn {
-                background: transparent;
-                border: none;
-                color: ${colors.gray[500]};
-                cursor: pointer;
-                padding: ${spacing.xs};
-                font-size: ${fontSize.lg};
-                border-radius: ${borderRadius.sm};
-                transition: ${transitions.fast};
-                line-height: 1;
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-            }
-
-            .icon-btn:hover {
-                background: ${colors.gray[700]};
-                color: ${colors.gray[200]};
-            }
-        `;
-    }
-
-    protected override render(): void {
+protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
 
         this.shadowRoot.innerHTML = `
-            ${this.styleTag(this.getStyles())}
-
             <div class="container">
                 <div class="header-row">
                     <div class="section-header">Images</div>

@@ -1,4 +1,5 @@
 import { BaseComponent } from "@components/base/base-component";
+import { cssSheet } from "@styles/adopt-styles";
 import { ServiceRegistry } from "@services/service-registry";
 import type { TimeScaleService } from "@services/time-scale-service";
 import {
@@ -6,7 +7,10 @@ import {
     sectionHeaderStyles,
     segmentedButtonStyles,
 } from "@styles/common-styles";
-import { colors, spacing, fontSize } from "@styles/theme";
+// @ts-expect-error — Bun imports CSS as text
+import timeScaleControlsCss from "./time-scale-controls.css" with { type: "text" };
+// @ts-expect-error — Bun imports CSS as text
+import commonCss from "@styles/common.css" with { type: "text" };
 
 /**
  * Time-scale controls for master client
@@ -27,42 +31,18 @@ export class TimeScaleControls extends BaseComponent {
 
         this.timeScaleService = ServiceRegistry.get<TimeScaleService>("TimeScaleService");
 
+        this.adoptStyles(cssSheet(commonCss), cssSheet(timeScaleControlsCss));
+
         this.render();
         this.setupEventListeners();
         this.setupSubscriptions();
     }
-
-    protected override getStyles(): string {
-        return `
-            :host {
-                display: block;
-            }
-
-            ${containerStyles()}
-            ${sectionHeaderStyles()}
-            ${segmentedButtonStyles()}
-
-            .section-header {
-                margin-bottom: ${spacing.sm};
-            }
-
-            .scale-display {
-                font-size: ${fontSize.sm};
-                color: ${colors.gray[500]};
-                text-align: center;
-                margin-top: ${spacing.xs};
-            }
-        `;
-    }
-
-    protected override render(): void {
+protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
 
         this.shadowRoot.innerHTML = `
-            ${this.styleTag(this.getStyles())}
-
             <div class="container">
                 <div class="section-header">Time Scale</div>
                 <div class="button-group" role="radiogroup" aria-label="Time scale">

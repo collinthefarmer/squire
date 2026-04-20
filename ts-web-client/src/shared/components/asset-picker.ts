@@ -1,9 +1,13 @@
 import { BaseComponent } from "@components/base/base-component";
+import { cssSheet } from "@styles/adopt-styles";
 import { emitDomEvent, type AppEventMap, type AssetChangeDetail } from "@utils/dom-events";
 import { ServiceRegistry } from "@services/service-registry";
 import type { AssetService, ImageAsset } from "@master/services/asset-service";
 import { selectStyles, labelStyles, flexColumn } from "@styles/common-styles";
-import { spacing, colors, fontSize } from "@styles/theme";
+// @ts-expect-error — Bun imports CSS as text
+import assetPickerCss from "./asset-picker.css" with { type: "text" };
+// @ts-expect-error — Bun imports CSS as text
+import commonCss from "@styles/common.css" with { type: "text" };
 
 export type AssetType = "audio" | "image";
 
@@ -41,39 +45,12 @@ export class AssetPicker extends BaseComponent {
     override connectedCallback(): void {
         super.connectedCallback();
         this.assetService = ServiceRegistry.get<AssetService>("AssetService");
+        this.adoptStyles(cssSheet(commonCss), cssSheet(assetPickerCss));
+
         this.render();
         this.setupSubscriptions();
     }
-
-    protected override getStyles(): string {
-        return `
-            :host {
-                display: block;
-            }
-
-            .asset-picker {
-                ${flexColumn(spacing.sm)}
-            }
-
-            ${labelStyles()}
-            ${selectStyles()}
-
-            label {
-                font-size: ${fontSize.base};
-            }
-
-            select {
-                font-size: ${fontSize.base};
-                cursor: pointer;
-            }
-
-            option:disabled {
-                color: ${colors.gray[500]};
-            }
-        `;
-    }
-
-    protected override render(): void {
+protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
@@ -81,8 +58,6 @@ export class AssetPicker extends BaseComponent {
         const selectId = `${this.config.assetType}-asset`;
 
         this.shadowRoot.innerHTML = `
-            ${this.styleTag(this.getStyles())}
-
             <div class="asset-picker">
                 <label for="${selectId}">${this.config.label}</label>
                 <select id="${selectId}">

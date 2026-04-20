@@ -10,6 +10,8 @@ import type { AudioTrackState } from "@types";
 
 // @ts-expect-error — Bun imports CSS as text
 import trackBlockCss from "./timeline-track-block.css" with { type: "text" };
+// @ts-expect-error — Bun imports CSS as text
+import commonCss from "@styles/common.css" with { type: "text" };
 
 /**
  * Self-contained track block within a timeline channel lane.
@@ -43,7 +45,7 @@ export class TimelineTrackBlock extends BaseComponent {
         this.trackId = this.getAttribute("track-id") ?? "";
         this.channel = this.getAttribute("channel") ?? "";
 
-        this.adoptStyles(cssSheet(trackBlockCss));
+        this.adoptStyles(cssSheet(commonCss), cssSheet(trackBlockCss));
         this.render();
         this.setupSubscriptions();
     }

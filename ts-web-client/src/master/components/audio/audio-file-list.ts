@@ -1,8 +1,12 @@
 import { BaseComponent } from "@components/base/base-component";
+import { cssSheet } from "@styles/adopt-styles";
 import { ServiceRegistry } from "@services/service-registry";
 import type { AssetService, AudioAsset } from "@master/services/asset-service";
 import { inputStyles } from "@styles/common-styles";
-import { colors, spacing, borderRadius, fontSize, transitions } from "@styles/theme";
+// @ts-expect-error — Bun imports CSS as text
+import audioFileListCss from "./audio-file-list.css" with { type: "text" };
+// @ts-expect-error — Bun imports CSS as text
+import commonCss from "@styles/common.css" with { type: "text" };
 
 /**
  * Filterable, draggable audio file list
@@ -21,105 +25,18 @@ export class AudioFileList extends BaseComponent {
 
         this.assetService = ServiceRegistry.get<AssetService>("AssetService");
 
+        this.adoptStyles(cssSheet(commonCss), cssSheet(audioFileListCss));
+
         this.render();
         this.setupFilterListener();
         this.setupSubscriptions();
     }
-
-    protected override getStyles(): string {
-        return `
-            :host {
-                display: flex;
-                flex-direction: column;
-                flex: 1;
-                min-height: 0;
-            }
-
-            ${inputStyles()}
-
-            .filter-input {
-                padding: ${spacing.sm} ${spacing.md};
-                font-size: ${fontSize.sm};
-                background: ${colors.gray[800]};
-                border: 1px solid ${colors.gray[600]};
-                border-radius: ${borderRadius.md};
-                color: ${colors.gray[200]};
-                margin-bottom: ${spacing.sm};
-                flex-shrink: 0;
-            }
-
-            .filter-input:focus {
-                outline: none;
-                border-color: ${colors.blue[400]};
-            }
-
-            .file-list {
-                list-style: none;
-                margin: 0;
-                padding: 0;
-                flex: 1;
-                min-height: 0;
-                overflow-y: auto;
-                display: grid;
-                grid-template-columns: repeat(2, 1fr);
-                gap: 2px;
-                align-content: start;
-            }
-
-            .audio-row {
-                display: flex;
-                align-items: center;
-                gap: ${spacing.sm};
-                padding: ${spacing.sm} ${spacing.md};
-                background: ${colors.gray[800]};
-                border-radius: ${borderRadius.sm};
-                cursor: grab;
-                transition: ${transitions.fast};
-                user-select: none;
-            }
-
-            .audio-row:active {
-                cursor: grabbing;
-            }
-
-            .audio-row:hover {
-                background: ${colors.gray[700]};
-            }
-
-            .audio-name {
-                flex: 1;
-                font-size: ${fontSize.sm};
-                color: ${colors.gray[200]};
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-                min-width: 0;
-            }
-
-            .audio-duration {
-                font-size: ${fontSize.xs};
-                color: ${colors.gray[500]};
-                flex-shrink: 0;
-                font-variant-numeric: tabular-nums;
-            }
-
-            .empty-state {
-                font-size: ${fontSize.sm};
-                color: ${colors.gray[500]};
-                text-align: center;
-                padding: ${spacing.md};
-            }
-        `;
-    }
-
-    protected override render(): void {
+protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
 
         this.shadowRoot.innerHTML = `
-            ${this.styleTag(this.getStyles())}
-
             <input
                 type="text"
                 class="filter-input"

@@ -1,0 +1,116 @@
+:host {
+    display: block;
+}
+
+.lane {
+    display: flex;
+    min-height: calc(var(--sizing-strip-btn) + var(--spacing-sm));
+    border-bottom: 1px solid var(--color-gray-800);
+    transition: var(--transition-fast);
+}
+
+.lane:hover {
+    background: var(--color-gray-800);
+}
+
+.lane.muted {
+    opacity: 0.5;
+}
+
+/* -- Left button strip -- */
+
+.lane-strip {
+    display: flex;
+    flex-direction: row;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    flex-shrink: 0;
+    border-right: 1px solid var(--color-gray-800);
+    align-items: center;
+}
+
+.play-btn {
+    flex: 2;
+}
+
+.play-btn.playing {
+    color: var(--color-blue-400);
+    border-color: var(--color-blue-500);
+}
+
+.mute-btn.active {
+    background: var(--color-red-500);
+    border-color: var(--color-red-500);
+    color: var(--color-white);
+}
+
+.solo-btn.active {
+    background: var(--color-amber-400);
+    border-color: var(--color-amber-400);
+    color: var(--color-gray-900);
+}
+
+/* -- Right body -- */
+
+.lane-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    padding: var(--spacing-xs) var(--spacing-sm);
+}
+
+.lane-label {
+    font-size: var(--font-xs);
+    color: var(--color-gray-500);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: var(--spacing-xs);
+    flex-shrink: 0;
+}
+
+.lane-content {
+    flex: 1;
+    min-height: 0;
+}
+
+.lane-summary {
+    display: none;
+    align-items: center;
+    gap: var(--spacing-sm);
+    height: var(--sizing-strip-btn);
+    cursor: pointer;
+    user-select: none;
+}
+
+.lane-summary.visible {
+    display: flex;
+}
+
+.collapse-toggle {
+    background: transparent;
+    border: none;
+    color: var(--color-gray-500);
+    cursor: pointer;
+    font-size: var(--font-xs);
+    padding: 0;
+    line-height: 1;
+    width: var(--spacing-lg);
+    text-align: center;
+}
+
+.summary-text {
+    font-size: var(--font-xs);
+    color: var(--color-gray-400);
+    flex: 1;
+}
+
+.lane-track {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.lane-track.hidden {
+    display: none;
+}

@@ -1,0 +1,84 @@
+:host {
+    display: block;
+}
+
+.section-header {
+    margin-bottom: var(--spacing-sm);
+}
+
+.create-form {
+    display: flex;
+    gap: var(--spacing-sm);
+    align-items: end;
+}
+
+.create-form .field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.create-form label {
+    font-size: var(--font-xs);
+    color: var(--color-gray-500);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.create-form input {
+    width: var(--sizing-input-min);
+}
+
+.clock-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.clock-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    background: var(--color-gray-900);
+    border-radius: var(--radius-sm);
+}
+
+.clock-info {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    min-width: 0;
+}
+
+.clock-id {
+    font-size: var(--font-sm);
+    color: var(--color-gray-200);
+    font-weight: 500;
+}
+
+.clock-time {
+    font-family: 'Courier New', monospace;
+    font-size: var(--font-base);
+    font-weight: 600;
+    color: var(--color-white);
+}
+
+.clock-actions {
+    display: flex;
+    gap: var(--spacing-xs);
+    flex-shrink: 0;
+}
+
+.clock-actions button {
+    padding: var(--spacing-xs);
+    font-size: var(--font-xs);
+}
+
+.empty {
+    font-size: var(--font-sm);
+    color: var(--color-gray-500);
+    text-align: center;
+    padding: var(--spacing-md);
+}

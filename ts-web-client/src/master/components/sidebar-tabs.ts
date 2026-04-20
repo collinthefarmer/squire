@@ -1,6 +1,10 @@
 import { BaseComponent } from "@components/base/base-component";
+import { cssSheet } from "@styles/adopt-styles";
 import { emitDomEvent } from "@utils/dom-events";
-import { colors, spacing, borderRadius, fontSize, transitions } from "@styles/theme";
+// @ts-expect-error — Bun imports CSS as text
+import sidebarTabsCss from "./sidebar-tabs.css" with { type: "text" };
+// @ts-expect-error — Bun imports CSS as text
+import commonCss from "@styles/common.css" with { type: "text" };
 
 interface TabDefinition {
     id: string;
@@ -35,6 +39,8 @@ export class SidebarTabs extends BaseComponent {
             this.activeTab = tabs[0]?.id ?? "";
         }
 
+        this.adoptStyles(cssSheet(commonCss), cssSheet(sidebarTabsCss));
+
         this.render();
         this.setupTabListeners();
         this.updateVisibility();
@@ -45,66 +51,7 @@ export class SidebarTabs extends BaseComponent {
         super.connectedCallback();
         this.render();
     }
-
-    protected override getStyles(): string {
-        return `
-            :host {
-                display: flex;
-                flex-direction: column;
-                min-height: 0;
-            }
-
-            .tab-bar {
-                display: flex;
-                gap: ${spacing.xs};
-                padding: 0 ${spacing.xs};
-                border-bottom: 1px solid ${colors.gray[700]};
-                margin-bottom: ${spacing.md};
-                flex-shrink: 0;
-            }
-
-            .tab-btn {
-                background: transparent;
-                border: none;
-                border-bottom: 2px solid transparent;
-                color: ${colors.gray[500]};
-                cursor: pointer;
-                padding: ${spacing.sm} ${spacing.md};
-                font-size: ${fontSize.sm};
-                font-weight: 500;
-                transition: ${transitions.fast};
-                margin-bottom: -1px;
-            }
-
-            .tab-btn:hover {
-                color: ${colors.gray[200]};
-            }
-
-            .tab-btn.active {
-                color: ${colors.blue[400]};
-                border-bottom-color: ${colors.blue[400]};
-            }
-
-            .tab-content {
-                flex: 1;
-                min-height: 0;
-                overflow: hidden;
-            }
-
-            .tab-panel {
-                display: none;
-                height: 100%;
-            }
-
-            .tab-panel.active {
-                display: flex;
-                flex-direction: column;
-                gap: ${spacing.md};
-            }
-        `;
-    }
-
-    protected override render(): void {
+protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
@@ -124,8 +71,6 @@ export class SidebarTabs extends BaseComponent {
         ).join("");
 
         this.shadowRoot.innerHTML = `
-            ${this.styleTag(this.getStyles())}
-
             <div class="tab-bar">${tabButtons}</div>
             <div class="tab-content">${tabPanels}</div>
         `;

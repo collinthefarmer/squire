@@ -1,4 +1,5 @@
 import { BaseComponent } from "@components/base/base-component";
+import { cssSheet } from "@styles/adopt-styles";
 import type { BaseAssetComponent } from "@components/base/base-asset-component";
 import type { Draggable } from "@components/draggable/draggable";
 import type { ImageHandle } from "@components/image-handle";
@@ -6,7 +7,10 @@ import { onDomEvent, emitDomEvent } from "@utils/dom-events";
 import { ServiceRegistry } from "@services/service-registry";
 import type { AssetService, AudioAsset, ImageAsset } from "@master/services/asset-service";
 import { labelStyles } from "@styles/common-styles";
-import { colors, spacing, borderRadius, fontSize, sizing } from "@styles/theme";
+// @ts-expect-error — Bun imports CSS as text
+import assetGalleryCss from "./asset-gallery.css" with { type: "text" };
+// @ts-expect-error — Bun imports CSS as text
+import commonCss from "@styles/common.css" with { type: "text" };
 
 export type AssetType = "audio" | "image";
 
@@ -43,6 +47,8 @@ export class AssetGrid extends BaseComponent {
 
         this.assetService = ServiceRegistry.get<AssetService>("AssetService");
 
+        this.adoptStyles(cssSheet(commonCss), cssSheet(assetGalleryCss));
+
         this.render();
         this.setupSubscriptions();
     }
@@ -56,53 +62,7 @@ export class AssetGrid extends BaseComponent {
             this.syncDraggableAttribute("data-preview-scale", value);
         }
     }
-
-    protected override getStyles(): string {
-        return `
-            :host {
-                display: block;
-            }
-
-            ${labelStyles()}
-
-            label {
-                font-size: ${fontSize.base};
-                margin-bottom: ${spacing.sm};
-                display: block;
-            }
-
-            .asset-grid {
-                display: flex;
-                flex-direction: column;
-            }
-
-            ul {
-                list-style: none;
-                margin: 0;
-                padding: 0;
-                display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(${sizing.thumbnail}, 1fr));
-                gap: ${spacing.sm};
-                flex: 1;
-                min-height: 0;
-                overflow-y: auto;
-                padding: ${spacing.xs};
-                background: ${colors.gray[900]};
-                border-radius: ${borderRadius.md};
-            }
-
-            ul:empty::after {
-                content: "No assets available";
-                color: ${colors.gray[500]};
-                font-size: ${fontSize.sm};
-                text-align: center;
-                padding: ${spacing.md};
-                grid-column: 1 / -1;
-            }
-        `;
-    }
-
-    protected override render(): void {
+protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
@@ -110,8 +70,6 @@ export class AssetGrid extends BaseComponent {
         const gridId = `${this.config.assetType}-grid`;
 
         this.shadowRoot.innerHTML = `
-            ${this.styleTag(this.getStyles())}
-
             <div class="asset-grid">
                 <label for="${gridId}">${this.config.label}</label>
                 <ul id="${gridId}">

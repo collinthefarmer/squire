@@ -1,4 +1,5 @@
 import { fromEvent } from "rxjs";
+import { cssSheet } from "@styles/adopt-styles";
 import { BaseComponent } from "@components/base/base-component";
 import { stripButtonStyles } from "@styles/common-styles";
 import { onDomEvent } from "@utils/dom-events";
@@ -6,6 +7,11 @@ import { ServiceRegistry } from "@services/service-registry";
 import type { MasterAudioService } from "@master/services/master-audio-service";
 import { Logger } from "@utils/logger";
 import { generateTrackId } from "@utils/audio-helpers";
+
+// @ts-expect-error — Bun imports CSS as text
+import audioTimelineCss from "./audio-timeline.css" with { type: "text" };
+// @ts-expect-error — Bun imports CSS as text
+import commonCss from "@styles/common.css" with { type: "text" };
 import {
     colors,
     spacing,
@@ -36,112 +42,18 @@ export class AudioTimeline extends BaseComponent {
         this.audioService =
             ServiceRegistry.get<MasterAudioService>("MasterAudioService");
 
+        this.adoptStyles(cssSheet(commonCss), cssSheet(audioTimelineCss));
+
         this.render();
         this.setupSubscriptions();
         this.setupEventListeners();
     }
-
-    protected override getStyles(): string {
-        return `
-            :host {
-                display: block;
-            }
-
-            ${stripButtonStyles()}
-
-            .timeline {
-                background: ${colors.gray[900]};
-                border: 1px solid ${colors.gray[700]};
-                border-radius: ${borderRadius.md};
-                overflow: hidden;
-            }
-
-            .transport-row {
-                display: flex;
-                border-bottom: 1px solid ${colors.gray[700]};
-                background: ${colors.gray[800]};
-            }
-
-            .global-strip {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                padding: ${spacing.xs};
-                border-right: 1px solid ${colors.gray[800]};
-            }
-
-            .global-btn.playing {
-                color: ${colors.blue[400]};
-                border-color: ${colors.blue[500]};
-            }
-
-            .transport-controls {
-                display: flex;
-                align-items: center;
-                gap: ${spacing.md};
-                padding: ${spacing.sm} ${spacing.md};
-                flex: 1;
-            }
-
-            .transport-btn {
-                background: transparent;
-                border: none;
-                color: ${colors.gray[400]};
-                cursor: pointer;
-                font-size: ${fontSize.base};
-                padding: ${spacing.xs};
-                border-radius: ${borderRadius.sm};
-                transition: ${transitions.fast};
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-            }
-
-            .transport-btn:hover {
-                background: ${colors.gray[700]};
-                color: ${colors.gray[200]};
-            }
-
-            .transport-volume {
-                display: flex;
-                align-items: center;
-                gap: ${spacing.xs};
-                flex: 1;
-            }
-
-            .transport-volume label {
-                font-size: ${fontSize.xs};
-                color: ${colors.gray[500]};
-            }
-
-            .transport-volume input[type="range"] {
-                flex: 1;
-                max-width: ${sizing.volumeMax};
-                accent-color: ${colors.blue[500]};
-            }
-
-            .channel-lanes {
-                display: flex;
-                flex-direction: column;
-            }
-
-            .empty-hint {
-                font-size: ${fontSize.xs};
-                color: ${colors.gray[600]};
-                padding: ${spacing.sm} ${spacing.md};
-                text-align: center;
-            }
-        `;
-    }
-
-    protected override render(): void {
+protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
 
         this.shadowRoot.innerHTML = `
-            ${this.styleTag(this.getStyles())}
-
             <div class="timeline">
                 <div class="transport-row">
                     <div class="global-strip">

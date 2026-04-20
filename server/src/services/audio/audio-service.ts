@@ -79,10 +79,14 @@ export class AudioService {
 
         const trackId = event.payload.trackId ?? generateTrackId();
 
-        logger.info(`Audio play: channel=${channel}, track=${trackId}, source=${source.ref}`);
+        logger.info(
+            `Audio play: channel=${channel}, track=${trackId}, source=${source.ref}`,
+        );
 
         const track = createTrackState(trackId, source, {
-            loop, effects, respectTimeScale,
+            loop,
+            effects,
+            respectTimeScale,
         });
 
         this.stateStore.updateState((state) => {
@@ -105,7 +109,9 @@ export class AudioService {
     private handlePause(event: AudioPauseEvent): void {
         const { channel, trackId } = event.payload;
 
-        logger.info(`Audio pause: channel=${channel}, track=${trackId ?? "all"}`);
+        logger.info(
+            `Audio pause: channel=${channel}, track=${trackId ?? "all"}`,
+        );
 
         this.stateStore.updateState((state) => {
             return updateAudioChannel(state, channel, (ch) => ({
@@ -125,11 +131,15 @@ export class AudioService {
 
         const channelState = this.getChannel(channel);
         if (!channelState) {
-            logger.debug(`Audio resume: channel=${channel} does not exist, no-op`);
+            logger.debug(
+                `Audio resume: channel=${channel} does not exist, no-op`,
+            );
             return;
         }
 
-        logger.info(`Audio resume: channel=${channel}, track=${trackId ?? "all"}`);
+        logger.info(
+            `Audio resume: channel=${channel}, track=${trackId ?? "all"}`,
+        );
 
         this.stateStore.updateState((state) => {
             return updateAudioChannel(state, channel, (ch) => ({
@@ -147,7 +157,9 @@ export class AudioService {
     private handleStop(event: AudioStopEvent): void {
         const { channel, trackId } = event.payload;
 
-        logger.info(`Audio stop: channel=${channel}, track=${trackId ?? "all"}`);
+        logger.info(
+            `Audio stop: channel=${channel}, track=${trackId ?? "all"}`,
+        );
 
         this.stateStore.updateState((state) => {
             if (!trackId) {
@@ -174,16 +186,22 @@ export class AudioService {
     private handleVolumeChange(event: AudioVolumeEvent): void {
         const { channel, volume, trackId } = event.payload;
 
-        logger.info(`Audio volume: channel=${channel}, track=${trackId ?? "channel"}, volume=${volume}`);
+        logger.info(
+            `Audio volume: channel=${channel}, track=${trackId ?? "channel"}, volume=${volume}`,
+        );
 
         this.stateStore.updateState((state) => {
             if (trackId) {
                 return updateAudioChannel(state, channel, (ch) => ({
                     ...ch,
-                    tracks: updateTracksConditional(ch.tracks, trackId, (t) => ({
-                        ...t,
-                        volume,
-                    })),
+                    tracks: updateTracksConditional(
+                        ch.tracks,
+                        trackId,
+                        (t) => ({
+                            ...t,
+                            volume,
+                        }),
+                    ),
                 }));
             }
 

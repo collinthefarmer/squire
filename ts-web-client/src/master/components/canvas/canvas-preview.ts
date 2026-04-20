@@ -1,4 +1,5 @@
 import { fromEvent } from "rxjs";
+import { cssSheet } from "@styles/adopt-styles";
 import { filter, take } from "rxjs/operators";
 import { BaseComponent } from "@components/base/base-component";
 import { observeResize } from "@utils/observe-resize";
@@ -14,8 +15,12 @@ import {
     wouldOverlapDisplay,
 } from "./display-coordinates";
 import { containerStyles, sectionHeaderStyles } from "@styles/common-styles";
-import { spacing, fontSize } from "@styles/theme";
 import { DISPLAY } from "@shared/constants/display";
+
+// @ts-expect-error — Bun imports CSS as text
+import canvasPreviewCss from "./canvas-preview.css" with { type: "text" };
+// @ts-expect-error — Bun imports CSS as text
+import commonCss from "@styles/common.css" with { type: "text" };
 
 /**
  * Canvas preview container for master client
@@ -41,41 +46,19 @@ export class CanvasPreview extends BaseComponent {
         this.visualService = ServiceRegistry.get<MasterVisualService>("MasterVisualService");
         this.imageToolbarService = ServiceRegistry.get<ImageToolbarService>("ImageToolbarService");
 
+        this.adoptStyles(cssSheet(commonCss), cssSheet(canvasPreviewCss));
+
         this.render();
         this.setupDragSubscriptions();
         this.setupPreviewScaleSync();
         this.listenForDisplayReady();
     }
-
-    protected override getStyles(): string {
-        return `
-            :host {
-                display: block;
-            }
-
-            ${containerStyles()}
-            ${sectionHeaderStyles()}
-
-            .preview-container {
-                display: flex;
-                flex-direction: column;
-                gap: ${spacing.md};
-            }
-
-            .header {
-                font-size: ${fontSize.lg};
-            }
-        `;
-    }
-
-    protected override render(): void {
+protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
 
         this.shadowRoot.innerHTML = `
-            ${this.styleTag(this.getStyles())}
-
             <div class="container preview-container">
                 <div class="section-header header">Display Preview</div>
                 <iframe-preview></iframe-preview>

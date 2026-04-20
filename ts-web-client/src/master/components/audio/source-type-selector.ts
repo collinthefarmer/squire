@@ -1,6 +1,10 @@
 import { BaseComponent } from "@components/base/base-component";
+import { cssSheet } from "@styles/adopt-styles";
 import { emitDomEvent } from "@utils/dom-events";
-import { colors, spacing, borderRadius, fontSize, transitions } from "@styles/theme";
+// @ts-expect-error — Bun imports CSS as text
+import sourceTypeSelectorCss from "./source-type-selector.css" with { type: "text" };
+// @ts-expect-error — Bun imports CSS as text
+import commonCss from "@styles/common.css" with { type: "text" };
 
 /**
  * Toggle between File and Live audio source modes
@@ -12,54 +16,17 @@ export class SourceTypeSelector extends BaseComponent {
 
     override connectedCallback(): void {
         super.connectedCallback();
+        this.adoptStyles(cssSheet(commonCss), cssSheet(sourceTypeSelectorCss));
+
         this.render();
         this.setupEventListeners();
     }
-
-    protected override getStyles(): string {
-        return `
-            :host {
-                display: block;
-            }
-
-            .toggle-group {
-                display: flex;
-                border-radius: ${borderRadius.md};
-                overflow: hidden;
-                border: 1px solid ${colors.gray[600]};
-            }
-
-            .toggle-btn {
-                flex: 1;
-                background: transparent;
-                border: none;
-                color: ${colors.gray[500]};
-                cursor: pointer;
-                padding: ${spacing.sm} ${spacing.md};
-                font-size: ${fontSize.sm};
-                font-weight: 500;
-                transition: ${transitions.fast};
-            }
-
-            .toggle-btn:hover {
-                color: ${colors.gray[200]};
-            }
-
-            .toggle-btn.active {
-                background: ${colors.blue[500]};
-                color: ${colors.white};
-            }
-        `;
-    }
-
-    protected override render(): void {
+protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
 
         this.shadowRoot.innerHTML = `
-            ${this.styleTag(this.getStyles())}
-
             <div class="toggle-group" role="radiogroup" aria-label="Audio source">
                 <button
                     type="button"

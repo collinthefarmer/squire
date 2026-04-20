@@ -1,7 +1,11 @@
 import { BaseComponent } from "@components/base/base-component";
+import { cssSheet } from "@styles/adopt-styles";
 import { onDomEvent } from "@utils/dom-events";
 import type { SidebarTabs } from "./sidebar-tabs";
-import { colors, spacing, borderRadius, fontSize, sizing } from "@styles/theme";
+// @ts-expect-error — Bun imports CSS as text
+import squireClientCss from "./squire-client.css" with { type: "text" };
+// @ts-expect-error — Bun imports CSS as text
+import commonCss from "@styles/common.css" with { type: "text" };
 
 /**
  * Squire master client root component
@@ -12,112 +16,17 @@ import { colors, spacing, borderRadius, fontSize, sizing } from "@styles/theme";
 export class SquireMasterClient extends BaseComponent {
     override connectedCallback(): void {
         super.connectedCallback();
+        this.adoptStyles(cssSheet(commonCss), cssSheet(squireClientCss));
+
         this.render();
         this.initTabs();
     }
-
-    protected override getStyles(): string {
-        return `
-            :host {
-                display: block;
-                min-height: 100vh;
-                background: ${colors.slate[900]};
-            }
-
-            .master-client {
-                max-width: ${sizing.maxWidth};
-                margin: 0 auto;
-                padding: ${spacing["2xl"]};
-            }
-
-            .header {
-                margin-bottom: ${spacing["2xl"]};
-            }
-
-            .title {
-                font-size: ${fontSize["3xl"]};
-                font-weight: 700;
-                color: ${colors.gray[50]};
-                margin-bottom: ${spacing.sm};
-            }
-
-            .subtitle {
-                font-size: ${fontSize.md};
-                color: ${colors.gray[500]};
-            }
-
-            .preview-section {
-                display: grid;
-                grid-template-columns: minmax(0, 3fr) 1fr;
-                gap: ${spacing.xl};
-                margin-bottom: ${spacing.xl};
-                transition: grid-template-columns 0.3s ease;
-            }
-
-            .preview-main {
-                min-width: 0;
-            }
-
-            .bottom-section {
-                display: block;
-            }
-
-            .tab-panel {
-                display: flex;
-                flex-direction: column;
-                gap: ${spacing.md};
-                flex: 1;
-                min-height: 0;
-            }
-
-            @media (max-width: 1200px) {
-                .preview-section {
-                    grid-template-columns: 1fr;
-                }
-            }
-
-            .status-bar {
-                position: fixed;
-                bottom: 0;
-                left: 0;
-                right: 0;
-                padding: ${spacing.md} ${spacing.lg};
-                background: ${colors.slate[800]};
-                border-top: 1px solid ${colors.slate[700]};
-                display: flex;
-                align-items: center;
-                gap: ${spacing.md};
-                font-size: ${fontSize.base};
-                color: ${colors.gray[200]};
-            }
-
-            .status-indicator {
-                width: ${sizing.statusDot};
-                height: ${sizing.statusDot};
-                border-radius: ${borderRadius.full};
-                background: ${colors.green[500]};
-                animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-            }
-
-            @keyframes pulse {
-                0%, 100% {
-                    opacity: 1;
-                }
-                50% {
-                    opacity: 0.5;
-                }
-            }
-        `;
-    }
-
-    protected override render(): void {
+protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
 
         this.shadowRoot.innerHTML = `
-            ${this.styleTag(this.getStyles())}
-
             <div class="master-client">
                 <div class="header">
                     <div class="title">Squire Master Client</div>
