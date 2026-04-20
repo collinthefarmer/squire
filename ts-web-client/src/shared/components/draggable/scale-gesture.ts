@@ -29,7 +29,9 @@ export class ScaleGesture {
      * Call when drag starts.
      */
     attach(): void {
-        document.addEventListener("wheel", this.handleWheel, { passive: false });
+        document.addEventListener("wheel", this.handleWheel, {
+            passive: false,
+        });
     }
 
     /**
@@ -95,9 +97,8 @@ export class ScaleGesture {
     private handleWheel = (e: WheelEvent): void => {
         e.preventDefault();
 
-        const delta = e.deltaY > 0
-            ? -this.config.wheelFactor
-            : this.config.wheelFactor;
+        const delta =
+            e.deltaY > 0 ? -this.config.wheelFactor : this.config.wheelFactor;
 
         const newScale = this.clamp(this.scale + delta);
 

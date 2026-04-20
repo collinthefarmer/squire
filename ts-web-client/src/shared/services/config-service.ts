@@ -23,12 +23,15 @@ export class ConfigService {
     private clientType: "display" | "master";
 
     constructor(config: ClientConfig) {
-        const serverPort = this.getQueryParam("serverPort") ?? DEFAULT_SERVER_PORT;
-        const displayPort = this.getQueryParam("displayPort") ?? DEFAULT_DISPLAY_PORT;
+        const serverPort =
+            this.getQueryParam("serverPort") ?? DEFAULT_SERVER_PORT;
+        const displayPort =
+            this.getQueryParam("displayPort") ?? DEFAULT_DISPLAY_PORT;
 
         this.wsUrl = config.wsUrl ?? this.buildUrl("ws", serverPort);
         this.apiUrl = config.apiUrl ?? this.buildUrl("http", serverPort);
-        this.displayUrl = config.displayUrl ?? this.buildUrl("http", displayPort);
+        this.displayUrl =
+            config.displayUrl ?? this.buildUrl("http", displayPort);
         this.clientType = config.clientType;
     }
 
@@ -54,9 +57,14 @@ export class ConfigService {
         }
 
         const isSecure = window.location.protocol === "https:";
-        const protocol = scheme === "ws"
-            ? (isSecure ? "wss:" : "ws:")
-            : (isSecure ? "https:" : "http:");
+        const protocol =
+            scheme === "ws"
+                ? isSecure
+                    ? "wss:"
+                    : "ws:"
+                : isSecure
+                  ? "https:"
+                  : "http:";
         const host = window.location.hostname;
 
         return `${protocol}//${host}:${port}`;

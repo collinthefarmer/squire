@@ -43,7 +43,8 @@ export class ClockControls extends BaseComponent {
     override connectedCallback(): void {
         super.connectedCallback();
 
-        this.clockService = ServiceRegistry.get<MasterClockService>("MasterClockService");
+        this.clockService =
+            ServiceRegistry.get<MasterClockService>("MasterClockService");
 
         this.adoptStyles(cssSheet(commonCss), cssSheet(clockControlsCss));
 
@@ -56,7 +57,7 @@ export class ClockControls extends BaseComponent {
         super.disconnectedCallback();
         this.animationSub?.unsubscribe();
     }
-protected override render(): void {
+    protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
@@ -116,26 +117,33 @@ protected override render(): void {
     }
 
     private setupSubscriptions(): void {
-        this.subscribe(
-            this.clockService.getClocks$(),
-            (clocks) => {
-                this.renderClockList(clocks);
+        this.subscribe(this.clockService.getClocks$(), (clocks) => {
+            this.renderClockList(clocks);
 
-                if (clocks.size > 0) {
-                    this.startUpdateLoop();
-                } else {
-                    this.stopUpdateLoop();
-                }
-            },
-        );
+            if (clocks.size > 0) {
+                this.startUpdateLoop();
+            } else {
+                this.stopUpdateLoop();
+            }
+        });
     }
 
     private handleCreate(): void {
-        const idInput = this.shadowRoot?.querySelector("#clock-id") as HTMLInputElement;
-        const durationInput = this.shadowRoot?.querySelector("#clock-duration") as HTMLInputElement;
-        const respectTsInput = this.shadowRoot?.querySelector("#clock-respect-ts") as HTMLInputElement;
-        const visibilityInput = this.shadowRoot?.querySelector("#clock-visibility") as HTMLSelectElement;
-        const onCompleteInput = this.shadowRoot?.querySelector("#clock-on-complete") as HTMLSelectElement;
+        const idInput = this.shadowRoot?.querySelector(
+            "#clock-id",
+        ) as HTMLInputElement;
+        const durationInput = this.shadowRoot?.querySelector(
+            "#clock-duration",
+        ) as HTMLInputElement;
+        const respectTsInput = this.shadowRoot?.querySelector(
+            "#clock-respect-ts",
+        ) as HTMLInputElement;
+        const visibilityInput = this.shadowRoot?.querySelector(
+            "#clock-visibility",
+        ) as HTMLSelectElement;
+        const onCompleteInput = this.shadowRoot?.querySelector(
+            "#clock-on-complete",
+        ) as HTMLSelectElement;
 
         if (!idInput || !durationInput) {
             return;
@@ -153,8 +161,14 @@ protected override render(): void {
             duration: seconds * 1000,
             autoStart: true,
             respectTimeScale: respectTsInput?.checked ?? true,
-            visibility: (visibilityInput?.value as "always" | "hidden" | "dm-only") ?? "always",
-            onComplete: (onCompleteInput?.value as "persist" | "auto-hide" | "auto-destroy") ?? "persist",
+            visibility:
+                (visibilityInput?.value as "always" | "hidden" | "dm-only") ??
+                "always",
+            onComplete:
+                (onCompleteInput?.value as
+                    | "persist"
+                    | "auto-hide"
+                    | "auto-destroy") ?? "persist",
         });
 
         idInput.value = "";
@@ -196,7 +210,9 @@ protected override render(): void {
             `;
 
             // Bind button handlers
-            const toggleBtn = item.querySelector(".toggle-btn") as HTMLButtonElement;
+            const toggleBtn = item.querySelector(
+                ".toggle-btn",
+            ) as HTMLButtonElement;
             toggleBtn.addEventListener("click", () => {
                 if (clock.running) {
                     this.clockService.pauseClock(id);
@@ -208,12 +224,17 @@ protected override render(): void {
             const adjustBtns = item.querySelectorAll(".adjust-btn");
             for (const btn of Array.from(adjustBtns)) {
                 btn.addEventListener("click", () => {
-                    const delta = parseInt((btn as HTMLElement).dataset.delta ?? "0", 10);
+                    const delta = parseInt(
+                        (btn as HTMLElement).dataset.delta ?? "0",
+                        10,
+                    );
                     this.clockService.adjustClock(id, delta);
                 });
             }
 
-            const destroyBtn = item.querySelector(".destroy-btn") as HTMLButtonElement;
+            const destroyBtn = item.querySelector(
+                ".destroy-btn",
+            ) as HTMLButtonElement;
             destroyBtn.addEventListener("click", () => {
                 this.clockService.destroyClock(id);
             });

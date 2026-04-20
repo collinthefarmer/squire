@@ -39,7 +39,8 @@ export class TimelineTrackBlock extends BaseComponent {
     override connectedCallback(): void {
         super.connectedCallback();
 
-        this.audioService = ServiceRegistry.get<MasterAudioService>("MasterAudioService");
+        this.audioService =
+            ServiceRegistry.get<MasterAudioService>("MasterAudioService");
         this.assetService = ServiceRegistry.get<AssetService>("AssetService");
 
         this.trackId = this.getAttribute("track-id") ?? "";
@@ -78,9 +79,13 @@ export class TimelineTrackBlock extends BaseComponent {
             });
         });
 
-        const volumeSlider = this.shadowRoot?.querySelector("#volume") as HTMLInputElement;
+        const volumeSlider = this.shadowRoot?.querySelector(
+            "#volume",
+        ) as HTMLInputElement;
         if (volumeSlider) {
-            volumeSlider.addEventListener("mousedown", (e) => e.stopPropagation());
+            volumeSlider.addEventListener("mousedown", (e) =>
+                e.stopPropagation(),
+            );
             volumeSlider.addEventListener("input", (e) => {
                 e.stopPropagation();
                 this.volumeChange$.next(parseFloat(volumeSlider.value));
@@ -99,13 +104,18 @@ export class TimelineTrackBlock extends BaseComponent {
         });
 
         // Elapsed → update progress bar
-        this.subscribe(this.audioService.getTrackElapsed$(this.trackId), (elapsed) => {
-            this.updateProgressBar(elapsed);
-        });
+        this.subscribe(
+            this.audioService.getTrackElapsed$(this.trackId),
+            (elapsed) => {
+                this.updateProgressBar(elapsed);
+            },
+        );
 
         // Throttled volume events
         this.subscribe(
-            this.volumeChange$.pipe(throttleTime(50, undefined, { leading: true, trailing: true })),
+            this.volumeChange$.pipe(
+                throttleTime(50, undefined, { leading: true, trailing: true }),
+            ),
             (volume) => {
                 emitDomEvent(this, "track-volume-change", {
                     channel: this.channel,
@@ -119,7 +129,9 @@ export class TimelineTrackBlock extends BaseComponent {
     private updateTrackState(track: AudioTrackState | null): void {
         const block = this.shadowRoot?.querySelector("#block") as HTMLElement;
         const nameEl = this.shadowRoot?.querySelector("#name") as HTMLElement;
-        const volumeEl = this.shadowRoot?.querySelector("#volume") as HTMLInputElement;
+        const volumeEl = this.shadowRoot?.querySelector(
+            "#volume",
+        ) as HTMLInputElement;
 
         if (!block || !nameEl || !track) {
             return;
@@ -145,11 +157,16 @@ export class TimelineTrackBlock extends BaseComponent {
 
         const track = this.audioService.findTrack(this.trackId);
         if (!track || track.source.type === "live") {
-            block.style.setProperty("--progress", track?.source.type === "live" ? "100%" : "0%");
+            block.style.setProperty(
+                "--progress",
+                track?.source.type === "live" ? "100%" : "0%",
+            );
             return;
         }
 
-        const asset = this.assetService.getAudioAssets().find((a) => a.name === track.source.ref);
+        const asset = this.assetService
+            .getAudioAssets()
+            .find((a) => a.name === track.source.ref);
         if (!asset || asset.duration <= 0) {
             block.style.setProperty("--progress", "0%");
             return;

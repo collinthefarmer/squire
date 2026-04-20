@@ -40,10 +40,13 @@ export class VisualRenderer extends BaseComponent {
         this.setupCanvas();
 
         if (this.shadowRoot?.host) {
-            this.subscribe(observeResize(this.shadowRoot.host), () => this.resizeCanvas());
+            this.subscribe(observeResize(this.shadowRoot.host), () =>
+                this.resizeCanvas(),
+            );
         }
 
-        const visualService = ServiceRegistry.get<VisualService>("VisualService");
+        const visualService =
+            ServiceRegistry.get<VisualService>("VisualService");
 
         this.subscribe(
             visualService.getLayers$().pipe(observeOn(animationFrameScheduler)),
@@ -53,7 +56,7 @@ export class VisualRenderer extends BaseComponent {
             },
         );
     }
-protected override render(): void {
+    protected override render(): void {
         this.shadowRoot!.innerHTML = `
             <canvas></canvas>
         `;
@@ -90,7 +93,12 @@ protected override render(): void {
             return;
         }
 
-        drawLayers(this.ctx, this.canvas, this.latestLayers, this.imageCache).catch((error) => {
+        drawLayers(
+            this.ctx,
+            this.canvas,
+            this.latestLayers,
+            this.imageCache,
+        ).catch((error) => {
             this.logger.error("Render failed", { error });
         });
     }

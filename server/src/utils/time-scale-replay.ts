@@ -15,7 +15,11 @@ export function computeGameTimestamp(
     scaleHistory: TimeScaleEntry[],
     now: number = Date.now(),
 ): number {
-    const gameElapsed = computeGameTimeElapsed(originalTimestamp, scaleHistory, now);
+    const gameElapsed = computeGameTimeElapsed(
+        originalTimestamp,
+        scaleHistory,
+        now,
+    );
     return now - gameElapsed;
 }
 
@@ -36,7 +40,9 @@ export function withGameTimestamp(
         metadata: {
             ...event.metadata,
             gameTimestamp: computeGameTimestamp(
-                event.metadata.timestamp, scaleHistory, now,
+                event.metadata.timestamp,
+                scaleHistory,
+                now,
             ),
         },
     };
@@ -101,9 +107,12 @@ export function sumIntervals(
     scaleHistory: TimeScaleEntry[],
     respectsScale: boolean,
 ): number {
-    return intervals.reduce((total, { start, end }) =>
-        total + (respectsScale
-            ? computeGameTimeElapsed(start, scaleHistory, end)
-            : end - start),
-    0);
+    return intervals.reduce(
+        (total, { start, end }) =>
+            total +
+            (respectsScale
+                ? computeGameTimeElapsed(start, scaleHistory, end)
+                : end - start),
+        0,
+    );
 }

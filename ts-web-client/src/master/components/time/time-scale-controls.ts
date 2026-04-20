@@ -29,7 +29,8 @@ export class TimeScaleControls extends BaseComponent {
     override connectedCallback(): void {
         super.connectedCallback();
 
-        this.timeScaleService = ServiceRegistry.get<TimeScaleService>("TimeScaleService");
+        this.timeScaleService =
+            ServiceRegistry.get<TimeScaleService>("TimeScaleService");
 
         this.adoptStyles(cssSheet(commonCss), cssSheet(timeScaleControlsCss));
 
@@ -37,7 +38,7 @@ export class TimeScaleControls extends BaseComponent {
         this.setupEventListeners();
         this.setupSubscriptions();
     }
-protected override render(): void {
+    protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
@@ -62,7 +63,9 @@ protected override render(): void {
         }
 
         this.shadowRoot.addEventListener("click", (e) => {
-            const button = (e.target as HTMLElement).closest(".option") as HTMLElement | null;
+            const button = (e.target as HTMLElement).closest(
+                ".option",
+            ) as HTMLElement | null;
             if (!button) {
                 return;
             }
@@ -73,12 +76,9 @@ protected override render(): void {
     }
 
     private setupSubscriptions(): void {
-        this.subscribe(
-            this.timeScaleService.getScale$(),
-            (scale) => {
-                this.updateSelection(scale);
-            },
-        );
+        this.subscribe(this.timeScaleService.getScale$(), (scale) => {
+            this.updateSelection(scale);
+        });
     }
 
     private updateSelection(scale: number): void {
@@ -88,7 +88,9 @@ protected override render(): void {
 
         const buttons = this.shadowRoot.querySelectorAll(".option");
         for (const btn of Array.from(buttons)) {
-            const btnScale = parseFloat((btn as HTMLElement).dataset.scale ?? "1");
+            const btnScale = parseFloat(
+                (btn as HTMLElement).dataset.scale ?? "1",
+            );
             btn.classList.toggle("selected", btnScale === scale);
         }
 

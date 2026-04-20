@@ -28,7 +28,7 @@ export const uploadAudioAsset: RouteHandler = async (req) => {
         if (!isValidAudioFile(file.name)) {
             return errorResponse(
                 "Invalid audio file extension. Allowed: mp3, wav, ogg, m4a",
-                400
+                400,
             );
         }
 
@@ -48,7 +48,7 @@ export const uploadAudioAsset: RouteHandler = async (req) => {
                 size: savedFile.size,
                 uploadedAt: Date.now(),
             },
-            201
+            201,
         );
     } catch (error) {
         console.error("Audio upload error:", error);
@@ -76,7 +76,7 @@ export const uploadImageAsset: RouteHandler = async (req) => {
         if (!isValidImageFile(file.name)) {
             return errorResponse(
                 "Invalid image file extension. Allowed: png, jpg, jpeg, gif, webp, svg",
-                400
+                400,
             );
         }
 
@@ -96,7 +96,7 @@ export const uploadImageAsset: RouteHandler = async (req) => {
                 size: savedFile.size,
                 uploadedAt: Date.now(),
             },
-            201
+            201,
         );
     } catch (error) {
         console.error("Image upload error:", error);

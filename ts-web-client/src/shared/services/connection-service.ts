@@ -189,7 +189,10 @@ export class ConnectionService {
         }
     }
 
-    private handleSystemEvent(message: { type?: string; payload?: Record<string, unknown> }): boolean {
+    private handleSystemEvent(message: {
+        type?: string;
+        payload?: Record<string, unknown>;
+    }): boolean {
         if (!message.type?.startsWith("system.")) {
             return false;
         }
@@ -225,6 +228,8 @@ export class ConnectionService {
             delay,
         });
 
-        timer(delay).pipe(take(1)).subscribe(() => this.connect());
+        timer(delay)
+            .pipe(take(1))
+            .subscribe(() => this.connect());
     }
 }

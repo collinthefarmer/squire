@@ -79,10 +79,19 @@ function init(): void {
     const broadcastService = new WebRTCBroadcastService(signalingService);
     ServiceRegistry.register("WebRTCBroadcastService", broadcastService);
 
-    const masterAudioService = new MasterAudioService(eventBus, connection, assetService);
+    const masterAudioService = new MasterAudioService(
+        eventBus,
+        connection,
+        assetService,
+    );
     ServiceRegistry.register("MasterAudioService", masterAudioService);
 
-    const liveAudioService = new LiveAudioService(connection, eventBus, micCaptureService, broadcastService);
+    const liveAudioService = new LiveAudioService(
+        connection,
+        eventBus,
+        micCaptureService,
+        broadcastService,
+    );
     ServiceRegistry.register("LiveAudioService", liveAudioService);
 
     customElements.define("squire-draggable", DraggableImage);

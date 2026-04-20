@@ -1,6 +1,10 @@
 import { BaseComponent } from "@components/base/base-component";
 import { cssSheet } from "@styles/adopt-styles";
-import { emitDomEvent, type AppEventMap, type AssetChangeDetail } from "@utils/dom-events";
+import {
+    emitDomEvent,
+    type AppEventMap,
+    type AssetChangeDetail,
+} from "@utils/dom-events";
 import { ServiceRegistry } from "@services/service-registry";
 import type { AssetService, ImageAsset } from "@master/services/asset-service";
 import { selectStyles, labelStyles, flexColumn } from "@styles/common-styles";
@@ -16,7 +20,9 @@ export type AssetType = "audio" | "image";
  * used to constrain which event names a picker can emit.
  */
 type AssetPickerEventName = {
-    [K in keyof AppEventMap]: AppEventMap[K] extends AssetChangeDetail ? K : never;
+    [K in keyof AppEventMap]: AppEventMap[K] extends AssetChangeDetail
+        ? K
+        : never;
 }[keyof AppEventMap];
 
 export interface AssetPickerConfig {
@@ -50,7 +56,7 @@ export class AssetPicker extends BaseComponent {
         this.render();
         this.setupSubscriptions();
     }
-protected override render(): void {
+    protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
@@ -83,19 +89,25 @@ protected override render(): void {
     }
 
     private setupEventListeners(): void {
-        const select = this.shadowRoot?.querySelector("select") as HTMLSelectElement;
+        const select = this.shadowRoot?.querySelector(
+            "select",
+        ) as HTMLSelectElement;
         if (!select) {
             return;
         }
 
         select.addEventListener("change", () => {
             this.selectedAsset = select.value;
-            emitDomEvent(this, this.config.eventName, { asset: this.selectedAsset });
+            emitDomEvent(this, this.config.eventName, {
+                asset: this.selectedAsset,
+            });
         });
     }
 
     private updateAssetList(assets: string[]): void {
-        const select = this.shadowRoot?.querySelector("select") as HTMLSelectElement;
+        const select = this.shadowRoot?.querySelector(
+            "select",
+        ) as HTMLSelectElement;
         if (!select) {
             return;
         }
@@ -128,7 +140,9 @@ protected override render(): void {
  *
  * Use this when you need to register a custom element with specific configuration.
  */
-export function createAssetPickerClass(config: AssetPickerConfig): typeof AssetPicker {
+export function createAssetPickerClass(
+    config: AssetPickerConfig,
+): typeof AssetPicker {
     return class extends AssetPicker {
         constructor() {
             super(config);

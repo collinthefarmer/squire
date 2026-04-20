@@ -75,11 +75,20 @@
 
 .volume-fill {
     height: 100%;
-    background: linear-gradient(90deg, var(--color-green-400), var(--color-green-500));
+    background: linear-gradient(
+        90deg,
+        var(--color-green-400),
+        var(--color-green-500)
+    );
     transition: width 0.2s ease;
 }
 
 @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
 }

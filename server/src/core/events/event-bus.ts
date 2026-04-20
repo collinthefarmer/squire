@@ -30,7 +30,10 @@ export class EventBus {
                 try {
                     handler(event as T);
                 } catch (error) {
-                    logger.error(`Error in event handler for ${eventType}:`, error);
+                    logger.error(
+                        `Error in event handler for ${eventType}:`,
+                        error,
+                    );
                 }
             });
 

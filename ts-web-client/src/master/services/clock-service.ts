@@ -20,10 +20,7 @@ import { calculatePosition } from "@utils/canvas-renderer";
 import { DISPLAY } from "@shared/constants/display";
 import { EventBuilder } from "./event-builder";
 import type { CanvasObjectProvider } from "./canvas-object-provider";
-import type {
-    CanvasObject,
-    DisplayBounds,
-} from "./visual-service";
+import type { CanvasObject, DisplayBounds } from "./visual-service";
 import type {
     ImagePosition,
     ClockCreateEvent,
@@ -49,7 +46,8 @@ export class MasterClockService implements CanvasObjectProvider {
 
     constructor(connectionService: ConnectionService, eventBus: EventBus) {
         this.connectionService = connectionService;
-        this.timeScaleService = ServiceRegistry.get<TimeScaleService>("TimeScaleService");
+        this.timeScaleService =
+            ServiceRegistry.get<TimeScaleService>("TimeScaleService");
         this.setupEventListeners(eventBus);
         this.setupTimeScaleListener(eventBus);
     }
@@ -84,7 +82,9 @@ export class MasterClockService implements CanvasObjectProvider {
         );
     }
 
-    private computeCanvasObjects(clocks: Map<string, ClockState>): CanvasObject[] {
+    private computeCanvasObjects(
+        clocks: Map<string, ClockState>,
+    ): CanvasObject[] {
         const objects: CanvasObject[] = [];
 
         for (const [id, clock] of clocks) {
@@ -105,10 +105,23 @@ export class MasterClockService implements CanvasObjectProvider {
     }
 
     private computeBounds(clock: ClockState): DisplayBounds {
-        const x = calculatePosition(clock.position.x, DISPLAY.WIDTH, CLOCK_DISPLAY.width);
-        const y = calculatePosition(clock.position.y, DISPLAY.HEIGHT, CLOCK_DISPLAY.height);
+        const x = calculatePosition(
+            clock.position.x,
+            DISPLAY.WIDTH,
+            CLOCK_DISPLAY.width,
+        );
+        const y = calculatePosition(
+            clock.position.y,
+            DISPLAY.HEIGHT,
+            CLOCK_DISPLAY.height,
+        );
 
-        return { x, y, width: CLOCK_DISPLAY.width, height: CLOCK_DISPLAY.height };
+        return {
+            x,
+            y,
+            width: CLOCK_DISPLAY.width,
+            height: CLOCK_DISPLAY.height,
+        };
     }
 
     // -- Commands --
@@ -153,7 +166,11 @@ export class MasterClockService implements CanvasObjectProvider {
     /**
      * CanvasObjectProvider implementation — delegates to transformClock.
      */
-    transformObject(id: string, position: ImagePosition, _scale?: number): void {
+    transformObject(
+        id: string,
+        position: ImagePosition,
+        _scale?: number,
+    ): void {
         this.transformClock(id, position);
     }
 
@@ -177,10 +194,18 @@ export class MasterClockService implements CanvasObjectProvider {
 
         switch (event.type) {
             case "ui.clock.create":
-                updated = applyClockCreate(current, event as ClockCreateEvent, scale);
+                updated = applyClockCreate(
+                    current,
+                    event as ClockCreateEvent,
+                    scale,
+                );
                 break;
             case "ui.clock.start":
-                updated = applyClockStart(current, event as ClockStartEvent, scale);
+                updated = applyClockStart(
+                    current,
+                    event as ClockStartEvent,
+                    scale,
+                );
                 break;
             case "ui.clock.pause":
                 updated = applyClockPause(current, event as ClockPauseEvent);
@@ -189,7 +214,10 @@ export class MasterClockService implements CanvasObjectProvider {
                 updated = applyClockAdjust(current, event as ClockAdjustEvent);
                 break;
             case "ui.clock.destroy":
-                updated = applyClockDestroy(current, event as ClockDestroyEvent);
+                updated = applyClockDestroy(
+                    current,
+                    event as ClockDestroyEvent,
+                );
                 break;
             case "ui.clock.update":
                 updated = applyClockUpdate(current, event as ClockUpdateEvent);

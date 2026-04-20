@@ -31,7 +31,9 @@ export class ImageGallery extends BaseComponent {
         super.connectedCallback();
 
         this.assetService = ServiceRegistry.get<AssetService>("AssetService");
-        this.imageToolbarService = ServiceRegistry.get<ImageToolbarService>("ImageToolbarService");
+        this.imageToolbarService = ServiceRegistry.get<ImageToolbarService>(
+            "ImageToolbarService",
+        );
 
         this.adoptStyles(cssSheet(commonCss), cssSheet(imageGalleryCss));
 
@@ -39,7 +41,7 @@ export class ImageGallery extends BaseComponent {
         this.loadAssets();
         this.setupSubscriptions();
     }
-protected override render(): void {
+    protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
@@ -63,15 +65,21 @@ protected override render(): void {
             this.shadowRoot?.querySelector("image-asset-grid");
 
         this.subscribe(
-            settings$.pipe(map((s) => s.previewScale), distinctUntilChanged()),
-            (previewScale) => grid()?.setAttribute("preview-scale", String(previewScale)),
+            settings$.pipe(
+                map((s) => s.previewScale),
+                distinctUntilChanged(),
+            ),
+            (previewScale) =>
+                grid()?.setAttribute("preview-scale", String(previewScale)),
         );
     }
 
     private setupEventListeners(): void {
-        this.shadowRoot?.querySelector("#refresh-btn")?.addEventListener("click", () => {
-            this.loadAssets();
-        });
+        this.shadowRoot
+            ?.querySelector("#refresh-btn")
+            ?.addEventListener("click", () => {
+                this.loadAssets();
+            });
     }
 
     private async loadAssets(): Promise<void> {

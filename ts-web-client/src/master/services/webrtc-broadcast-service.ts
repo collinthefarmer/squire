@@ -1,9 +1,10 @@
 import { Logger } from "@utils/logger";
-import type { WebRTCSignalingService, SignalingMessage } from "@services/webrtc-signaling-service";
+import type {
+    WebRTCSignalingService,
+    SignalingMessage,
+} from "@services/webrtc-signaling-service";
 
-const ICE_SERVERS: RTCIceServer[] = [
-    { urls: "stun:stun.l.google.com:19302" },
-];
+const ICE_SERVERS: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
 
 /**
  * WebRTC broadcast service (master only)
@@ -26,7 +27,11 @@ export class WebRTCBroadcastService {
     /**
      * Create a peer connection and send an SDP offer to a display client.
      */
-    async createOffer(displayClientId: string, stream: MediaStream, channel: string): Promise<void> {
+    async createOffer(
+        displayClientId: string,
+        stream: MediaStream,
+        channel: string,
+    ): Promise<void> {
         this.closeConnection(displayClientId);
 
         const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
@@ -54,7 +59,10 @@ export class WebRTCBroadcastService {
                 state: pc.connectionState,
             });
 
-            if (pc.connectionState === "failed" || pc.connectionState === "disconnected") {
+            if (
+                pc.connectionState === "failed" ||
+                pc.connectionState === "disconnected"
+            ) {
                 this.closeConnection(displayClientId);
             }
         };
@@ -78,11 +86,15 @@ export class WebRTCBroadcastService {
         const sourceClientId = msg.metadata.source;
         const pc = this.peerConnections.get(sourceClientId);
         if (!pc) {
-            this.logger.warn("No peer connection for answer", { sourceClientId });
+            this.logger.warn("No peer connection for answer", {
+                sourceClientId,
+            });
             return;
         }
 
-        const desc = JSON.parse(msg.payload.sdp ?? "") as RTCSessionDescriptionInit;
+        const desc = JSON.parse(
+            msg.payload.sdp ?? "",
+        ) as RTCSessionDescriptionInit;
         await pc.setRemoteDescription(new RTCSessionDescription(desc));
         this.logger.info("Answer applied", { sourceClientId });
     }
@@ -97,7 +109,9 @@ export class WebRTCBroadcastService {
             return;
         }
 
-        const candidate = JSON.parse(msg.payload.candidate ?? "") as RTCIceCandidateInit;
+        const candidate = JSON.parse(
+            msg.payload.candidate ?? "",
+        ) as RTCIceCandidateInit;
         await pc.addIceCandidate(new RTCIceCandidate(candidate));
     }
 
@@ -114,7 +128,9 @@ export class WebRTCBroadcastService {
         this.activeStream = newStream;
 
         for (const [clientId, pc] of this.peerConnections) {
-            const sender = pc.getSenders().find((s) => s.track?.kind === "audio");
+            const sender = pc
+                .getSenders()
+                .find((s) => s.track?.kind === "audio");
             if (sender) {
                 await sender.replaceTrack(newTrack);
                 this.logger.debug("Track replaced", { clientId });

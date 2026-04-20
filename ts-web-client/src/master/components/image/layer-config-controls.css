@@ -18,7 +18,8 @@ label {
     font-size: var(--font-base);
 }
 
-select, input[type="number"] {
+select,
+input[type="number"] {
     font-size: var(--font-base);
 }
 

@@ -1,10 +1,11 @@
 import { BehaviorSubject, type Observable } from "rxjs";
 import { Logger } from "@utils/logger";
-import type { WebRTCSignalingService, SignalingMessage } from "@services/webrtc-signaling-service";
+import type {
+    WebRTCSignalingService,
+    SignalingMessage,
+} from "@services/webrtc-signaling-service";
 
-const ICE_SERVERS: RTCIceServer[] = [
-    { urls: "stun:stun.l.google.com:19302" },
-];
+const ICE_SERVERS: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
 
 /**
  * WebRTC receiver service (display client only)
@@ -71,12 +72,17 @@ export class WebRTCReceiverService {
         pc.onconnectionstatechange = () => {
             this.logger.info("Connection state", { state: pc.connectionState });
 
-            if (pc.connectionState === "failed" || pc.connectionState === "disconnected") {
+            if (
+                pc.connectionState === "failed" ||
+                pc.connectionState === "disconnected"
+            ) {
                 this.close();
             }
         };
 
-        const desc = JSON.parse(msg.payload.sdp ?? "") as RTCSessionDescriptionInit;
+        const desc = JSON.parse(
+            msg.payload.sdp ?? "",
+        ) as RTCSessionDescriptionInit;
         await pc.setRemoteDescription(new RTCSessionDescription(desc));
 
         const answer = await pc.createAnswer();
@@ -103,8 +109,12 @@ export class WebRTCReceiverService {
             return;
         }
 
-        const candidate = JSON.parse(msg.payload.candidate ?? "") as RTCIceCandidateInit;
-        await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+        const candidate = JSON.parse(
+            msg.payload.candidate ?? "",
+        ) as RTCIceCandidateInit;
+        await this.peerConnection.addIceCandidate(
+            new RTCIceCandidate(candidate),
+        );
     }
 
     close(): void {

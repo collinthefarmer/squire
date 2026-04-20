@@ -77,12 +77,16 @@ export class MasterVisualService implements CanvasObjectProvider {
     private assetService: AssetService;
     private imageToolbarService: ImageToolbarService;
 
-    private layers$ = new BehaviorSubject<Map<string, ImageLayerState>>(new Map());
+    private layers$ = new BehaviorSubject<Map<string, ImageLayerState>>(
+        new Map(),
+    );
 
     constructor(connectionService: ConnectionService, eventBus: EventBus) {
         this.connectionService = connectionService;
         this.assetService = ServiceRegistry.get<AssetService>("AssetService");
-        this.imageToolbarService = ServiceRegistry.get<ImageToolbarService>("ImageToolbarService");
+        this.imageToolbarService = ServiceRegistry.get<ImageToolbarService>(
+            "ImageToolbarService",
+        );
         this.setupEventListeners(eventBus);
     }
 
@@ -94,7 +98,9 @@ export class MasterVisualService implements CanvasObjectProvider {
         );
     }
 
-    private computeCanvasObjects(layers: Map<string, ImageLayerState>): CanvasObject[] {
+    private computeCanvasObjects(
+        layers: Map<string, ImageLayerState>,
+    ): CanvasObject[] {
         const objects: CanvasObject[] = [];
 
         for (const [id, layer] of layers) {
@@ -107,7 +113,13 @@ export class MasterVisualService implements CanvasObjectProvider {
                 continue;
             }
 
-            objects.push({ id, type: "image", bounds, scale: layer.scale, zIndex: layer.zIndex });
+            objects.push({
+                id,
+                type: "image",
+                bounds,
+                scale: layer.scale,
+                zIndex: layer.zIndex,
+            });
         }
 
         return objects.sort((a, b) => a.zIndex - b.zIndex);
@@ -128,7 +140,12 @@ export class MasterVisualService implements CanvasObjectProvider {
             DISPLAY.HEIGHT,
         );
 
-        const bounds = computeDisplayBounds(layer.position, width, height, layer.scale);
+        const bounds = computeDisplayBounds(
+            layer.position,
+            width,
+            height,
+            layer.scale,
+        );
 
         this.logger.debug("computeBounds", {
             layer: layer.id,
@@ -141,7 +158,10 @@ export class MasterVisualService implements CanvasObjectProvider {
         return bounds;
     }
 
-    private resolveImageDimensions(imageRef: string): { width: number; height: number } {
+    private resolveImageDimensions(imageRef: string): {
+        width: number;
+        height: number;
+    } {
         const assets = this.assetService.getImageAssets();
         const asset = assets.find((a) => a.name === imageRef);
         if (asset) {
@@ -205,7 +225,11 @@ export class MasterVisualService implements CanvasObjectProvider {
             scale?: number;
         },
     ): void {
-        this.logger.info("Setting image", { layer, imageRef, scale: options?.scale });
+        this.logger.info("Setting image", {
+            layer,
+            imageRef,
+            scale: options?.scale,
+        });
 
         const event = EventBuilder.imageSet({
             layer,
@@ -235,7 +259,11 @@ export class MasterVisualService implements CanvasObjectProvider {
 
     transformImage(
         layer: string,
-        transform: { position?: ImagePosition; scale?: number; rotation?: number },
+        transform: {
+            position?: ImagePosition;
+            scale?: number;
+            rotation?: number;
+        },
     ): void {
         this.logger.info("Transforming image", {
             layer,
@@ -255,7 +283,11 @@ export class MasterVisualService implements CanvasObjectProvider {
      * of the image center. The overlay is created when the server
      * broadcasts the event back and the event handler processes it.
      */
-    handleImageDrop(imageRef: string, displayX: number, displayY: number): void {
+    handleImageDrop(
+        imageRef: string,
+        displayX: number,
+        displayY: number,
+    ): void {
         const settings = this.imageToolbarService.getSettings();
 
         // Auto-create a new layer if the selected one already has an image
@@ -267,15 +299,18 @@ export class MasterVisualService implements CanvasObjectProvider {
         }
 
         const position = this.computeDropPosition(
-            displayX, displayY,
+            displayX,
+            displayY,
             "contain",
             settings.imageDimensions?.width ?? DISPLAY.WIDTH,
             settings.imageDimensions?.height ?? DISPLAY.HEIGHT,
         );
 
         this.logger.info("Handling image drop", {
-            imageRef, layer: targetLayer,
-            position, scale: settings.scale,
+            imageRef,
+            layer: targetLayer,
+            position,
+            scale: settings.scale,
         });
 
         this.setImage(targetLayer, imageRef, {
@@ -298,8 +333,11 @@ export class MasterVisualService implements CanvasObjectProvider {
         imgHeight: number,
     ): ImagePosition {
         const { width, height } = calculateScaledDimensions(
-            aspectRatio, imgWidth, imgHeight,
-            DISPLAY.WIDTH, DISPLAY.HEIGHT,
+            aspectRatio,
+            imgWidth,
+            imgHeight,
+            DISPLAY.WIDTH,
+            DISPLAY.HEIGHT,
         );
 
         return {
@@ -339,21 +377,33 @@ export class MasterVisualService implements CanvasObjectProvider {
         switch (event.type) {
             case "visual.image.set":
                 updated = applyImageSet(current, event as ImageSetEvent);
-                this.logger.info("Image set (server)", { layer: (event as ImageSetEvent).payload.layer });
+                this.logger.info("Image set (server)", {
+                    layer: (event as ImageSetEvent).payload.layer,
+                });
                 break;
             case "visual.image.clear":
                 updated = applyImageClear(current, event as ImageClearEvent);
-                this.logger.info("Image clear (server)", { layer: (event as ImageClearEvent).payload.layer });
+                this.logger.info("Image clear (server)", {
+                    layer: (event as ImageClearEvent).payload.layer,
+                });
                 break;
             case "visual.image.transform":
-                updated = applyImageTransform(current, event as ImageTransformEvent);
-                this.logger.info("Image transform (server)", { layer: (event as ImageTransformEvent).payload.layer });
+                updated = applyImageTransform(
+                    current,
+                    event as ImageTransformEvent,
+                );
+                this.logger.info("Image transform (server)", {
+                    layer: (event as ImageTransformEvent).payload.layer,
+                });
                 break;
             case "visual.image.effect":
                 updated = applyImageEffect(current, event as ImageEffectEvent);
                 break;
             case "visual.image.layer_config":
-                updated = applyImageLayerConfig(current, event as ImageLayerConfigEvent);
+                updated = applyImageLayerConfig(
+                    current,
+                    event as ImageLayerConfigEvent,
+                );
                 break;
             default:
                 return;

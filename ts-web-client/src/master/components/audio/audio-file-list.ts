@@ -31,7 +31,7 @@ export class AudioFileList extends BaseComponent {
         this.setupFilterListener();
         this.setupSubscriptions();
     }
-protected override render(): void {
+    protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
@@ -48,7 +48,9 @@ protected override render(): void {
     }
 
     private setupFilterListener(): void {
-        const input = this.shadowRoot?.querySelector("#filter") as HTMLInputElement;
+        const input = this.shadowRoot?.querySelector(
+            "#filter",
+        ) as HTMLInputElement;
         if (!input) {
             return;
         }
@@ -73,7 +75,9 @@ protected override render(): void {
         }
 
         const filtered = this.filterText
-            ? this.allAssets.filter((a) => a.name.toLowerCase().includes(this.filterText))
+            ? this.allAssets.filter((a) =>
+                  a.name.toLowerCase().includes(this.filterText),
+              )
             : this.allAssets;
 
         if (filtered.length === 0) {

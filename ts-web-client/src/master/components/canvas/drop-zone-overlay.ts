@@ -24,7 +24,7 @@ export class DropZoneOverlay extends BaseComponent {
         this.render();
         this.setupEventListeners();
     }
-protected override render(): void {
+    protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }

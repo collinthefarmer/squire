@@ -100,7 +100,10 @@ export class DragShadow {
         return this.element !== null;
     }
 
-    private computeDimensions(config: ShadowConfig): { width: number; height: number } {
+    private computeDimensions(config: ShadowConfig): {
+        width: number;
+        height: number;
+    } {
         const scaled = calculateScaledDimensions(
             config.aspectRatio,
             config.imageWidth,

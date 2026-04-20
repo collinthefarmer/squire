@@ -3,7 +3,7 @@
  */
 export type RouteHandler = (
     req: Request,
-    params: RouteParams
+    params: RouteParams,
 ) => Response | Promise<Response>;
 
 /**
@@ -56,7 +56,7 @@ export class Router {
     private registerRoute(
         method: string,
         path: string,
-        handler: RouteHandler
+        handler: RouteHandler,
     ): void {
         if (!this.routes.has(method)) {
             this.routes.set(method, new Map());
@@ -98,7 +98,10 @@ export class Router {
      *
      * Returns extracted params or null if no match
      */
-    private matchPattern(pattern: string, pathname: string): RouteParams | null {
+    private matchPattern(
+        pattern: string,
+        pathname: string,
+    ): RouteParams | null {
         const patternParts = pattern.split("/").filter(Boolean);
         const pathnameParts = pathname.split("/").filter(Boolean);
 

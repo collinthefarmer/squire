@@ -4,7 +4,15 @@
  * Provides reusable style blocks that can be composed in component templates
  */
 
-import { colors, spacing, borderRadius, transitions, alpha, fontSize, sizing } from "@styles/theme";
+import {
+    colors,
+    spacing,
+    borderRadius,
+    transitions,
+    alpha,
+    fontSize,
+    sizing,
+} from "@styles/theme";
 
 /**
  * Base reset styles for select elements
@@ -297,7 +305,10 @@ export function flexColumn(gap: string = spacing.md): string {
 /**
  * Grid utility
  */
-export function grid(columns: string = "1fr", gap: string = spacing.md): string {
+export function grid(
+    columns: string = "1fr",
+    gap: string = spacing.md,
+): string {
     return `
         .grid {
             display: grid;

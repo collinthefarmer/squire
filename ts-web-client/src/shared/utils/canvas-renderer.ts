@@ -12,7 +12,7 @@ const logger = new Logger("CanvasRenderer");
 export function calculateNormalizedPosition(
     normalized: number,
     containerSize: number,
-    imageSize: number
+    imageSize: number,
 ): number {
     return (containerSize - imageSize) * normalized;
 }
@@ -26,7 +26,7 @@ export function calculateNormalizedPosition(
 export function calculateStringPosition(
     pos: string,
     containerSize: number,
-    imageSize: number
+    imageSize: number,
 ): number {
     switch (pos) {
         case "center":
@@ -57,7 +57,7 @@ export function calculateStringPosition(
 export function calculatePosition(
     pos: string | number,
     containerSize: number,
-    imageSize: number
+    imageSize: number,
 ): number {
     if (typeof pos === "number") {
         return calculateNormalizedPosition(pos, containerSize, imageSize);
@@ -94,20 +94,20 @@ export function calculateScaledDimensions(
     imageWidth: number,
     imageHeight: number,
     canvasWidth: number,
-    canvasHeight: number
+    canvasHeight: number,
 ): { width: number; height: number } {
     switch (aspectRatio) {
         case "cover": {
             const scale = Math.max(
                 canvasWidth / imageWidth,
-                canvasHeight / imageHeight
+                canvasHeight / imageHeight,
             );
             return { width: imageWidth * scale, height: imageHeight * scale };
         }
         case "contain": {
             const scale = Math.min(
                 canvasWidth / imageWidth,
-                canvasHeight / imageHeight
+                canvasHeight / imageHeight,
             );
             return { width: imageWidth * scale, height: imageHeight * scale };
         }
@@ -159,7 +159,8 @@ export class ImageCache {
         return new Promise((resolve, reject) => {
             const img = new Image();
             img.onload = () => resolve(img);
-            img.onerror = () => reject(new Error(`Failed to load: ${imageRef}`));
+            img.onerror = () =>
+                reject(new Error(`Failed to load: ${imageRef}`));
             img.src = `${this.baseUrl}/public/images/${imageRef}`;
         });
     }
@@ -189,7 +190,7 @@ export function drawLayer(
     layer: ImageLayerState,
     image: HTMLImageElement,
     canvasWidth: number,
-    canvasHeight: number
+    canvasHeight: number,
 ): void {
     ctx.save();
 
@@ -205,7 +206,7 @@ export function drawLayer(
         image.naturalWidth,
         image.naturalHeight,
         canvasWidth,
-        canvasHeight
+        canvasHeight,
     );
 
     // Calculate position using scaled dimensions
@@ -232,11 +233,11 @@ export async function drawLayers(
     ctx: CanvasRenderingContext2D,
     canvas: HTMLCanvasElement,
     layers: Map<string, ImageLayerState>,
-    imageCache: ImageCache
+    imageCache: ImageCache,
 ): Promise<void> {
     // Get layers sorted by zIndex
     const sortedLayers = Array.from(layers.values()).sort(
-        (a, b) => a.zIndex - b.zIndex
+        (a, b) => a.zIndex - b.zIndex,
     );
 
     // Clear canvas

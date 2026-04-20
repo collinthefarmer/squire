@@ -104,7 +104,7 @@ export class AudioEnableModal extends BaseComponent {
             }
         });
     }
-protected override render(): void {
+    protected override render(): void {
         this.shadowRoot!.innerHTML = `
             <dialog
                 id="audio-dialog"
@@ -135,7 +135,7 @@ protected override render(): void {
         `;
 
         this.dialog = this.shadowRoot!.getElementById(
-            "audio-dialog"
+            "audio-dialog",
         ) as HTMLDialogElement;
     }
 }

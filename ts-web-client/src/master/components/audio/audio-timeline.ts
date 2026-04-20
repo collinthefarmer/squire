@@ -48,7 +48,7 @@ export class AudioTimeline extends BaseComponent {
         this.setupSubscriptions();
         this.setupEventListeners();
     }
-protected override render(): void {
+    protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
@@ -128,7 +128,11 @@ protected override render(): void {
 
         this.cleanup.push(
             onDomEvent(this.shadowRoot, "track-volume-change", (e) => {
-                this.audioService.setVolume(e.detail.channel, e.detail.volume, e.detail.trackId);
+                this.audioService.setVolume(
+                    e.detail.channel,
+                    e.detail.volume,
+                    e.detail.trackId,
+                );
             }),
 
             onDomEvent(this.shadowRoot, "track-stop-request", (e) => {

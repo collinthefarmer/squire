@@ -37,7 +37,7 @@ export class LayerConfigControls extends BaseComponent {
         this.render();
         this.setupEventListeners();
     }
-protected override render(): void {
+    protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
@@ -81,14 +81,33 @@ protected override render(): void {
     }
 
     private setupEventListeners(): void {
-        const opacitySlider = this.shadowRoot?.querySelector("#opacity") as HTMLInputElement;
-        const opacityValue = this.shadowRoot?.querySelector("#opacity-value") as HTMLSpanElement;
-        const blendModeSelect = this.shadowRoot?.querySelector("#blend-mode") as HTMLSelectElement;
-        const zIndexInput = this.shadowRoot?.querySelector("#z-index") as HTMLInputElement;
-        const visibleCheckbox = this.shadowRoot?.querySelector("#visible") as HTMLInputElement;
-        const applyBtn = this.shadowRoot?.querySelector("#apply-config") as HTMLButtonElement;
+        const opacitySlider = this.shadowRoot?.querySelector(
+            "#opacity",
+        ) as HTMLInputElement;
+        const opacityValue = this.shadowRoot?.querySelector(
+            "#opacity-value",
+        ) as HTMLSpanElement;
+        const blendModeSelect = this.shadowRoot?.querySelector(
+            "#blend-mode",
+        ) as HTMLSelectElement;
+        const zIndexInput = this.shadowRoot?.querySelector(
+            "#z-index",
+        ) as HTMLInputElement;
+        const visibleCheckbox = this.shadowRoot?.querySelector(
+            "#visible",
+        ) as HTMLInputElement;
+        const applyBtn = this.shadowRoot?.querySelector(
+            "#apply-config",
+        ) as HTMLButtonElement;
 
-        if (!opacitySlider || !opacityValue || !blendModeSelect || !zIndexInput || !visibleCheckbox || !applyBtn) {
+        if (
+            !opacitySlider ||
+            !opacityValue ||
+            !blendModeSelect ||
+            !zIndexInput ||
+            !visibleCheckbox ||
+            !applyBtn
+        ) {
             return;
         }
 

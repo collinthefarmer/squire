@@ -21,7 +21,7 @@ export class SourceTypeSelector extends BaseComponent {
         this.render();
         this.setupEventListeners();
     }
-protected override render(): void {
+    protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
@@ -51,18 +51,23 @@ protected override render(): void {
             return;
         }
 
-        this.shadowRoot.querySelector(".toggle-group")?.addEventListener("click", (e) => {
-            const target = e.target as HTMLElement;
-            const value = target.dataset.value as "file" | "live" | undefined;
+        this.shadowRoot
+            .querySelector(".toggle-group")
+            ?.addEventListener("click", (e) => {
+                const target = e.target as HTMLElement;
+                const value = target.dataset.value as
+                    | "file"
+                    | "live"
+                    | undefined;
 
-            if (!value || value === this.sourceType) {
-                return;
-            }
+                if (!value || value === this.sourceType) {
+                    return;
+                }
 
-            this.sourceType = value;
-            this.updateSelection();
-            emitDomEvent(this, "source-type-change", { sourceType: value });
-        });
+                this.sourceType = value;
+                this.updateSelection();
+                emitDomEvent(this, "source-type-change", { sourceType: value });
+            });
     }
 
     private updateSelection(): void {

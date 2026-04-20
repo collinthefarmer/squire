@@ -35,7 +35,8 @@ export class MicControls extends BaseComponent {
     override connectedCallback(): void {
         super.connectedCallback();
 
-        this.micService = ServiceRegistry.get<MicCaptureService>("MicCaptureService");
+        this.micService =
+            ServiceRegistry.get<MicCaptureService>("MicCaptureService");
 
         this.adoptStyles(cssSheet(commonCss), cssSheet(micControlsCss));
 
@@ -44,7 +45,7 @@ export class MicControls extends BaseComponent {
         this.setupEventListeners();
         this.setupSubscriptions();
     }
-protected override render(): void {
+    protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
@@ -82,7 +83,9 @@ protected override render(): void {
     }
 
     private async populateDevices(): Promise<void> {
-        const select = this.shadowRoot?.querySelector("#mic-device") as HTMLSelectElement;
+        const select = this.shadowRoot?.querySelector(
+            "#mic-device",
+        ) as HTMLSelectElement;
         if (!select) {
             return;
         }
@@ -92,7 +95,8 @@ protected override render(): void {
         for (const device of devices) {
             const option = document.createElement("option");
             option.value = device.deviceId;
-            option.textContent = device.label || `Microphone ${select.options.length}`;
+            option.textContent =
+                device.label || `Microphone ${select.options.length}`;
             select.appendChild(option);
         }
     }
@@ -102,10 +106,18 @@ protected override render(): void {
             return;
         }
 
-        const select = this.shadowRoot.querySelector("#mic-device") as HTMLSelectElement;
-        const gainSlider = this.shadowRoot.querySelector("#gain") as HTMLInputElement;
-        const gainValue = this.shadowRoot.querySelector("#gain-value") as HTMLSpanElement;
-        const monitorCheckbox = this.shadowRoot.querySelector("#monitor") as HTMLInputElement;
+        const select = this.shadowRoot.querySelector(
+            "#mic-device",
+        ) as HTMLSelectElement;
+        const gainSlider = this.shadowRoot.querySelector(
+            "#gain",
+        ) as HTMLInputElement;
+        const gainValue = this.shadowRoot.querySelector(
+            "#gain-value",
+        ) as HTMLSpanElement;
+        const monitorCheckbox = this.shadowRoot.querySelector(
+            "#monitor",
+        ) as HTMLInputElement;
 
         if (!select || !gainSlider || !gainValue || !monitorCheckbox) {
             return;
@@ -122,7 +134,9 @@ protected override render(): void {
         });
 
         monitorCheckbox.addEventListener("change", () => {
-            emitDomEvent(this, "monitor-change", { enabled: monitorCheckbox.checked });
+            emitDomEvent(this, "monitor-change", {
+                enabled: monitorCheckbox.checked,
+            });
         });
     }
 
@@ -147,7 +161,9 @@ protected override render(): void {
 
     private updateMeter(): void {
         const analyser = this.micService.getAnalyserNode();
-        const fill = this.shadowRoot?.querySelector("#meter-fill") as HTMLElement;
+        const fill = this.shadowRoot?.querySelector(
+            "#meter-fill",
+        ) as HTMLElement;
 
         if (!analyser || !fill) {
             return;

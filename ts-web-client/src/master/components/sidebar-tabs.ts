@@ -51,24 +51,30 @@ export class SidebarTabs extends BaseComponent {
         super.connectedCallback();
         this.render();
     }
-protected override render(): void {
+    protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
 
-        const tabButtons = this.tabs.map((tab) =>
-            `<button
+        const tabButtons = this.tabs
+            .map(
+                (tab) =>
+                    `<button
                 class="tab-btn ${tab.id === this.activeTab ? "active" : ""}"
                 data-tab="${tab.id}"
                 type="button"
             >${tab.label}</button>`,
-        ).join("");
+            )
+            .join("");
 
-        const tabPanels = this.tabs.map((tab) =>
-            `<div class="tab-panel ${tab.id === this.activeTab ? "active" : ""}">
+        const tabPanels = this.tabs
+            .map(
+                (tab) =>
+                    `<div class="tab-panel ${tab.id === this.activeTab ? "active" : ""}">
                 <slot name="${tab.id}"></slot>
             </div>`,
-        ).join("");
+            )
+            .join("");
 
         this.shadowRoot.innerHTML = `
             <div class="tab-bar">${tabButtons}</div>

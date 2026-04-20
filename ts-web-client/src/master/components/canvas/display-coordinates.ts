@@ -1,4 +1,7 @@
-import { calculateScaledDimensions, calculatePosition } from "@utils/canvas-renderer";
+import {
+    calculateScaledDimensions,
+    calculatePosition,
+} from "@utils/canvas-renderer";
 import { DISPLAY } from "@shared/constants/display";
 import type { AspectRatioMode, ImagePosition } from "@types";
 import type { ImageDimensions } from "@master/services/image-toolbar-service";
@@ -50,8 +53,12 @@ export function wouldOverlapDisplay(
     displayHeight: number,
 ): boolean {
     if (!imageDimensions) {
-        return displayX > -displayWidth / 2 && displayX < displayWidth * 1.5 &&
-               displayY > -displayHeight / 2 && displayY < displayHeight * 1.5;
+        return (
+            displayX > -displayWidth / 2 &&
+            displayX < displayWidth * 1.5 &&
+            displayY > -displayHeight / 2 &&
+            displayY < displayHeight * 1.5
+        );
     }
 
     const { width, height } = calculateScaledDimensions(
@@ -65,8 +72,12 @@ export function wouldOverlapDisplay(
     const halfW = (width * scale) / 2;
     const halfH = (height * scale) / 2;
 
-    return displayX + halfW > 0 && displayX - halfW < displayWidth &&
-           displayY + halfH > 0 && displayY - halfH < displayHeight;
+    return (
+        displayX + halfW > 0 &&
+        displayX - halfW < displayWidth &&
+        displayY + halfH > 0 &&
+        displayY - halfH < displayHeight
+    );
 }
 
 /**

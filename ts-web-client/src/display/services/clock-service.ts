@@ -37,7 +37,8 @@ export class DisplayClockService {
     private timeScaleService: TimeScaleService;
 
     constructor(private eventBus: EventBus) {
-        this.timeScaleService = ServiceRegistry.get<TimeScaleService>("TimeScaleService");
+        this.timeScaleService =
+            ServiceRegistry.get<TimeScaleService>("TimeScaleService");
         this.setupEventListeners();
         this.setupTimeScaleListener();
     }
@@ -88,28 +89,51 @@ export class DisplayClockService {
 
         switch (event.type) {
             case "ui.clock.create":
-                updated = applyClockCreate(current, event as ClockCreateEvent, scale);
-                this.logger.info("Clock created", { id: (event as ClockCreateEvent).payload.id });
+                updated = applyClockCreate(
+                    current,
+                    event as ClockCreateEvent,
+                    scale,
+                );
+                this.logger.info("Clock created", {
+                    id: (event as ClockCreateEvent).payload.id,
+                });
                 break;
             case "ui.clock.start":
-                updated = applyClockStart(current, event as ClockStartEvent, scale);
-                this.logger.info("Clock started", { id: (event as ClockStartEvent).payload.id });
+                updated = applyClockStart(
+                    current,
+                    event as ClockStartEvent,
+                    scale,
+                );
+                this.logger.info("Clock started", {
+                    id: (event as ClockStartEvent).payload.id,
+                });
                 break;
             case "ui.clock.pause":
                 updated = applyClockPause(current, event as ClockPauseEvent);
-                this.logger.info("Clock paused", { id: (event as ClockPauseEvent).payload.id });
+                this.logger.info("Clock paused", {
+                    id: (event as ClockPauseEvent).payload.id,
+                });
                 break;
             case "ui.clock.adjust":
                 updated = applyClockAdjust(current, event as ClockAdjustEvent);
-                this.logger.info("Clock adjusted", { id: (event as ClockAdjustEvent).payload.id });
+                this.logger.info("Clock adjusted", {
+                    id: (event as ClockAdjustEvent).payload.id,
+                });
                 break;
             case "ui.clock.destroy":
-                updated = applyClockDestroy(current, event as ClockDestroyEvent);
-                this.logger.info("Clock destroyed", { id: (event as ClockDestroyEvent).payload.id });
+                updated = applyClockDestroy(
+                    current,
+                    event as ClockDestroyEvent,
+                );
+                this.logger.info("Clock destroyed", {
+                    id: (event as ClockDestroyEvent).payload.id,
+                });
                 break;
             case "ui.clock.update":
                 updated = applyClockUpdate(current, event as ClockUpdateEvent);
-                this.logger.info("Clock updated", { id: (event as ClockUpdateEvent).payload.id });
+                this.logger.info("Clock updated", {
+                    id: (event as ClockUpdateEvent).payload.id,
+                });
                 break;
             default:
                 return;

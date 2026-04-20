@@ -23,7 +23,7 @@ export class ChannelSelector extends BaseComponent {
         this.render();
         this.setupEventListeners();
     }
-protected override render(): void {
+    protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
@@ -51,7 +51,9 @@ protected override render(): void {
 
         select.addEventListener("change", () => {
             this.selectedChannel = select.value;
-            emitDomEvent(this, "channel-change", { channel: this.selectedChannel });
+            emitDomEvent(this, "channel-change", {
+                channel: this.selectedChannel,
+            });
         });
     }
 

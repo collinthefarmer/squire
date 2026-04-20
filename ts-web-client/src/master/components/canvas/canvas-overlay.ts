@@ -2,7 +2,12 @@ import { combineLatest, map } from "rxjs";
 import { cssSheet } from "@styles/adopt-styles";
 import { BaseComponent } from "@components/base/base-component";
 import { onDomEvent } from "@utils/dom-events";
-import type { DragStartDetail, DragMoveDetail, DragEndDetail, DragScaleDetail } from "@utils/dom-events";
+import type {
+    DragStartDetail,
+    DragMoveDetail,
+    DragEndDetail,
+    DragScaleDetail,
+} from "@utils/dom-events";
 import { ServiceRegistry } from "@services/service-registry";
 import { Logger } from "@utils/logger";
 import type { CanvasObject } from "@master/services/visual-service";
@@ -43,10 +48,14 @@ export class CanvasOverlay extends BaseComponent {
     override connectedCallback(): void {
         super.connectedCallback();
 
-        this.registerProvider("image",
-            ServiceRegistry.get<CanvasObjectProvider>("MasterVisualService"));
-        this.registerProvider("clock",
-            ServiceRegistry.get<CanvasObjectProvider>("MasterClockService"));
+        this.registerProvider(
+            "image",
+            ServiceRegistry.get<CanvasObjectProvider>("MasterVisualService"),
+        );
+        this.registerProvider(
+            "clock",
+            ServiceRegistry.get<CanvasObjectProvider>("MasterClockService"),
+        );
 
         this.adoptStyles(cssSheet(commonCss), cssSheet(canvasOverlayCss));
 
@@ -54,7 +63,7 @@ export class CanvasOverlay extends BaseComponent {
         this.setupSubscriptions();
         this.setupDragListeners();
     }
-protected override render(): void {
+    protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
@@ -64,19 +73,20 @@ protected override render(): void {
         `;
     }
 
-    private registerProvider(type: string, provider: CanvasObjectProvider): void {
+    private registerProvider(
+        type: string,
+        provider: CanvasObjectProvider,
+    ): void {
         this.providers.set(type, provider);
     }
 
     private setupSubscriptions(): void {
-        const streams = Array.from(this.providers.values()).map(
-            (p) => p.getCanvasObjects$(),
+        const streams = Array.from(this.providers.values()).map((p) =>
+            p.getCanvasObjects$(),
         );
 
         const combined$ = combineLatest(streams).pipe(
-            map((arrays) =>
-                arrays.flat().sort((a, b) => a.zIndex - b.zIndex),
-            ),
+            map((arrays) => arrays.flat().sort((a, b) => a.zIndex - b.zIndex)),
         );
 
         this.subscribe(combined$, (objects) => {
@@ -277,9 +287,10 @@ protected override render(): void {
         }
 
         const obj = this.objects.find((o) => o.id === this.activeDragId);
-        const scaleFactor = obj && this.pendingScale !== null
-            ? this.pendingScale / obj.scale
-            : 1;
+        const scaleFactor =
+            obj && this.pendingScale !== null
+                ? this.pendingScale / obj.scale
+                : 1;
 
         const transform = `translate(${this.dragDx}px, ${this.dragDy}px) scale(${scaleFactor})`;
         handle.style.transform = transform;
@@ -297,11 +308,15 @@ protected override render(): void {
         const draggable = this.shadowRoot?.querySelector(
             `squire-draggable-handle[data-drag-data="${objectId}"]`,
         );
-        return draggable?.querySelector(".overlay-handle") as HTMLElement | null;
+        return draggable?.querySelector(
+            ".overlay-handle",
+        ) as HTMLElement | null;
     }
 
     private getPreviewScale(): number {
-        const iframePreview = this.closest("iframe-preview") as IframePreview | null;
+        const iframePreview = this.closest(
+            "iframe-preview",
+        ) as IframePreview | null;
 
         if (!iframePreview) {
             return DRAG.PREVIEW_SCALE_FALLBACK;

@@ -20,7 +20,7 @@ export class AudioChannelCard extends BaseComponent {
 
         this.render();
     }
-protected override render(): void {
+    protected override render(): void {
         if (!this.channel) {
             this.shadowRoot!.innerHTML = "";
             return;
@@ -30,12 +30,16 @@ protected override render(): void {
         const tracks = Array.from(channel.tracks.values());
         const anyPlaying = tracks.some((t) => t.playing);
 
-        const trackEntries = tracks.map((track) => `
+        const trackEntries = tracks
+            .map(
+                (track) => `
             <div class="track-entry">
                 <span class="track-indicator ${track.playing ? "playing" : "paused"}"></span>
                 <span>${track.source.type === "live" ? "LIVE" : track.source.ref}</span>
             </div>
-        `).join("");
+        `,
+            )
+            .join("");
 
         this.shadowRoot!.innerHTML = `
             <div class="channel ${anyPlaying ? "playing" : "paused"}">

@@ -39,9 +39,11 @@ export class ImageService {
 
     private setupEventListeners(): void {
         // Subscribe to all image events from EventStore
-        this.eventStore.ofType<ImageEvent>("visual.image.*").subscribe((event) => {
-            this.handleEvent(event);
-        });
+        this.eventStore
+            .ofType<ImageEvent>("visual.image.*")
+            .subscribe((event) => {
+                this.handleEvent(event);
+            });
     }
 
     private handleEvent(event: ImageEvent): void {
@@ -67,7 +69,9 @@ export class ImageService {
     private handleSet(event: ImageSetEvent): void {
         const { layer, imageRef, aspectRatio, position, scale } = event.payload;
 
-        logger.info(`Image set: layer=${layer}, imageRef=${imageRef}, scale=${scale ?? 1}`);
+        logger.info(
+            `Image set: layer=${layer}, imageRef=${imageRef}, scale=${scale ?? 1}`,
+        );
 
         // Update materialized view - create or update layer
         this.stateStore.updateState((state) => {
@@ -127,7 +131,8 @@ export class ImageService {
                 ...layerState,
                 position: position || layerState.position,
                 scale: scale !== undefined ? scale : layerState.scale,
-                rotation: rotation !== undefined ? rotation : layerState.rotation,
+                rotation:
+                    rotation !== undefined ? rotation : layerState.rotation,
             }));
         });
 

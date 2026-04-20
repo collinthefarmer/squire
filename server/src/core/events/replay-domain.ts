@@ -72,10 +72,17 @@ export class ReplayDomain {
     private replayTransform?: (sequence: Event[]) => Event[];
     private keyExtractor: (event: Event) => string | undefined;
 
-    constructor(keyField: string | ((event: Event) => string | undefined), config: ReplayConfig) {
-        this.keyExtractor = typeof keyField === "string"
-            ? (event) => (event.payload as Record<string, unknown>)[keyField] as string | undefined
-            : keyField;
+    constructor(
+        keyField: string | ((event: Event) => string | undefined),
+        config: ReplayConfig,
+    ) {
+        this.keyExtractor =
+            typeof keyField === "string"
+                ? (event) =>
+                      (event.payload as Record<string, unknown>)[keyField] as
+                          | string
+                          | undefined
+                : keyField;
         this.buildRoles(config);
     }
 
@@ -211,7 +218,10 @@ export class ReplayDomain {
 
             if (rule.folds) {
                 for (const [foldType, foldRule] of Object.entries(rule.folds)) {
-                    this.roles.set(foldType, { behavior: "fold", rule: foldRule });
+                    this.roles.set(foldType, {
+                        behavior: "fold",
+                        rule: foldRule,
+                    });
                 }
             }
 

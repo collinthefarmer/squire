@@ -156,7 +156,9 @@ export const imageEffectEventSchema = z.object({
 
 export const imageLayerConfigPayloadSchema = z.object({
     layer: z.string(),
-    blendMode: z.enum(["normal", "multiply", "screen", "overlay", "add"]).optional(),
+    blendMode: z
+        .enum(["normal", "multiply", "screen", "overlay", "add"])
+        .optional(),
     opacity: z.number().min(0).max(1).optional(),
     zIndex: z.number().optional(),
     visible: z.boolean().optional(),
@@ -330,7 +332,9 @@ export type ImageTransformPayload = z.infer<typeof imageTransformPayloadSchema>;
 export type ImageTransformEvent = z.infer<typeof imageTransformEventSchema>;
 export type ImageEffectPayload = z.infer<typeof imageEffectPayloadSchema>;
 export type ImageEffectEvent = z.infer<typeof imageEffectEventSchema>;
-export type ImageLayerConfigPayload = z.infer<typeof imageLayerConfigPayloadSchema>;
+export type ImageLayerConfigPayload = z.infer<
+    typeof imageLayerConfigPayloadSchema
+>;
 export type ImageLayerConfigEvent = z.infer<typeof imageLayerConfigEventSchema>;
 export type ImageEvent = z.infer<typeof imageEventSchema>;
 export type ClockCreatePayload = z.infer<typeof clockCreatePayloadSchema>;
@@ -342,11 +346,15 @@ export type ClockDestroyEvent = z.infer<typeof clockDestroyEventSchema>;
 export type ClockUpdatePayload = z.infer<typeof clockUpdatePayloadSchema>;
 export type ClockUpdateEvent = z.infer<typeof clockUpdateEventSchema>;
 export type ClockEvent = z.infer<typeof clockEventSchema>;
-export type TimeScaleChangedPayload = z.infer<typeof timeScaleChangedPayloadSchema>;
+export type TimeScaleChangedPayload = z.infer<
+    typeof timeScaleChangedPayloadSchema
+>;
 export type TimeScaleChangedEvent = z.infer<typeof timeScaleChangedEventSchema>;
 export type TimeEvent = z.infer<typeof timeEventSchema>;
 export type WebRTCOfferEvent = z.infer<typeof webrtcOfferEventSchema>;
 export type WebRTCAnswerEvent = z.infer<typeof webrtcAnswerEventSchema>;
-export type WebRTCIceCandidateEvent = z.infer<typeof webrtcIceCandidateEventSchema>;
+export type WebRTCIceCandidateEvent = z.infer<
+    typeof webrtcIceCandidateEventSchema
+>;
 export type WebRTCEvent = z.infer<typeof webrtcEventSchema>;
 export type ValidatedEvent = z.infer<typeof eventSchema>;

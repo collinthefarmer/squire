@@ -43,7 +43,9 @@ export class AudioPlayer extends BaseComponent {
 
         this.subscribe(
             audioService.getChannels$().pipe(
-                tap((channels) => { this.latestChannels = channels; }),
+                tap((channels) => {
+                    this.latestChannels = channels;
+                }),
                 switchMap((channels) => {
                     if (channels.size === 0) {
                         return of("empty" as const);
@@ -51,7 +53,9 @@ export class AudioPlayer extends BaseComponent {
 
                     return concat(
                         of("expanded" as const),
-                        timer(COLLAPSE_DELAY).pipe(map(() => "condensed" as const)),
+                        timer(COLLAPSE_DELAY).pipe(
+                            map(() => "condensed" as const),
+                        ),
                     );
                 }),
             ),
@@ -66,7 +70,7 @@ export class AudioPlayer extends BaseComponent {
         this.latestChannels = audioService.getChannels();
         this.render();
     }
-protected override render(): void {
+    protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
@@ -88,7 +92,9 @@ protected override render(): void {
     private renderCondensed(channels: AudioChannelState[]): void {
         const dots = channels
             .map((ch) => {
-                const anyPlaying = Array.from(ch.tracks.values()).some((t) => t.playing);
+                const anyPlaying = Array.from(ch.tracks.values()).some(
+                    (t) => t.playing,
+                );
                 return `<div class="dot ${anyPlaying ? "playing" : "paused"}"
                   title="${ch.id}: ${anyPlaying ? "Playing" : "Paused"}"></div>`;
             })

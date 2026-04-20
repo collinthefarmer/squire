@@ -60,7 +60,7 @@ async function extractAudioMetadata(
                 formats: ALL_FORMATS,
             });
 
-            duration = await input.computeDuration() ?? 0;
+            duration = (await input.computeDuration()) ?? 0;
             audioDurationCache.set(filename, duration);
 
             const audioTrack = await input.getPrimaryAudioTrack();
@@ -110,7 +110,7 @@ export async function preloadAudioDurations(): Promise<void> {
                 formats: ALL_FORMATS,
             });
 
-            const duration = await input.computeDuration() ?? 0;
+            const duration = (await input.computeDuration()) ?? 0;
             audioDurationCache.set(file, duration);
         } catch {
             // Skip files that can't be parsed
@@ -125,7 +125,7 @@ export async function preloadAudioDurations(): Promise<void> {
  */
 async function extractImageMetadata(
     filename: string,
-    size: number
+    size: number,
 ): Promise<ImageMetadata> {
     const extension = filename.split(".").pop()?.toLowerCase() || "unknown";
 

@@ -12,7 +12,10 @@ import { TimeService } from "@services/time/time-service";
 import { ImageResizeService } from "@services/image/image-resize-service";
 import { Logger } from "@utils/logger";
 import { preloadAudioDurations } from "@api/handlers/assets-metadata";
-import { createAudioReplay, createClockReplay } from "@core/events/replay-configs";
+import {
+    createAudioReplay,
+    createClockReplay,
+} from "@core/events/replay-configs";
 import type { Event, ConnectedClient } from "@types";
 import { eventSchema } from "@schemas";
 import { ZodError } from "zod";
@@ -106,7 +109,8 @@ function routeMessage(
 
         // WebRTC signaling: relay to target client, don't store
         if (event.type.startsWith("webrtc.")) {
-            const targetId = (event.payload as { targetClientId: string }).targetClientId;
+            const targetId = (event.payload as { targetClientId: string })
+                .targetClientId;
             clientRegistry.sendToClient(targetId, validatedEvent);
             return;
         }
@@ -192,14 +196,20 @@ async function main() {
 
     // Start WebSocket server
     const PORT = parseInt(process.env.PORT ?? "3000", 10);
-    const server = Bun.serve<{ clientId: string; clientType: "master" | "display" }>({
+    const server = Bun.serve<{
+        clientId: string;
+        clientType: "master" | "display";
+    }>({
         port: PORT,
 
         async fetch(req, server) {
             const url = new URL(req.url);
 
             // Upgrade HTTP to WebSocket
-            const clientType = url.searchParams.get("type") === "master" ? "master" : "display";
+            const clientType =
+                url.searchParams.get("type") === "master"
+                    ? "master"
+                    : "display";
             const upgraded = server.upgrade(req, {
                 data: {
                     clientId: generateClientId(),
@@ -233,17 +243,27 @@ async function main() {
             if (url.pathname.startsWith(`/${PUBLIC_DIR}/`)) {
                 // Handle image resize requests
                 if (url.pathname.startsWith(`/${PUBLIC_DIR}/images/`)) {
-                    const filename = url.pathname.replace(`/${PUBLIC_DIR}/images/`, "");
+                    const filename = url.pathname.replace(
+                        `/${PUBLIC_DIR}/images/`,
+                        "",
+                    );
 
                     // Parse resize parameters
                     const widthParam = url.searchParams.get("w");
                     const heightParam = url.searchParams.get("h");
                     const width = widthParam ? parseInt(widthParam, 10) : null;
-                    const height = heightParam ? parseInt(heightParam, 10) : null;
+                    const height = heightParam
+                        ? parseInt(heightParam, 10)
+                        : null;
 
                     // If resize params provided, use resize service
                     if (width || height) {
-                        const resized = await imageResizeService.getResizedImage(filename, width, height);
+                        const resized =
+                            await imageResizeService.getResizedImage(
+                                filename,
+                                width,
+                                height,
+                            );
                         if (!resized) {
                             return new Response("Not Found", { status: 404 });
                         }
@@ -275,7 +295,9 @@ async function main() {
                     const match = rangeHeader.match(/bytes=(\d+)-(\d*)/);
                     if (match) {
                         const start = parseInt(match[1], 10);
-                        const end = match[2] ? parseInt(match[2], 10) : fileSize - 1;
+                        const end = match[2]
+                            ? parseInt(match[2], 10)
+                            : fileSize - 1;
                         const chunkSize = end - start + 1;
 
                         const slice = file.slice(start, end + 1);
@@ -308,7 +330,12 @@ async function main() {
         },
 
         websocket: {
-            open(ws: ServerWebSocket<{ clientId: string; clientType: "master" | "display" }>) {
+            open(
+                ws: ServerWebSocket<{
+                    clientId: string;
+                    clientType: "master" | "display";
+                }>,
+            ) {
                 const { clientId, clientType } = ws.data;
 
                 const client: ConnectedClient = {
@@ -321,11 +348,13 @@ async function main() {
                 clientRegistry.register(client);
 
                 // Tell the client its own ID
-                ws.send(JSON.stringify({
-                    type: "system.connected",
-                    payload: { clientId },
-                    metadata: { timestamp: Date.now(), source: "server" },
-                }));
+                ws.send(
+                    JSON.stringify({
+                        type: "system.connected",
+                        payload: { clientId },
+                        metadata: { timestamp: Date.now(), source: "server" },
+                    }),
+                );
 
                 // Replay events from EventStore (preserves original timestamps)
                 const replayEvents = eventStore.getReplayEvents();
@@ -334,14 +363,19 @@ async function main() {
                     ws.send(JSON.stringify(replayEvents));
                 }
 
-                logger.debug(`Client ${clientId} (${clientType}) synced with ${replayEvents.length} events`);
+                logger.debug(
+                    `Client ${clientId} (${clientType}) synced with ${replayEvents.length} events`,
+                );
 
                 // Notify master clients of the updated display list
                 broadcastClientList(clientRegistry);
             },
 
             message(
-                ws: ServerWebSocket<{ clientId: string; clientType: "master" | "display" }>,
+                ws: ServerWebSocket<{
+                    clientId: string;
+                    clientType: "master" | "display";
+                }>,
                 message: string | Buffer,
             ) {
                 const clientId = ws.data.clientId;
@@ -351,7 +385,12 @@ async function main() {
                 routeMessage(container, clientRegistry, clientId, messageStr);
             },
 
-            close(ws: ServerWebSocket<{ clientId: string; clientType: "master" | "display" }>) {
+            close(
+                ws: ServerWebSocket<{
+                    clientId: string;
+                    clientType: "master" | "display";
+                }>,
+            ) {
                 const clientId = ws.data.clientId;
                 clientRegistry.unregister(clientId);
                 broadcastClientList(clientRegistry);

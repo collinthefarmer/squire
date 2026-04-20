@@ -36,7 +36,11 @@ export class Draggable extends HTMLElement {
     protected currentY = 0;
 
     protected scaleGesture = new ScaleGesture(
-        { min: DRAG.SCALE_MIN, max: DRAG.SCALE_MAX, wheelFactor: DRAG.WHEEL_FACTOR },
+        {
+            min: DRAG.SCALE_MIN,
+            max: DRAG.SCALE_MAX,
+            wheelFactor: DRAG.WHEEL_FACTOR,
+        },
         (scale) => this.handleScaleChange(scale),
     );
 

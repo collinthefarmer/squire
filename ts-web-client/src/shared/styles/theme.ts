@@ -62,49 +62,49 @@ export const colors = {
 } as const;
 
 export const spacing = {
-    xs:    gu(1),   // 4px
-    sm:    gu(2),   // 8px
-    md:    gu(3),   // 12px
-    lg:    gu(4),   // 16px
-    xl:    gu(6),   // 24px
-    "2xl": gu(8),   // 32px
+    xs: gu(1), // 4px
+    sm: gu(2), // 8px
+    md: gu(3), // 12px
+    lg: gu(4), // 16px
+    xl: gu(6), // 24px
+    "2xl": gu(8), // 32px
 } as const;
 
 export const borderRadius = {
-    sm:   gu(1),    // 4px
-    md:   gu(2),    // 8px
-    lg:   gu(3),    // 12px
+    sm: gu(1), // 4px
+    md: gu(2), // 8px
+    lg: gu(3), // 12px
     full: "9999px",
 } as const;
 
 export const fontSize = {
-    xs:    gu(2.5), // 10px — tiny labels
-    sm:    gu(3),   // 12px — secondary text
-    base:  gu(3.5), // 14px — body/default
-    md:    gu(4),   // 16px — sub-headings
-    lg:    gu(4.5), // 18px — section headers
-    xl:    gu(5),   // 20px — large headers
-    "2xl": gu(6),   // 24px — titles
-    "3xl": gu(8),   // 32px — hero titles
+    xs: gu(2.5), // 10px — tiny labels
+    sm: gu(3), // 12px — secondary text
+    base: gu(3.5), // 14px — body/default
+    md: gu(4), // 16px — sub-headings
+    lg: gu(4.5), // 18px — section headers
+    xl: gu(5), // 20px — large headers
+    "2xl": gu(6), // 24px — titles
+    "3xl": gu(8), // 32px — hero titles
 } as const;
 
 export const sizing = {
-    thumbnail:     gu(30),  // 120px
-    inputMin:      gu(20),  // 80px
-    valueDisplay:  gu(12),  // 48px
-    sidebarWidth:  gu(70),  // 280px
-    maxWidth:      gu(350), // 1400px
-    statusDot:     gu(2),   // 8px
-    checkboxSm:    gu(4),   // 16px
-    checkboxLg:    gu(5),   // 20px
-    sliderThumb:   gu(4),   // 16px
-    sliderTrack:   gu(2),   // 8px
-    stripBtn:      gu(7),   // 28px — timeline strip buttons
-    trackBlock:    gu(6),   // 24px — track block height
-    trackVolume:   gu(12),  // 48px — inline volume slider width
-    levelBar:      gu(10),  // 40px — summary level bar width
-    levelBarH:     gu(1.5), // 6px  — summary level bar height
-    volumeMax:     gu(30),  // 120px — transport volume slider max
+    thumbnail: gu(30), // 120px
+    inputMin: gu(20), // 80px
+    valueDisplay: gu(12), // 48px
+    sidebarWidth: gu(70), // 280px
+    maxWidth: gu(350), // 1400px
+    statusDot: gu(2), // 8px
+    checkboxSm: gu(4), // 16px
+    checkboxLg: gu(5), // 20px
+    sliderThumb: gu(4), // 16px
+    sliderTrack: gu(2), // 8px
+    stripBtn: gu(7), // 28px — timeline strip buttons
+    trackBlock: gu(6), // 24px — track block height
+    trackVolume: gu(12), // 48px — inline volume slider width
+    levelBar: gu(10), // 40px — summary level bar width
+    levelBarH: gu(1.5), // 6px  — summary level bar height
+    volumeMax: gu(30), // 120px — transport volume slider max
 } as const;
 
 export const transitions = {

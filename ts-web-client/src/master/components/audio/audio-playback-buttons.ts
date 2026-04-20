@@ -21,12 +21,15 @@ export class AudioPlaybackButtons extends BaseComponent {
     override connectedCallback(): void {
         super.connectedCallback();
 
-        this.adoptStyles(cssSheet(commonCss), cssSheet(audioPlaybackButtonsCss));
+        this.adoptStyles(
+            cssSheet(commonCss),
+            cssSheet(audioPlaybackButtonsCss),
+        );
 
         this.render();
         this.setupEventListeners();
     }
-protected override render(): void {
+    protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
@@ -59,9 +62,17 @@ protected override render(): void {
             return;
         }
 
-        playBtn.addEventListener("click", () => emitDomEvent(this, "play-request"));
-        pauseBtn.addEventListener("click", () => emitDomEvent(this, "pause-request"));
-        resumeBtn.addEventListener("click", () => emitDomEvent(this, "resume-request"));
-        stopBtn.addEventListener("click", () => emitDomEvent(this, "stop-request"));
+        playBtn.addEventListener("click", () =>
+            emitDomEvent(this, "play-request"),
+        );
+        pauseBtn.addEventListener("click", () =>
+            emitDomEvent(this, "pause-request"),
+        );
+        resumeBtn.addEventListener("click", () =>
+            emitDomEvent(this, "resume-request"),
+        );
+        stopBtn.addEventListener("click", () =>
+            emitDomEvent(this, "stop-request"),
+        );
     }
 }

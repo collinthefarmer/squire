@@ -79,9 +79,18 @@ button.primary {
     transition: var(--transition-fast);
 }
 
-button.primary:hover { background: var(--color-blue-600); }
-button.primary:active { background: var(--color-blue-600); transform: translateY(1px); }
-button.primary:disabled { background: var(--color-gray-600); cursor: not-allowed; opacity: 0.5; }
+button.primary:hover {
+    background: var(--color-blue-600);
+}
+button.primary:active {
+    background: var(--color-blue-600);
+    transform: translateY(1px);
+}
+button.primary:disabled {
+    background: var(--color-gray-600);
+    cursor: not-allowed;
+    opacity: 0.5;
+}
 
 /* -- Button: Secondary -- */
 
@@ -95,9 +104,17 @@ button.secondary {
     transition: var(--transition-fast);
 }
 
-button.secondary:hover { background: var(--color-gray-700); border-color: var(--color-gray-600); }
-button.secondary:active { transform: translateY(1px); }
-button.secondary:disabled { cursor: not-allowed; opacity: 0.5; }
+button.secondary:hover {
+    background: var(--color-gray-700);
+    border-color: var(--color-gray-600);
+}
+button.secondary:active {
+    transform: translateY(1px);
+}
+button.secondary:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
 
 /* -- Button: Success -- */
 
@@ -112,9 +129,17 @@ button.success {
     transition: var(--transition-fast);
 }
 
-button.success:hover { background: var(--color-green-500); }
-button.success:active { transform: translateY(1px); }
-button.success:disabled { background: var(--color-gray-600); cursor: not-allowed; opacity: 0.5; }
+button.success:hover {
+    background: var(--color-green-500);
+}
+button.success:active {
+    transform: translateY(1px);
+}
+button.success:disabled {
+    background: var(--color-gray-600);
+    cursor: not-allowed;
+    opacity: 0.5;
+}
 
 /* -- Button: Danger -- */
 
@@ -129,9 +154,17 @@ button.danger {
     transition: var(--transition-fast);
 }
 
-button.danger:hover { background: var(--color-red-500); }
-button.danger:active { transform: translateY(1px); }
-button.danger:disabled { background: var(--color-gray-600); cursor: not-allowed; opacity: 0.5; }
+button.danger:hover {
+    background: var(--color-red-500);
+}
+button.danger:active {
+    transform: translateY(1px);
+}
+button.danger:disabled {
+    background: var(--color-gray-600);
+    cursor: not-allowed;
+    opacity: 0.5;
+}
 
 /* -- Button: Outline -- */
 

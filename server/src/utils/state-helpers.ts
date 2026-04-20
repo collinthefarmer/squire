@@ -210,9 +210,7 @@ export function getImageLayer(
 /**
  * Get all layers from image state
  */
-export function getAllImageLayers(
-    state: ApplicationState,
-): ImageLayerState[] {
+export function getAllImageLayers(state: ApplicationState): ImageLayerState[] {
     const imageState = state.image;
     if (!imageState) {
         return [];

@@ -28,7 +28,11 @@ describe("EventBus pattern matching", () => {
         eventBus.emit("server:audio.stop", { type: "audio.stop" });
         eventBus.emit("server:visual.image.set", { type: "visual.image.set" });
 
-        expect(receivedEvents).toEqual(["audio.play", "audio.pause", "audio.stop"]);
+        expect(receivedEvents).toEqual([
+            "audio.play",
+            "audio.pause",
+            "audio.stop",
+        ]);
     });
 
     test("should match wildcard pattern server:*", () => {
@@ -55,10 +59,15 @@ describe("EventBus pattern matching", () => {
         });
 
         eventBus.emit("server:visual.image.set", { type: "visual.image.set" });
-        eventBus.emit("server:visual.image.clear", { type: "visual.image.clear" });
+        eventBus.emit("server:visual.image.clear", {
+            type: "visual.image.clear",
+        });
         eventBus.emit("server:audio.play", { type: "audio.play" });
 
-        expect(receivedEvents).toEqual(["visual.image.set", "visual.image.clear"]);
+        expect(receivedEvents).toEqual([
+            "visual.image.set",
+            "visual.image.clear",
+        ]);
     });
 
     test("should handle multiple wildcards in pattern", () => {

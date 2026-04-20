@@ -48,7 +48,7 @@ export class ClockRenderer extends BaseComponent {
         super.disconnectedCallback();
         this.animationSub?.unsubscribe();
     }
-protected override render(): void {
+    protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }

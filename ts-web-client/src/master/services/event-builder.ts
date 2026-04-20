@@ -67,7 +67,10 @@ export class EventBuilder {
     /**
      * Create audio.pause event
      */
-    static audioPause(params: { channel: string; trackId?: string }): AudioPauseEvent {
+    static audioPause(params: {
+        channel: string;
+        trackId?: string;
+    }): AudioPauseEvent {
         return {
             type: "audio.pause",
             payload: {
@@ -84,7 +87,10 @@ export class EventBuilder {
     /**
      * Create audio.resume event
      */
-    static audioResume(params: { channel: string; trackId?: string }): AudioResumeEvent {
+    static audioResume(params: {
+        channel: string;
+        trackId?: string;
+    }): AudioResumeEvent {
         return {
             type: "audio.resume",
             payload: {
@@ -101,7 +107,10 @@ export class EventBuilder {
     /**
      * Create audio.stop event
      */
-    static audioStop(params: { channel: string; trackId?: string }): AudioStopEvent {
+    static audioStop(params: {
+        channel: string;
+        trackId?: string;
+    }): AudioStopEvent {
         return {
             type: "audio.stop",
             payload: {
@@ -310,7 +319,10 @@ export class EventBuilder {
         };
     }
 
-    static clockAdjust(params: { id: string; delta: number }): ClockAdjustEvent {
+    static clockAdjust(params: {
+        id: string;
+        delta: number;
+    }): ClockAdjustEvent {
         return {
             type: "ui.clock.adjust",
             payload: { id: params.id, delta: params.delta },

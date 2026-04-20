@@ -103,12 +103,13 @@ export function createAudioReplay(timeService: TimeService) {
                 }
 
                 const durationMs = duration * 1000;
-                const elapsed = payload.respectTimeScale !== false
-                    ? computeGameTimeElapsed(
-                          playEvent.metadata.timestamp,
-                          timeService.getScaleHistory(),
-                      )
-                    : Date.now() - playEvent.metadata.timestamp;
+                const elapsed =
+                    payload.respectTimeScale !== false
+                        ? computeGameTimeElapsed(
+                              playEvent.metadata.timestamp,
+                              timeService.getScaleHistory(),
+                          )
+                        : Date.now() - playEvent.metadata.timestamp;
 
                 return elapsed < durationMs;
             },
@@ -130,9 +131,8 @@ export function createAudioReplay(timeService: TimeService) {
                 }
 
                 const scaleHistory = timeService.getScaleHistory();
-                return sequence.map((e) => e === play
-                    ? withGameTimestamp(play, scaleHistory)
-                    : e,
+                return sequence.map((e) =>
+                    e === play ? withGameTimestamp(play, scaleHistory) : e,
                 );
             },
         },
@@ -170,7 +170,9 @@ export function createClockReplay(timeService: TimeService) {
             appends: ["ui.clock.pause", "ui.clock.adjust"],
 
             replayTransform: (sequence) => {
-                const create = sequence.find((e) => e.type === "ui.clock.create");
+                const create = sequence.find(
+                    (e) => e.type === "ui.clock.create",
+                );
                 if (!create) {
                     return sequence;
                 }
@@ -188,25 +190,36 @@ export function createClockReplay(timeService: TimeService) {
                     sequence,
                     ["ui.clock.start"],
                     ["ui.clock.pause"],
-                    (e) => e.type === "ui.clock.create"
-                        && (e.payload as { autoStart?: boolean }).autoStart === true,
+                    (e) =>
+                        e.type === "ui.clock.create" &&
+                        (e.payload as { autoStart?: boolean }).autoStart ===
+                            true,
                 );
 
-                const elapsed = sumIntervals(intervals, scaleHistory, respectsScale);
-                const remaining = Math.max(0, (payload.duration ?? 0) - elapsed);
+                const elapsed = sumIntervals(
+                    intervals,
+                    scaleHistory,
+                    respectsScale,
+                );
+                const remaining = Math.max(
+                    0,
+                    (payload.duration ?? 0) - elapsed,
+                );
 
-                return [{
-                    ...create,
-                    payload: {
-                        ...(create.payload as Record<string, unknown>),
-                        duration: remaining,
-                        autoStart: running,
+                return [
+                    {
+                        ...create,
+                        payload: {
+                            ...(create.payload as Record<string, unknown>),
+                            duration: remaining,
+                            autoStart: running,
+                        },
+                        metadata: {
+                            ...create.metadata,
+                            timestamp: Date.now(),
+                        },
                     },
-                    metadata: {
-                        ...create.metadata,
-                        timestamp: Date.now(),
-                    },
-                }];
+                ];
             },
         },
     });

@@ -82,12 +82,20 @@ export class LiveAudioService {
 
         // Create WebRTC connections to all known displays
         for (const displayId of this.displayIds) {
-            this.broadcastService.createOffer(displayId, stream, channel).catch((err) => {
-                this.logger.error("Failed to create offer", { displayId, error: err });
-            });
+            this.broadcastService
+                .createOffer(displayId, stream, channel)
+                .catch((err) => {
+                    this.logger.error("Failed to create offer", {
+                        displayId,
+                        error: err,
+                    });
+                });
         }
 
-        this.logger.info("Live audio started", { channel, displays: this.displayIds.length });
+        this.logger.info("Live audio started", {
+            channel,
+            displays: this.displayIds.length,
+        });
     }
 
     /**
@@ -116,7 +124,8 @@ export class LiveAudioService {
      */
     private setupClientListListener(): void {
         this.eventBus.on("server:system.client_list", (event: unknown) => {
-            const payload = (event as { payload: { displays: ClientInfo[] } }).payload;
+            const payload = (event as { payload: { displays: ClientInfo[] } })
+                .payload;
             const newIds = payload.displays.map((d) => d.id);
             const previousIds = this.displayIds;
             this.displayIds = newIds;
@@ -133,9 +142,14 @@ export class LiveAudioService {
             // Connect newly joined displays
             for (const id of newIds) {
                 if (!previousIds.includes(id)) {
-                    this.broadcastService.createOffer(id, stream, this.activeChannel).catch((err) => {
-                        this.logger.error("Failed to create offer for new display", { id, error: err });
-                    });
+                    this.broadcastService
+                        .createOffer(id, stream, this.activeChannel)
+                        .catch((err) => {
+                            this.logger.error(
+                                "Failed to create offer for new display",
+                                { id, error: err },
+                            );
+                        });
                 }
             }
 

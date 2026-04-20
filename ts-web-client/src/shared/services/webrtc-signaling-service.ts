@@ -27,7 +27,8 @@ export class WebRTCSignalingService {
 
     private onOfferCallback: ((msg: SignalingMessage) => void) | null = null;
     private onAnswerCallback: ((msg: SignalingMessage) => void) | null = null;
-    private onCandidateCallback: ((msg: SignalingMessage) => void) | null = null;
+    private onCandidateCallback: ((msg: SignalingMessage) => void) | null =
+        null;
 
     constructor(
         private connectionService: ConnectionService,
@@ -56,8 +57,16 @@ export class WebRTCSignalingService {
         this.send("webrtc.answer", { targetClientId, channel, sdp });
     }
 
-    sendCandidate(targetClientId: string, channel: string, candidate: string): void {
-        this.send("webrtc.ice_candidate", { targetClientId, channel, candidate });
+    sendCandidate(
+        targetClientId: string,
+        channel: string,
+        candidate: string,
+    ): void {
+        this.send("webrtc.ice_candidate", {
+            targetClientId,
+            channel,
+            candidate,
+        });
     }
 
     private send(type: string, payload: SignalingPayload): void {

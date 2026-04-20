@@ -1,7 +1,14 @@
 import { BaseAssetComponent } from "@components/base/base-asset-component";
 import { ServiceRegistry } from "@services/service-registry";
 import type { ConfigService } from "@services/config-service";
-import { colors, spacing, borderRadius, transitions, fontSize, sizing } from "@styles/theme";
+import {
+    colors,
+    spacing,
+    borderRadius,
+    transitions,
+    fontSize,
+    sizing,
+} from "@styles/theme";
 
 /**
  * Image thumbnail component for asset galleries
@@ -35,7 +42,8 @@ export class ImageHandle extends BaseAssetComponent {
     }
 
     connectedCallback(): void {
-        this.configService = ServiceRegistry.get<ConfigService>("ConfigService");
+        this.configService =
+            ServiceRegistry.get<ConfigService>("ConfigService");
 
         this.attachShadow({ mode: "open" });
         this.render();
@@ -149,5 +157,4 @@ export class ImageHandle extends BaseAssetComponent {
             draggable.setAttribute("data-drag-data", this._asset);
         }
     }
-
 }

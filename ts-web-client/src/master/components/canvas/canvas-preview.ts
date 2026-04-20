@@ -43,8 +43,12 @@ export class CanvasPreview extends BaseComponent {
     override connectedCallback(): void {
         super.connectedCallback();
 
-        this.visualService = ServiceRegistry.get<MasterVisualService>("MasterVisualService");
-        this.imageToolbarService = ServiceRegistry.get<ImageToolbarService>("ImageToolbarService");
+        this.visualService = ServiceRegistry.get<MasterVisualService>(
+            "MasterVisualService",
+        );
+        this.imageToolbarService = ServiceRegistry.get<ImageToolbarService>(
+            "ImageToolbarService",
+        );
 
         this.adoptStyles(cssSheet(commonCss), cssSheet(canvasPreviewCss));
 
@@ -53,7 +57,7 @@ export class CanvasPreview extends BaseComponent {
         this.setupPreviewScaleSync();
         this.listenForDisplayReady();
     }
-protected override render(): void {
+    protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
@@ -69,14 +73,45 @@ protected override render(): void {
     // -- Drag event handling --
 
     private setupDragSubscriptions(): void {
-        this.subscribe(fromEvent<CustomEvent<import("@utils/dom-events").DragStartDetail>>(document, "drag-start"), (e) => this.handleDragStart(e));
-        this.subscribe(fromEvent<CustomEvent<import("@utils/dom-events").DragMoveDetail>>(document, "drag-move"), (e) => this.handleDragMove(e));
-        this.subscribe(fromEvent<CustomEvent<import("@utils/dom-events").DragEndDetail>>(document, "drag-end"), (e) => this.handleDragEnd(e));
-        this.subscribe(fromEvent<CustomEvent<import("@utils/dom-events").DragScaleDetail>>(document, "drag-scale"), (e) => this.handleDragScale(e));
-        this.subscribe(fromEvent<CustomEvent<import("@utils/dom-events").AssetClickDetail>>(document, "asset-click"), (e) => this.handleAssetClick(e));
+        this.subscribe(
+            fromEvent<CustomEvent<import("@utils/dom-events").DragStartDetail>>(
+                document,
+                "drag-start",
+            ),
+            (e) => this.handleDragStart(e),
+        );
+        this.subscribe(
+            fromEvent<CustomEvent<import("@utils/dom-events").DragMoveDetail>>(
+                document,
+                "drag-move",
+            ),
+            (e) => this.handleDragMove(e),
+        );
+        this.subscribe(
+            fromEvent<CustomEvent<import("@utils/dom-events").DragEndDetail>>(
+                document,
+                "drag-end",
+            ),
+            (e) => this.handleDragEnd(e),
+        );
+        this.subscribe(
+            fromEvent<CustomEvent<import("@utils/dom-events").DragScaleDetail>>(
+                document,
+                "drag-scale",
+            ),
+            (e) => this.handleDragScale(e),
+        );
+        this.subscribe(
+            fromEvent<
+                CustomEvent<import("@utils/dom-events").AssetClickDetail>
+            >(document, "asset-click"),
+            (e) => this.handleAssetClick(e),
+        );
     }
 
-    private handleDragStart(e: CustomEvent<import("@utils/dom-events").DragStartDetail>): void {
+    private handleDragStart(
+        e: CustomEvent<import("@utils/dom-events").DragStartDetail>,
+    ): void {
         if (e.detail.source) {
             return;
         }
@@ -93,9 +128,11 @@ protected override render(): void {
         }
 
         this.getDropZone()?.activate();
-    };
+    }
 
-    private handleDragMove(e: CustomEvent<import("@utils/dom-events").DragMoveDetail>): void {
+    private handleDragMove(
+        e: CustomEvent<import("@utils/dom-events").DragMoveDetail>,
+    ): void {
         if (!this.isDragActive || e.detail.source) {
             return;
         }
@@ -105,11 +142,17 @@ protected override render(): void {
             return;
         }
 
-        const normalizedPos = screenToCanvasFraction(e.detail.x, e.detail.y, wrapperRect);
+        const normalizedPos = screenToCanvasFraction(
+            e.detail.x,
+            e.detail.y,
+            wrapperRect,
+        );
         this.imageToolbarService.setPosition(normalizedPos);
-    };
+    }
 
-    private handleDragEnd(e: CustomEvent<import("@utils/dom-events").DragEndDetail>): void {
+    private handleDragEnd(
+        e: CustomEvent<import("@utils/dom-events").DragEndDetail>,
+    ): void {
         if (e.detail.source) {
             return;
         }
@@ -124,17 +167,21 @@ protected override render(): void {
         this.currentDragAsset = null;
 
         this.getDropZone()?.deactivate();
-    };
+    }
 
-    private handleDragScale(e: CustomEvent<import("@utils/dom-events").DragScaleDetail>): void {
+    private handleDragScale(
+        e: CustomEvent<import("@utils/dom-events").DragScaleDetail>,
+    ): void {
         if (e.detail.source) {
             return;
         }
 
         this.imageToolbarService.setScale(e.detail.scale);
-    };
+    }
 
-    private handleAssetClick(e: CustomEvent<import("@utils/dom-events").AssetClickDetail>): void {
+    private handleAssetClick(
+        e: CustomEvent<import("@utils/dom-events").AssetClickDetail>,
+    ): void {
         const { asset, assetType, imageWidth, imageHeight } = e.detail;
 
         if (assetType !== "image" || !asset) {
@@ -158,9 +205,13 @@ protected override render(): void {
         this.visualService.handleImageDrop(asset, displayX, displayY);
 
         this.imageToolbarService.setImageDimensions(null);
-    };
+    }
 
-    private handleDrop(imageRef: string, screenX: number, screenY: number): void {
+    private handleDrop(
+        imageRef: string,
+        screenX: number,
+        screenY: number,
+    ): void {
         const iframePreview = this.getIframePreview();
         if (!iframePreview) {
             return;
@@ -172,7 +223,12 @@ protected override render(): void {
         }
 
         const previewScale = iframePreview.getPreviewScale();
-        const displayPos = screenToDisplayPixels(screenX, screenY, wrapperRect, previewScale);
+        const displayPos = screenToDisplayPixels(
+            screenX,
+            screenY,
+            wrapperRect,
+            previewScale,
+        );
 
         const settings = this.imageToolbarService.getSettings();
         const overlaps = wouldOverlapDisplay(
@@ -189,17 +245,25 @@ protected override render(): void {
             return;
         }
 
-        this.visualService.handleImageDrop(imageRef, displayPos.x, displayPos.y);
+        this.visualService.handleImageDrop(
+            imageRef,
+            displayPos.x,
+            displayPos.y,
+        );
     }
 
     // -- Sub-component accessors --
 
     private getIframePreview(): IframePreview | null {
-        return this.shadowRoot?.querySelector("iframe-preview") as IframePreview | null;
+        return this.shadowRoot?.querySelector(
+            "iframe-preview",
+        ) as IframePreview | null;
     }
 
     private getDropZone(): DropZoneOverlay | null {
-        return this.shadowRoot?.querySelector("drop-zone-overlay") as DropZoneOverlay | null;
+        return this.shadowRoot?.querySelector(
+            "drop-zone-overlay",
+        ) as DropZoneOverlay | null;
     }
 
     /**
@@ -213,10 +277,14 @@ protected override render(): void {
             return;
         }
 
-        this.imageToolbarService.setPreviewScale(iframePreview.getPreviewScale());
+        this.imageToolbarService.setPreviewScale(
+            iframePreview.getPreviewScale(),
+        );
 
         this.subscribe(observeResize(iframePreview), () => {
-            this.imageToolbarService.setPreviewScale(iframePreview.getPreviewScale());
+            this.imageToolbarService.setPreviewScale(
+                iframePreview.getPreviewScale(),
+            );
         });
     }
 
@@ -229,8 +297,12 @@ protected override render(): void {
             () => {
                 const preview = this.getIframePreview();
                 if (preview) {
-                    preview.appendChild(document.createElement("drop-zone-overlay"));
-                    preview.appendChild(document.createElement("canvas-overlay"));
+                    preview.appendChild(
+                        document.createElement("drop-zone-overlay"),
+                    );
+                    preview.appendChild(
+                        document.createElement("canvas-overlay"),
+                    );
                 }
             },
         );

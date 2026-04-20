@@ -6,11 +6,7 @@
  * to keep event→state logic DRY and testable.
  */
 
-import {
-    setInMap,
-    updateInMap,
-    removeFromMap,
-} from "@utils/state-helpers";
+import { setInMap, updateInMap, removeFromMap } from "@utils/state-helpers";
 import type {
     ImageLayerState,
     ImageSetEvent,
@@ -20,7 +16,10 @@ import type {
     ImageLayerConfigEvent,
 } from "@types";
 
-const DEFAULT_LAYER: Omit<ImageLayerState, "id" | "imageRef" | "aspectRatio" | "position" | "scale"> = {
+const DEFAULT_LAYER: Omit<
+    ImageLayerState,
+    "id" | "imageRef" | "aspectRatio" | "position" | "scale"
+> = {
     rotation: 0,
     blendMode: "normal",
     opacity: 1.0,

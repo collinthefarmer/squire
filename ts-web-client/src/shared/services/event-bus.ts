@@ -68,7 +68,7 @@ export class EventBus {
         // 3. Join with .* for wildcards
         const segments = pattern.split("*");
         const escapedSegments = segments.map((segment) =>
-            segment.replace(/[.+?^${}()|[\]\\]/g, "\\$&")
+            segment.replace(/[.+?^${}()|[\]\\]/g, "\\$&"),
         );
         const regexPattern = escapedSegments.join(".*");
 

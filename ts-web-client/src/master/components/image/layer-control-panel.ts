@@ -88,7 +88,7 @@ export class LayerControlPanel extends BaseComponent {
         this.setupDragListeners();
         this.setupSubscriptions();
     }
-protected override render(): void {
+    protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
@@ -186,13 +186,19 @@ protected override render(): void {
 
         if (hasImage) {
             const containBtn = this.createActionButton(
-                "◫", "Contain", "aspect-ratio", layer.id,
+                "◫",
+                "Contain",
+                "aspect-ratio",
+                layer.id,
                 layer.aspectRatio === "contain" ? "selected" : "",
             );
             containBtn.dataset.aspectRatio = "contain";
 
             const coverBtn = this.createActionButton(
-                "▣", "Cover", "aspect-ratio", layer.id,
+                "▣",
+                "Cover",
+                "aspect-ratio",
+                layer.id,
                 layer.aspectRatio === "cover" ? "selected" : "",
             );
             coverBtn.dataset.aspectRatio = "cover";
@@ -200,13 +206,25 @@ protected override render(): void {
             actions.appendChild(containBtn);
             actions.appendChild(coverBtn);
 
-            actions.appendChild(this.createActionButton(
-                "▢", "Clear image", "clear", layer.id, "danger",
-            ));
+            actions.appendChild(
+                this.createActionButton(
+                    "▢",
+                    "Clear image",
+                    "clear",
+                    layer.id,
+                    "danger",
+                ),
+            );
         } else if (!isLastLayer) {
-            actions.appendChild(this.createActionButton(
-                "×", "Remove layer", "remove", layer.id, "danger",
-            ));
+            actions.appendChild(
+                this.createActionButton(
+                    "×",
+                    "Remove layer",
+                    "remove",
+                    layer.id,
+                    "danger",
+                ),
+            );
         }
 
         return actions;
@@ -507,9 +525,13 @@ protected override render(): void {
                 break;
             }
             case "aspect-ratio": {
-                const aspectRatio = target.dataset.aspectRatio as AspectRatioMode;
+                const aspectRatio = target.dataset
+                    .aspectRatio as AspectRatioMode;
                 if (aspectRatio) {
-                    emitDomEvent(this, "layer-aspect-ratio", { layer, aspectRatio });
+                    emitDomEvent(this, "layer-aspect-ratio", {
+                        layer,
+                        aspectRatio,
+                    });
                 }
                 break;
             }

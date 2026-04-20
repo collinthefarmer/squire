@@ -114,7 +114,6 @@ export interface TabChangeDetail {
     layout: string;
 }
 
-
 export interface SourceTypeChangeDetail {
     sourceType: "file" | "live";
 }
@@ -246,7 +245,8 @@ export function onDomEvent<K extends keyof AppEventMap>(
     options?: AddEventListenerOptions,
 ): () => void {
     target.addEventListener(name, callback as EventListener, options);
-    return () => target.removeEventListener(name, callback as EventListener, options);
+    return () =>
+        target.removeEventListener(name, callback as EventListener, options);
 }
 
 // -- Global augmentation --

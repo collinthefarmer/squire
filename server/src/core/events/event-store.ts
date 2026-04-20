@@ -31,7 +31,9 @@ export class EventStore {
     private currentTimeEvent: Event | null = null;
 
     constructor(_config: EventStoreConfig = {}) {
-        logger.info("EventStore initialized", { bufferSize: _config.bufferSize });
+        logger.info("EventStore initialized", {
+            bufferSize: _config.bufferSize,
+        });
     }
 
     /**

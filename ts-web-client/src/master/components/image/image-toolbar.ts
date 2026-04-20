@@ -30,8 +30,12 @@ export class ImageToolbar extends BaseComponent {
     override connectedCallback(): void {
         super.connectedCallback();
 
-        this.imageToolbarService = ServiceRegistry.get<ImageToolbarService>("ImageToolbarService");
-        this.visualService = ServiceRegistry.get<MasterVisualService>("MasterVisualService");
+        this.imageToolbarService = ServiceRegistry.get<ImageToolbarService>(
+            "ImageToolbarService",
+        );
+        this.visualService = ServiceRegistry.get<MasterVisualService>(
+            "MasterVisualService",
+        );
 
         this.adoptStyles(cssSheet(commonCss), cssSheet(imageToolbarCss));
 
@@ -39,7 +43,7 @@ export class ImageToolbar extends BaseComponent {
         this.setupEventListeners();
         this.setupSubscriptions();
     }
-protected override render(): void {
+    protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
@@ -66,7 +70,9 @@ protected override render(): void {
             }),
 
             onDomEvent(this.shadowRoot, "layer-remove", (e) => {
-                const serverLayer = this.visualService.getLayers().get(e.detail.layer);
+                const serverLayer = this.visualService
+                    .getLayers()
+                    .get(e.detail.layer);
                 if (serverLayer?.imageRef) {
                     this.visualService.clearImage(e.detail.layer);
                 }
@@ -78,7 +84,9 @@ protected override render(): void {
             }),
 
             onDomEvent(this.shadowRoot, "layer-visibility", (e) => {
-                this.visualService.setLayerConfig(e.detail.layer, { visible: e.detail.visible });
+                this.visualService.setLayerConfig(e.detail.layer, {
+                    visible: e.detail.visible,
+                });
             }),
 
             onDomEvent(this.shadowRoot, "layer-reorder", (e) => {
@@ -86,11 +94,17 @@ protected override render(): void {
             }),
 
             onDomEvent(this.shadowRoot, "layer-aspect-ratio", (e) => {
-                const current = this.visualService.getLayers().get(e.detail.layer);
+                const current = this.visualService
+                    .getLayers()
+                    .get(e.detail.layer);
                 if (current?.imageRef) {
-                    this.visualService.setImage(e.detail.layer, current.imageRef, {
-                        aspectRatio: e.detail.aspectRatio,
-                    });
+                    this.visualService.setImage(
+                        e.detail.layer,
+                        current.imageRef,
+                        {
+                            aspectRatio: e.detail.aspectRatio,
+                        },
+                    );
                 }
             }),
         );
@@ -104,9 +118,15 @@ protected override render(): void {
                 this.imageToolbarService.getSelectedLayer$(),
             ]),
             ([registered, serverLayers, selectedLayer]) => {
-                this.imageToolbarService.syncServerLayers(Array.from(serverLayers.keys()));
+                this.imageToolbarService.syncServerLayers(
+                    Array.from(serverLayers.keys()),
+                );
 
-                const entries = this.computeLayerEntries(registered, serverLayers, selectedLayer);
+                const entries = this.computeLayerEntries(
+                    registered,
+                    serverLayers,
+                    selectedLayer,
+                );
                 this.getPanel()?.setLayers(entries);
             },
         );
@@ -134,6 +154,8 @@ protected override render(): void {
     }
 
     private getPanel(): LayerControlPanel | null {
-        return this.shadowRoot?.querySelector("layer-control-panel") as LayerControlPanel | null;
+        return this.shadowRoot?.querySelector(
+            "layer-control-panel",
+        ) as LayerControlPanel | null;
     }
 }

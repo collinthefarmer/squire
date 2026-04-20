@@ -39,9 +39,18 @@ export interface AudioEffect {
 }
 
 export type AudioPlayEvent = Event<"audio.play", AudioPlayPayload>;
-export type AudioPauseEvent = Event<"audio.pause", { channel: string; trackId?: string }>;
-export type AudioResumeEvent = Event<"audio.resume", { channel: string; trackId?: string }>;
-export type AudioStopEvent = Event<"audio.stop", { channel: string; trackId?: string }>;
+export type AudioPauseEvent = Event<
+    "audio.pause",
+    { channel: string; trackId?: string }
+>;
+export type AudioResumeEvent = Event<
+    "audio.resume",
+    { channel: string; trackId?: string }
+>;
+export type AudioStopEvent = Event<
+    "audio.stop",
+    { channel: string; trackId?: string }
+>;
 export type AudioVolumeEvent = Event<
     "audio.volume",
     { channel: string; volume: number; trackId?: string }
@@ -116,9 +125,19 @@ export interface ClientsState {
  * Image/Visual event types
  */
 
-export type AspectRatioMode = "cover" | "contain" | "fill" | "native" | "custom";
+export type AspectRatioMode =
+    | "cover"
+    | "contain"
+    | "fill"
+    | "native"
+    | "custom";
 export type BlendMode = "normal" | "multiply" | "screen" | "overlay" | "add";
-export type TransitionType = "crossfade" | "fade-to-black" | "wipe" | "dissolve" | "cut";
+export type TransitionType =
+    | "crossfade"
+    | "fade-to-black"
+    | "wipe"
+    | "dissolve"
+    | "cut";
 
 export interface ImagePosition {
     x: string | number; // "center", "left", "right", or pixel/percentage value
@@ -173,9 +192,15 @@ export interface ImageLayerConfigPayload {
 
 export type ImageSetEvent = Event<"visual.image.set", ImageSetPayload>;
 export type ImageClearEvent = Event<"visual.image.clear", ImageClearPayload>;
-export type ImageTransformEvent = Event<"visual.image.transform", ImageTransformPayload>;
+export type ImageTransformEvent = Event<
+    "visual.image.transform",
+    ImageTransformPayload
+>;
 export type ImageEffectEvent = Event<"visual.image.effect", ImageEffectPayload>;
-export type ImageLayerConfigEvent = Event<"visual.image.layer_config", ImageLayerConfigPayload>;
+export type ImageLayerConfigEvent = Event<
+    "visual.image.layer_config",
+    ImageLayerConfigPayload
+>;
 
 export type ImageEvent =
     | ImageSetEvent
@@ -218,11 +243,11 @@ export type ClockCompletionBehavior = "persist" | "auto-hide" | "auto-destroy";
 
 export interface ClockCreatePayload {
     id: string;
-    duration: number;        // total duration in ms
-    autoStart?: boolean;     // start immediately on create
+    duration: number; // total duration in ms
+    autoStart?: boolean; // start immediately on create
     position?: ImagePosition; // reuses image position format
     zIndex?: number;
-    respectTimeScale?: boolean;   // default true
+    respectTimeScale?: boolean; // default true
     visibility?: ClockVisibility; // default "always"
     onComplete?: ClockCompletionBehavior; // default "persist"
 }
@@ -274,7 +299,10 @@ export interface TimeScaleChangedPayload {
     scale: number;
 }
 
-export type TimeScaleChangedEvent = Event<"time.scale_changed", TimeScaleChangedPayload>;
+export type TimeScaleChangedEvent = Event<
+    "time.scale_changed",
+    TimeScaleChangedPayload
+>;
 
 export type TimeEvent = TimeScaleChangedEvent;
 

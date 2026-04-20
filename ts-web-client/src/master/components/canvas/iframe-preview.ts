@@ -38,7 +38,7 @@ export class IframePreview extends BaseComponent {
             this.subscribe(observeResize(wrapper), () => this.updateScale());
         }
     }
-protected override render(): void {
+    protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }

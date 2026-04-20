@@ -59,7 +59,7 @@
 }
 
 .clock-time {
-    font-family: 'Courier New', monospace;
+    font-family: "Courier New", monospace;
     font-size: var(--font-base);
     font-weight: 600;
     color: var(--color-white);

@@ -5,7 +5,9 @@ import { Observable } from "rxjs";
  * Emits resize entries on each observation. Automatically disconnects
  * the observer when unsubscribed.
  */
-export function observeResize(element: Element): Observable<ResizeObserverEntry[]> {
+export function observeResize(
+    element: Element,
+): Observable<ResizeObserverEntry[]> {
     return new Observable((subscriber) => {
         const observer = new ResizeObserver((entries) => {
             subscriber.next(entries);

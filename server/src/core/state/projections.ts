@@ -54,7 +54,11 @@ export function projectAudioState(events: Event[]): AudioState {
                 if (channel) {
                     channels.set(channelId, {
                         ...channel,
-                        tracks: updateTracksConditional(channel.tracks, payload.trackId, (t) => ({ ...t, playing: false })),
+                        tracks: updateTracksConditional(
+                            channel.tracks,
+                            payload.trackId,
+                            (t) => ({ ...t, playing: false }),
+                        ),
                     });
                 }
                 break;
@@ -65,7 +69,11 @@ export function projectAudioState(events: Event[]): AudioState {
                 if (channel) {
                     channels.set(channelId, {
                         ...channel,
-                        tracks: updateTracksConditional(channel.tracks, payload.trackId, (t) => ({ ...t, playing: true })),
+                        tracks: updateTracksConditional(
+                            channel.tracks,
+                            payload.trackId,
+                            (t) => ({ ...t, playing: true }),
+                        ),
                     });
                 }
                 break;
@@ -95,10 +103,17 @@ export function projectAudioState(events: Event[]): AudioState {
                     if (volPayload.trackId) {
                         channels.set(channelId, {
                             ...channel,
-                            tracks: updateTracksConditional(channel.tracks, volPayload.trackId, (t) => ({ ...t, volume: volPayload.volume })),
+                            tracks: updateTracksConditional(
+                                channel.tracks,
+                                volPayload.trackId,
+                                (t) => ({ ...t, volume: volPayload.volume }),
+                            ),
                         });
                     } else {
-                        channels.set(channelId, { ...channel, volume: volPayload.volume });
+                        channels.set(channelId, {
+                            ...channel,
+                            volume: volPayload.volume,
+                        });
                     }
                 }
                 break;
@@ -128,7 +143,10 @@ export function projectImageState(events: Event[]): ImageState {
                     id: layerId,
                     imageRef: setPayload.imageRef,
                     aspectRatio: setPayload.aspectRatio,
-                    position: setPayload.position || { x: "center", y: "center" },
+                    position: setPayload.position || {
+                        x: "center",
+                        y: "center",
+                    },
                     scale: 1,
                     rotation: 0,
                     blendMode: "normal",
@@ -148,7 +166,8 @@ export function projectImageState(events: Event[]): ImageState {
             case "visual.image.transform": {
                 const layer = layers.get(layerId);
                 if (layer) {
-                    const transformPayload = event.payload as ImageTransformPayload;
+                    const transformPayload =
+                        event.payload as ImageTransformPayload;
                     layers.set(layerId, {
                         ...layer,
                         position: transformPayload.position ?? layer.position,
@@ -178,7 +197,8 @@ export function projectImageState(events: Event[]): ImageState {
             case "visual.image.layer_config": {
                 const layer = layers.get(layerId);
                 if (layer) {
-                    const configPayload = event.payload as ImageLayerConfigPayload;
+                    const configPayload =
+                        event.payload as ImageLayerConfigPayload;
                     layers.set(layerId, {
                         ...layer,
                         blendMode: configPayload.blendMode ?? layer.blendMode,
@@ -220,7 +240,8 @@ export function calculateAudioPosition(events: Event[]): number {
 
             case "audio.resume":
                 if (pauseTimestamp !== null) {
-                    accumulatedPauseTime += event.metadata.timestamp - pauseTimestamp;
+                    accumulatedPauseTime +=
+                        event.metadata.timestamp - pauseTimestamp;
                     pauseTimestamp = null;
                 }
                 break;

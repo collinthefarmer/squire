@@ -57,7 +57,10 @@ export const CLOCK_DISPLAY = { width: 200, height: 60 } as const;
  * game-time elapsed. Scale changes mid-run require an internal
  * pause+resume cycle to capture the new scale.
  */
-export function getRemainingTime(clock: ClockState, now: number = Date.now()): number {
+export function getRemainingTime(
+    clock: ClockState,
+    now: number = Date.now(),
+): number {
     if (clock.completed) {
         return 0;
     }
@@ -92,7 +95,10 @@ export function formatTime(remainingMs: number): string {
 /**
  * Compute urgency ratio (0 = full time, 1 = no time left)
  */
-export function getUrgency(clock: ClockState, now: number = Date.now()): number {
+export function getUrgency(
+    clock: ClockState,
+    now: number = Date.now(),
+): number {
     const remaining = getRemainingTime(clock, now);
 
     if (clock.duration <= 0) {
@@ -116,7 +122,11 @@ export function applyTimeScaleChange(
     let updated = clocks;
 
     for (const [id, clock] of clocks) {
-        if (!clock.running || !clock.respectTimeScale || clock.startedAt === null) {
+        if (
+            !clock.running ||
+            !clock.respectTimeScale ||
+            clock.startedAt === null
+        ) {
             continue;
         }
 
@@ -153,8 +163,16 @@ export function applyClockCreate(
     event: ClockCreateEvent,
     currentScale: number = 1.0,
 ): Map<string, ClockState> {
-    const { id, duration, autoStart, position, zIndex,
-            respectTimeScale, visibility, onComplete } = event.payload;
+    const {
+        id,
+        duration,
+        autoStart,
+        position,
+        zIndex,
+        respectTimeScale,
+        visibility,
+        onComplete,
+    } = event.payload;
     const timestamp = event.metadata.timestamp;
 
     const clock: ClockState = {

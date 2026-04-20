@@ -40,15 +40,17 @@ export class AudioControls extends BaseComponent {
     override connectedCallback(): void {
         super.connectedCallback();
 
-        this.micCaptureService = ServiceRegistry.get<MicCaptureService>("MicCaptureService");
-        this.liveAudioService = ServiceRegistry.get<LiveAudioService>("LiveAudioService");
+        this.micCaptureService =
+            ServiceRegistry.get<MicCaptureService>("MicCaptureService");
+        this.liveAudioService =
+            ServiceRegistry.get<LiveAudioService>("LiveAudioService");
 
         this.adoptStyles(cssSheet(commonCss), cssSheet(audioControlsCss));
 
         this.render();
         this.setupEventListeners();
     }
-protected override render(): void {
+    protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
@@ -102,13 +104,29 @@ protected override render(): void {
             return;
         }
 
-        const channelSelect = this.shadowRoot.querySelector("#channel") as HTMLSelectElement;
-        const volumeSlider = this.shadowRoot.querySelector("#volume") as HTMLInputElement;
-        const volumeValue = this.shadowRoot.querySelector("#volume-value") as HTMLSpanElement;
-        const loopCheckbox = this.shadowRoot.querySelector("#loop") as HTMLInputElement;
-        const goLiveBtn = this.shadowRoot.querySelector("#go-live") as HTMLButtonElement;
+        const channelSelect = this.shadowRoot.querySelector(
+            "#channel",
+        ) as HTMLSelectElement;
+        const volumeSlider = this.shadowRoot.querySelector(
+            "#volume",
+        ) as HTMLInputElement;
+        const volumeValue = this.shadowRoot.querySelector(
+            "#volume-value",
+        ) as HTMLSpanElement;
+        const loopCheckbox = this.shadowRoot.querySelector(
+            "#loop",
+        ) as HTMLInputElement;
+        const goLiveBtn = this.shadowRoot.querySelector(
+            "#go-live",
+        ) as HTMLButtonElement;
 
-        if (!channelSelect || !volumeSlider || !volumeValue || !loopCheckbox || !goLiveBtn) {
+        if (
+            !channelSelect ||
+            !volumeSlider ||
+            !volumeValue ||
+            !loopCheckbox ||
+            !goLiveBtn
+        ) {
             return;
         }
 
@@ -127,12 +145,14 @@ protected override render(): void {
                 goLiveBtn.textContent = "Go Live";
                 goLiveBtn.classList.remove("active");
             } else {
-                this.liveAudioService.goLive(
-                    this.currentChannel,
-                    this.selectedDeviceId || undefined,
-                ).catch((err) => {
-                    console.error("Failed to go live", err);
-                });
+                this.liveAudioService
+                    .goLive(
+                        this.currentChannel,
+                        this.selectedDeviceId || undefined,
+                    )
+                    .catch((err) => {
+                        console.error("Failed to go live", err);
+                    });
                 goLiveBtn.textContent = "Stop Live";
                 goLiveBtn.classList.add("active");
             }
@@ -162,7 +182,9 @@ protected override render(): void {
     }
 
     isLooping(): boolean {
-        const checkbox = this.shadowRoot?.querySelector("#loop") as HTMLInputElement;
+        const checkbox = this.shadowRoot?.querySelector(
+            "#loop",
+        ) as HTMLInputElement;
         return checkbox?.checked ?? false;
     }
 }

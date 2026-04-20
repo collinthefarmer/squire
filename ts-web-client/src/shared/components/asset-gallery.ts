@@ -5,7 +5,11 @@ import type { Draggable } from "@components/draggable/draggable";
 import type { ImageHandle } from "@components/image-handle";
 import { onDomEvent, emitDomEvent } from "@utils/dom-events";
 import { ServiceRegistry } from "@services/service-registry";
-import type { AssetService, AudioAsset, ImageAsset } from "@master/services/asset-service";
+import type {
+    AssetService,
+    AudioAsset,
+    ImageAsset,
+} from "@master/services/asset-service";
 import { labelStyles } from "@styles/common-styles";
 // @ts-expect-error — Bun imports CSS as text
 import assetGalleryCss from "./asset-gallery.css" with { type: "text" };
@@ -53,7 +57,11 @@ export class AssetGrid extends BaseComponent {
         this.setupSubscriptions();
     }
 
-    attributeChangedCallback(name: string, _old: string | null, value: string | null): void {
+    attributeChangedCallback(
+        name: string,
+        _old: string | null,
+        value: string | null,
+    ): void {
         if (!value) {
             return;
         }
@@ -62,7 +70,7 @@ export class AssetGrid extends BaseComponent {
             this.syncDraggableAttribute("data-preview-scale", value);
         }
     }
-protected override render(): void {
+    protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
@@ -198,7 +206,9 @@ protected override render(): void {
             return;
         }
 
-        for (const draggable of Array.from(grid.querySelectorAll("squire-draggable"))) {
+        for (const draggable of Array.from(
+            grid.querySelectorAll("squire-draggable"),
+        )) {
             draggable.setAttribute(attrName, value);
         }
     }

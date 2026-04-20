@@ -62,23 +62,39 @@ export class VisualService {
         switch (event.type) {
             case "visual.image.set":
                 updated = applyImageSet(current, event as ImageSetEvent);
-                this.logger.info("Image set", { layer: (event as ImageSetEvent).payload.layer });
+                this.logger.info("Image set", {
+                    layer: (event as ImageSetEvent).payload.layer,
+                });
                 break;
             case "visual.image.clear":
                 updated = applyImageClear(current, event as ImageClearEvent);
-                this.logger.info("Image clear", { layer: (event as ImageClearEvent).payload.layer });
+                this.logger.info("Image clear", {
+                    layer: (event as ImageClearEvent).payload.layer,
+                });
                 break;
             case "visual.image.transform":
-                updated = applyImageTransform(current, event as ImageTransformEvent);
-                this.logger.info("Image transform", { layer: (event as ImageTransformEvent).payload.layer });
+                updated = applyImageTransform(
+                    current,
+                    event as ImageTransformEvent,
+                );
+                this.logger.info("Image transform", {
+                    layer: (event as ImageTransformEvent).payload.layer,
+                });
                 break;
             case "visual.image.effect":
                 updated = applyImageEffect(current, event as ImageEffectEvent);
-                this.logger.info("Image effect", { layer: (event as ImageEffectEvent).payload.layer });
+                this.logger.info("Image effect", {
+                    layer: (event as ImageEffectEvent).payload.layer,
+                });
                 break;
             case "visual.image.layer_config":
-                updated = applyImageLayerConfig(current, event as ImageLayerConfigEvent);
-                this.logger.info("Layer config", { layer: (event as ImageLayerConfigEvent).payload.layer });
+                updated = applyImageLayerConfig(
+                    current,
+                    event as ImageLayerConfigEvent,
+                );
+                this.logger.info("Layer config", {
+                    layer: (event as ImageLayerConfigEvent).payload.layer,
+                });
                 break;
             default:
                 return;

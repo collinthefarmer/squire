@@ -73,18 +73,20 @@ export class MicCaptureService {
 
         try {
             const constraints: MediaStreamConstraints = {
-                audio: deviceId
-                    ? { deviceId: { exact: deviceId } }
-                    : true,
+                audio: deviceId ? { deviceId: { exact: deviceId } } : true,
                 video: false,
             };
 
-            this.mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+            this.mediaStream =
+                await navigator.mediaDevices.getUserMedia(constraints);
             this.audioContext = new AudioContext();
 
-            this.sourceNode = this.audioContext.createMediaStreamSource(this.mediaStream);
+            this.sourceNode = this.audioContext.createMediaStreamSource(
+                this.mediaStream,
+            );
             this.inputGainNode = this.audioContext.createGain();
-            this.destinationNode = this.audioContext.createMediaStreamDestination();
+            this.destinationNode =
+                this.audioContext.createMediaStreamDestination();
             this.analyserNode = this.audioContext.createAnalyser();
             this.analyserNode.fftSize = 256;
 

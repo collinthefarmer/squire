@@ -18,7 +18,10 @@ ul {
     margin: 0;
     padding: 0;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(var(--sizing-thumbnail), 1fr));
+    grid-template-columns: repeat(
+        auto-fill,
+        minmax(var(--sizing-thumbnail), 1fr)
+    );
     gap: var(--spacing-sm);
     flex: 1;
     min-height: 0;

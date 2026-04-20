@@ -21,7 +21,7 @@ export class SquireMasterClient extends BaseComponent {
         this.render();
         this.initTabs();
     }
-protected override render(): void {
+    protected override render(): void {
         if (!this.shadowRoot) {
             return;
         }
@@ -71,14 +71,18 @@ protected override render(): void {
 
         this.cleanup.push(
             onDomEvent(this.shadowRoot, "tab-change", (e) => {
-                const section = this.shadowRoot?.querySelector(".preview-section") as HTMLElement;
+                const section = this.shadowRoot?.querySelector(
+                    ".preview-section",
+                ) as HTMLElement;
                 if (section) {
                     section.style.gridTemplateColumns = e.detail.layout;
                 }
             }),
         );
 
-        const tabs = this.shadowRoot.querySelector("sidebar-tabs") as SidebarTabs | null;
+        const tabs = this.shadowRoot.querySelector(
+            "sidebar-tabs",
+        ) as SidebarTabs | null;
 
         tabs?.setTabs([
             { id: "image", label: "Image", layout: "minmax(0, 3fr) 1fr" },
