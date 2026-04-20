@@ -1,4 +1,5 @@
-import { BehaviorSubject, type Observable } from "rxjs";
+import { BehaviorSubject, timer, type Observable } from "rxjs";
+import { take } from "rxjs/operators";
 import { Logger } from "@utils/logger";
 import { eventSchema } from "@schemas";
 import type { EventBus } from "@services/event-bus";
@@ -24,6 +25,7 @@ export class ConnectionService {
     private ws: WebSocket | null = null;
     private logger = new Logger("ConnectionService");
     private state$ = new BehaviorSubject<ConnectionState>("disconnected");
+    private clientId$ = new BehaviorSubject<string | null>(null);
     private reconnectAttempts = 0;
     private maxReconnectAttempts = 5;
     private reconnectDelay = 1000; // Start with 1 second
@@ -34,7 +36,17 @@ export class ConnectionService {
         private eventBus: EventBus,
         private config: ConfigService,
     ) {
-        this.url = this.config.getWebSocketUrl();
+        const base = this.config.getWebSocketUrl();
+        const separator = base.includes("?") ? "&" : "?";
+        this.url = `${base}${separator}type=${this.config.getClientType()}`;
+    }
+
+    getClientId(): string | null {
+        return this.clientId$.value;
+    }
+
+    getClientId$(): Observable<string | null> {
+        return this.clientId$.asObservable();
     }
 
     /**
@@ -157,6 +169,11 @@ export class ConnectionService {
             const events = Array.isArray(parsed) ? parsed : [parsed];
 
             for (const message of events) {
+                // System events are server-originated and bypass schema validation
+                if (this.handleSystemEvent(message)) {
+                    continue;
+                }
+
                 const result = eventSchema.safeParse(message);
                 if (!result.success) {
                     this.logger.error("Invalid event received", {
@@ -170,6 +187,21 @@ export class ConnectionService {
         } catch (error) {
             this.logger.error("Failed to process message", { error });
         }
+    }
+
+    private handleSystemEvent(message: { type?: string; payload?: Record<string, unknown> }): boolean {
+        if (!message.type?.startsWith("system.")) {
+            return false;
+        }
+
+        if (message.type === "system.connected") {
+            const clientId = message.payload?.clientId as string;
+            this.clientId$.next(clientId);
+            this.logger.info("Assigned client ID", { clientId });
+        }
+
+        this.eventBus.emit(`server:${message.type}`, message);
+        return true;
     }
 
     /**
@@ -193,8 +225,6 @@ export class ConnectionService {
             delay,
         });
 
-        setTimeout(() => {
-            this.connect();
-        }, delay);
+        timer(delay).pipe(take(1)).subscribe(() => this.connect());
     }
 }

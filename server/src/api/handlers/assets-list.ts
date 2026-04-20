@@ -5,6 +5,7 @@ import {
     isValidAudioFile,
     isValidImageFile,
 } from "@core/http/validation";
+import { getAudioDuration } from "./assets-metadata";
 import type { RouteHandler } from "@core/http/router";
 import { Logger } from "@utils/logger";
 
@@ -26,6 +27,7 @@ export const listAudioAssets: RouteHandler = async () => {
             .map((f) => ({
                 name: f,
                 url: `/${PUBLIC_DIR}/audio/${f}`,
+                duration: getAudioDuration(f) ?? 0,
             }));
 
         return jsonResponse(audioFiles);

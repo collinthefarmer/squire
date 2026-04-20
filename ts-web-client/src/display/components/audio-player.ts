@@ -1,3 +1,5 @@
+import { of, concat, timer } from "rxjs";
+import { switchMap, tap, map } from "rxjs/operators";
 import { BaseComponent } from "@components/base/base-component";
 import { ServiceRegistry } from "@services/service-registry";
 import type { AudioService } from "@display/services/audio-service";
@@ -14,6 +16,8 @@ import {
 
 const COLLAPSE_DELAY = 3000;
 
+type ViewMode = "expanded" | "condensed" | "empty";
+
 /**
  * Audio player component
  *
@@ -23,8 +27,7 @@ const COLLAPSE_DELAY = 3000;
  * (green = playing, amber = paused).
  */
 export class AudioPlayer extends BaseComponent {
-    private viewMode: "expanded" | "condensed" = "condensed";
-    private collapseTimer: number | null = null;
+    private viewMode: ViewMode = "empty";
     private latestChannels: Map<string, AudioChannelState> = new Map();
 
     override connectedCallback(): void {
@@ -32,17 +35,28 @@ export class AudioPlayer extends BaseComponent {
 
         const audioService = ServiceRegistry.get<AudioService>("AudioService");
 
-        this.subscribe(audioService.getChannels$(), (channels) => {
-            this.onChannelsUpdate(channels);
-        });
+        this.subscribe(
+            audioService.getChannels$().pipe(
+                tap((channels) => { this.latestChannels = channels; }),
+                switchMap((channels) => {
+                    if (channels.size === 0) {
+                        return of("empty" as const);
+                    }
+
+                    return concat(
+                        of("expanded" as const),
+                        timer(COLLAPSE_DELAY).pipe(map(() => "condensed" as const)),
+                    );
+                }),
+            ),
+            (mode) => {
+                this.viewMode = mode;
+                this.render();
+            },
+        );
 
         this.latestChannels = audioService.getChannels();
         this.render();
-    }
-
-    override disconnectedCallback(): void {
-        super.disconnectedCallback();
-        this.resetCollapseTimer();
     }
 
     protected override getStyles(): string {
@@ -125,12 +139,12 @@ export class AudioPlayer extends BaseComponent {
             return;
         }
 
-        const channels = Array.from(this.latestChannels.values());
-
-        if (channels.length === 0) {
+        if (this.viewMode === "empty") {
             this.shadowRoot.innerHTML = "";
             return;
         }
+
+        const channels = Array.from(this.latestChannels.values());
 
         if (this.viewMode === "condensed") {
             this.renderCondensed(channels);
@@ -139,44 +153,13 @@ export class AudioPlayer extends BaseComponent {
         }
     }
 
-    private onChannelsUpdate(channels: Map<string, AudioChannelState>): void {
-        this.latestChannels = channels;
-        this.resetCollapseTimer();
-
-        if (channels.size > 0) {
-            this.viewMode = "expanded";
-        }
-
-        this.render();
-        this.startCollapseTimer();
-    }
-
-    private startCollapseTimer(): void {
-        if (this.latestChannels.size === 0) {
-            return;
-        }
-
-        this.collapseTimer = window.setTimeout(() => {
-            this.collapseTimer = null;
-            this.viewMode = "condensed";
-            this.render();
-        }, COLLAPSE_DELAY);
-    }
-
-    private resetCollapseTimer(): void {
-        if (this.collapseTimer !== null) {
-            clearTimeout(this.collapseTimer);
-            this.collapseTimer = null;
-        }
-    }
-
     private renderCondensed(channels: AudioChannelState[]): void {
         const dots = channels
-            .map(
-                (ch) =>
-                    `<div class="dot ${ch.playing ? "playing" : "paused"}"
-                  title="${ch.id}: ${ch.playing ? "Playing" : "Paused"}"></div>`,
-            )
+            .map((ch) => {
+                const anyPlaying = Array.from(ch.tracks.values()).some((t) => t.playing);
+                return `<div class="dot ${anyPlaying ? "playing" : "paused"}"
+                  title="${ch.id}: ${anyPlaying ? "Playing" : "Paused"}"></div>`;
+            })
             .join("");
 
         this.shadowRoot!.innerHTML = `

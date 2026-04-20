@@ -93,6 +93,44 @@ export interface LoopChangeDetail {
     loop: boolean;
 }
 
+export interface AudioDropDetail {
+    channel: string;
+    asset: string;
+}
+
+export interface TrackVolumeChangeDetail {
+    channel: string;
+    trackId: string;
+    volume: number;
+}
+
+export interface TrackStopRequestDetail {
+    channel: string;
+    trackId: string;
+}
+
+export interface TabChangeDetail {
+    tabId: string;
+    layout: string;
+}
+
+
+export interface SourceTypeChangeDetail {
+    sourceType: "file" | "live";
+}
+
+export interface MicDeviceChangeDetail {
+    deviceId: string;
+}
+
+export interface MonitorChangeDetail {
+    enabled: boolean;
+}
+
+export interface GainChangeDetail {
+    gain: number;
+}
+
 // -- Image event details --
 
 export interface ApplyConfigDetail {
@@ -150,6 +188,16 @@ export interface AppEventMap {
     "pause-request": void;
     "resume-request": void;
     "stop-request": void;
+    "go-live-request": void;
+    "audio-drop": AudioDropDetail;
+    "track-volume-change": TrackVolumeChangeDetail;
+    "track-stop-request": TrackStopRequestDetail;
+    "tab-change": TabChangeDetail;
+    "stop-live-request": void;
+    "source-type-change": SourceTypeChangeDetail;
+    "mic-device-change": MicDeviceChangeDetail;
+    "monitor-change": MonitorChangeDetail;
+    "gain-change": GainChangeDetail;
 
     "apply-config": ApplyConfigDetail;
 

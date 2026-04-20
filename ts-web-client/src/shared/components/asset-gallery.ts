@@ -4,7 +4,7 @@ import type { Draggable } from "@components/draggable/draggable";
 import type { ImageHandle } from "@components/image-handle";
 import { onDomEvent, emitDomEvent } from "@utils/dom-events";
 import { ServiceRegistry } from "@services/service-registry";
-import type { AssetService, ImageAsset } from "@master/services/asset-service";
+import type { AssetService, AudioAsset, ImageAsset } from "@master/services/asset-service";
 import { labelStyles } from "@styles/common-styles";
 import { colors, spacing, borderRadius, fontSize, sizing } from "@styles/theme";
 
@@ -169,7 +169,7 @@ export class AssetGrid extends BaseComponent {
         );
     }
 
-    private updateAudioAssetGrid(assets: string[]): void {
+    private updateAudioAssetGrid(assets: AudioAsset[]): void {
         const grid = this.shadowRoot?.querySelector("ul") as HTMLUListElement;
         if (!grid) {
             return;
@@ -187,7 +187,7 @@ export class AssetGrid extends BaseComponent {
             const item = document.createElement(
                 this.config.assetElement,
             ) as BaseAssetComponent;
-            item.asset = asset;
+            item.asset = asset.name;
 
             draggable.appendChild(item);
             li.appendChild(draggable);

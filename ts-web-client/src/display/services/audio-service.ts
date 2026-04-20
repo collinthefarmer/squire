@@ -1,8 +1,11 @@
 import { BehaviorSubject, type Observable } from "rxjs";
 import { Logger } from "@utils/logger";
 import { setInMap, updateInMap, removeFromMap } from "@utils/state-helpers";
+import { generateTrackId } from "@utils/audio-helpers";
+import { ServiceRegistry } from "@services/service-registry";
 import type { EventBus } from "@services/event-bus";
 import type { ConfigService } from "@services/config-service";
+import type { WebRTCReceiverService } from "@display/services/webrtc-receiver-service";
 import type {
     AudioChannelState,
     AudioPlayEvent,
@@ -23,7 +26,11 @@ export class AudioService {
     private channels$ = new BehaviorSubject<Map<string, AudioChannelState>>(
         new Map(),
     );
+    /** Audio elements keyed by trackId */
     private audioElements = new Map<string, HTMLAudioElement>();
+    /** Track-to-channel mapping for volume/time-scale lookups */
+    private trackChannels = new Map<string, string>();
+    private liveSubscriptions = new Map<string, () => void>();
     private apiUrl: string;
 
     constructor(
@@ -67,8 +74,20 @@ export class AudioService {
      * Setup event listeners for server events
      */
     private setupEventListeners(): void {
-        this.eventBus.on("server:audio.*", (event: any) => {
-            this.handleAudioEvent(event);
+        this.onAudioEvent<AudioPlayEvent>("audio.play", (e) => this.handlePlay(e));
+        this.onAudioEvent<AudioPauseEvent>("audio.pause", (e) => this.handlePause(e));
+        this.onAudioEvent<AudioResumeEvent>("audio.resume", (e) => this.handleResume(e));
+        this.onAudioEvent<AudioStopEvent>("audio.stop", (e) => this.handleStop(e));
+        this.onAudioEvent<AudioVolumeEvent>("audio.volume", (e) => this.handleVolume(e));
+    }
+
+    /**
+     * Typed event subscription — consolidates the any→T cast
+     * to a single documented location.
+     */
+    private onAudioEvent<T>(type: string, handler: (event: T) => void): void {
+        this.eventBus.on(`server:${type}`, (event: unknown) => {
+            handler(event as T);
         });
     }
 
@@ -78,53 +97,32 @@ export class AudioService {
      * Scale 0 pauses; resuming restores the last non-zero rate.
      */
     private setupTimeScaleListener(): void {
-        this.eventBus.on("server:time.scale_changed", (event: unknown) => {
-            const { scale } = (event as { payload: { scale: number } }).payload;
+        this.onAudioEvent<{ payload: { scale: number } }>("time.scale_changed", (event) => {
+            const { scale } = event.payload;
             this.logger.info("Time scale changed, adjusting audio", { scale });
 
-            for (const [channel, state] of this.channels$.value) {
-                if (!state.respectTimeScale) {
-                    continue;
-                }
+            for (const [, channel] of this.channels$.value) {
+                for (const [trackId, track] of channel.tracks) {
+                    if (!track.respectTimeScale) {
+                        continue;
+                    }
 
-                const audio = this.audioElements.get(channel);
-                if (!audio) {
-                    continue;
-                }
+                    const audio = this.audioElements.get(trackId);
+                    if (!audio) {
+                        continue;
+                    }
 
-                if (scale === 0) {
-                    audio.pause();
-                } else {
-                    audio.playbackRate = scale;
-                    if (state.playing && audio.paused) {
-                        audio.play().catch(() => {});
+                    if (scale === 0) {
+                        audio.pause();
+                    } else {
+                        audio.playbackRate = scale;
+                        if (track.playing && audio.paused && !audio.ended) {
+                            audio.play().catch(() => {});
+                        }
                     }
                 }
             }
         });
-    }
-
-    /**
-     * Route audio events to appropriate handlers
-     */
-    private handleAudioEvent(event: any): void {
-        switch (event.type) {
-            case "audio.play":
-                this.handlePlay(event as AudioPlayEvent);
-                break;
-            case "audio.pause":
-                this.handlePause(event as AudioPauseEvent);
-                break;
-            case "audio.resume":
-                this.handleResume(event as AudioResumeEvent);
-                break;
-            case "audio.stop":
-                this.handleStop(event as AudioStopEvent);
-                break;
-            case "audio.volume":
-                this.handleVolume(event as AudioVolumeEvent);
-                break;
-        }
     }
 
     /**
@@ -137,52 +135,113 @@ export class AudioService {
     private handlePlay(event: AudioPlayEvent): void {
         const { channel, source, volume, loop, effects, respectTimeScale } =
             event.payload;
+        const trackId = event.payload.trackId ?? generateTrackId();
 
-        // Calculate elapsed time from event timestamp for sync
-        // Event timestamp is when audio originally started playing
+        if (source.type === "live") {
+            this.handleLivePlay(trackId, channel, source, volume, effects, respectTimeScale);
+            return;
+        }
+
         const eventTimestamp = event.metadata.gameTimestamp ?? event.metadata.timestamp;
         const now = Date.now();
         const elapsedSeconds = (now - eventTimestamp) / 1000;
-
-        // Use elapsed time as start position, but clamp to reasonable values
-        // (negative would mean future, very large would mean event is stale)
         const startPosition = Math.max(0, elapsedSeconds);
 
-        this.logger.info("Audio play", {
-            channel,
+        this.logger.info("Audio play (file)", {
+            channel, trackId,
             source: source.ref,
-            eventTimestamp,
-            now,
-            elapsedSeconds: elapsedSeconds.toFixed(2),
             startPosition: startPosition.toFixed(2),
         });
 
-        this.stopAudio(channel);
-
         const audio = this.createAudioElement(
-            channel,
+            trackId,
             this.buildAudioUrl(source.ref),
             volume,
             loop,
             startPosition,
         );
 
-        this.audioElements.set(channel, audio);
+        this.audioElements.set(trackId, audio);
+        this.trackChannels.set(trackId, channel);
 
-        // Don't call play() here - createAudioElement handles it after seeking
-
-        const channelState: AudioChannelState = {
-            id: channel,
+        this.updateChannelState(channel, trackId, {
+            id: trackId,
             source,
             playing: true,
             position: startPosition,
-            volume,
+            volume: 1.0,
             loop,
             effects: effects || [],
             respectTimeScale,
-        };
+        }, volume);
+    }
 
-        const updated = setInMap(this.channels$.value, channel, channelState);
+    private handleLivePlay(
+        trackId: string,
+        channel: string,
+        source: { type: string; ref: string },
+        volume: number,
+        effects: { type: string; params: Record<string, unknown> }[] | undefined,
+        respectTimeScale: boolean,
+    ): void {
+        this.logger.info("Audio play (live)", { channel, trackId });
+
+        const receiver = ServiceRegistry.get<WebRTCReceiverService>("WebRTCReceiverService");
+
+        const audio = new Audio();
+        audio.volume = volume;
+        audio.autoplay = true;
+
+        const existingStream = receiver.getStream();
+        if (existingStream) {
+            audio.srcObject = existingStream;
+            audio.play().catch((err) => {
+                this.logger.error("Failed to play live audio", { channel, error: err });
+            });
+        }
+
+        const sub = receiver.getStream$().subscribe((stream) => {
+            if (!stream) {
+                return;
+            }
+            audio.srcObject = stream;
+            audio.play().catch((err) => {
+                this.logger.error("Failed to play live audio", { channel, error: err });
+            });
+        });
+
+        this.audioElements.set(trackId, audio);
+        this.trackChannels.set(trackId, channel);
+        this.liveSubscriptions.set(trackId, () => sub.unsubscribe());
+
+        this.updateChannelState(channel, trackId, {
+            id: trackId,
+            source: source as { type: "file" | "stream" | "live"; ref: string },
+            playing: true,
+            position: 0,
+            volume: 1.0,
+            loop: false,
+            effects: effects || [],
+            respectTimeScale,
+        }, volume);
+    }
+
+    private updateChannelState(
+        channel: string,
+        trackId: string,
+        track: AudioChannelState extends { tracks: Map<string, infer T> } ? T : never,
+        volume: number,
+    ): void {
+        const current = this.channels$.value;
+        const existing = current.get(channel);
+
+        const channelState: AudioChannelState = existing
+            ? { ...existing, tracks: new Map(existing.tracks) }
+            : { id: channel, tracks: new Map(), volume };
+
+        channelState.tracks.set(trackId, track);
+
+        const updated = setInMap(current, channel, channelState);
         this.channels$.next(updated);
     }
 
@@ -194,83 +253,162 @@ export class AudioService {
      * current position.
      */
     private handlePause(event: AudioPauseEvent): void {
-        const { channel } = event.payload;
+        const { channel, trackId } = event.payload;
 
-        this.logger.info("Audio pause", { channel });
+        this.logger.info("Audio pause", { channel, trackId: trackId ?? "all" });
 
-        const audio = this.audioElements.get(channel);
-        let currentPosition = 0;
-
-        if (audio) {
+        this.forEachTrackElement(channel, trackId, (audio) => {
             audio.pause();
-            currentPosition = audio.currentTime;
-        }
+        });
 
-        const updated = updateInMap(this.channels$.value, channel, (ch) => ({
-            ...ch,
+        const updated = this.updateTracks(channel, trackId, (track) => ({
+            ...track,
             playing: false,
-            position: currentPosition,
         }));
-
         this.channels$.next(updated);
     }
 
-    /**
-     * Handle audio.resume event
-     */
     private handleResume(event: AudioResumeEvent): void {
-        const { channel } = event.payload;
+        const { channel, trackId } = event.payload;
 
-        this.logger.info("Audio resume", { channel });
+        this.logger.info("Audio resume", { channel, trackId: trackId ?? "all" });
 
-        const audio = this.audioElements.get(channel);
-        if (audio) {
+        this.forEachTrackElement(channel, trackId, (audio) => {
             audio.play().catch((error) => {
                 this.logger.error("Failed to resume audio", { channel, error });
             });
-        }
+        });
 
-        const updated = updateInMap(this.channels$.value, channel, (ch) => ({
-            ...ch,
+        const updated = this.updateTracks(channel, trackId, (track) => ({
+            ...track,
             playing: true,
         }));
-
         this.channels$.next(updated);
     }
 
-    /**
-     * Handle audio.stop event
-     */
     private handleStop(event: AudioStopEvent): void {
-        const { channel } = event.payload;
+        const { channel, trackId } = event.payload;
 
-        this.logger.info("Audio stop", { channel });
+        this.logger.info("Audio stop", { channel, trackId: trackId ?? "all" });
 
-        this.stopAudio(channel);
+        if (trackId) {
+            this.stopTrack(trackId);
 
-        const updated = removeFromMap(this.channels$.value, channel);
-        this.channels$.next(updated);
+            const ch = this.channels$.value.get(channel);
+            if (ch) {
+                const tracks = new Map(ch.tracks);
+                tracks.delete(trackId);
+
+                const updated = tracks.size === 0
+                    ? removeFromMap(this.channels$.value, channel)
+                    : updateInMap(this.channels$.value, channel, () => ({ ...ch, tracks }));
+                this.channels$.next(updated);
+            }
+        } else {
+            // Stop all tracks on the channel
+            const ch = this.channels$.value.get(channel);
+            if (ch) {
+                for (const tid of ch.tracks.keys()) {
+                    this.stopTrack(tid);
+                }
+            }
+
+            const updated = removeFromMap(this.channels$.value, channel);
+            this.channels$.next(updated);
+        }
+    }
+
+    private handleVolume(event: AudioVolumeEvent): void {
+        const { channel, volume, trackId } = event.payload;
+
+        this.logger.info("Audio volume", { channel, trackId: trackId ?? "channel", volume });
+
+        // Update state first, then apply computed volumes from the updated state
+        if (trackId) {
+            const updated = updateInMap(this.channels$.value, channel, (c) => {
+                const tracks = new Map(c.tracks);
+                const track = tracks.get(trackId);
+                if (track) {
+                    tracks.set(trackId, { ...track, volume });
+                }
+                return { ...c, tracks };
+            });
+            this.channels$.next(updated);
+
+            const ch = updated.get(channel);
+            const audio = this.audioElements.get(trackId);
+            if (audio && ch) {
+                audio.volume = volume * ch.volume;
+            }
+        } else {
+            const updated = updateInMap(this.channels$.value, channel, (c) => ({
+                ...c,
+                volume,
+            }));
+            this.channels$.next(updated);
+
+            const ch = updated.get(channel);
+            if (ch) {
+                for (const [tid, track] of ch.tracks) {
+                    const audio = this.audioElements.get(tid);
+                    if (audio) {
+                        audio.volume = track.volume * volume;
+                    }
+                }
+            }
+        }
     }
 
     /**
-     * Handle audio.volume event
+     * Apply a callback to track audio elements matching a channel
+     * and optional trackId. If trackId is undefined, applies to all
+     * tracks in the channel.
      */
-    private handleVolume(event: AudioVolumeEvent): void {
-        const { channel, volume } = event.payload;
-
-        this.logger.info("Audio volume", { channel, volume });
-
-        const audio = this.audioElements.get(channel);
-        if (audio) {
-            audio.volume = volume;
+    private forEachTrackElement(
+        channel: string,
+        trackId: string | undefined,
+        callback: (audio: HTMLAudioElement) => void,
+    ): void {
+        if (trackId) {
+            const audio = this.audioElements.get(trackId);
+            if (audio) {
+                callback(audio);
+            }
+            return;
         }
 
-        const updated = updateInMap(this.channels$.value, channel, (ch) => ({
-            ...ch,
-            volume,
-        }));
+        const ch = this.channels$.value.get(channel);
+        if (!ch) {
+            return;
+        }
 
-        this.channels$.next(updated);
+        for (const tid of ch.tracks.keys()) {
+            const audio = this.audioElements.get(tid);
+            if (audio) {
+                callback(audio);
+            }
+        }
+    }
+
+    /**
+     * Update track states within a channel, returning the new channels map.
+     */
+    private updateTracks(
+        channel: string,
+        trackId: string | undefined,
+        updater: (track: import("@types").AudioTrackState) => import("@types").AudioTrackState,
+    ): Map<string, AudioChannelState> {
+        return updateInMap(this.channels$.value, channel, (ch) => {
+            const tracks = new Map(ch.tracks);
+
+            for (const [id, track] of tracks) {
+                if (!trackId || id === trackId) {
+                    tracks.set(id, updater(track));
+                }
+            }
+
+            return { ...ch, tracks };
+        });
     }
 
     /**
@@ -415,13 +553,24 @@ export class AudioService {
     /**
      * Stop and clean up audio element for a channel
      */
-    private stopAudio(channel: string): void {
-        const audio = this.audioElements.get(channel);
-        if (audio) {
-            audio.pause();
-            audio.currentTime = 0;
-            audio.src = "";
-            this.audioElements.delete(channel);
+    private stopTrack(trackId: string): void {
+        try {
+            const unsub = this.liveSubscriptions.get(trackId);
+            if (unsub) {
+                unsub();
+            }
+
+            const audio = this.audioElements.get(trackId);
+            if (audio) {
+                audio.pause();
+                audio.srcObject = null;
+                audio.currentTime = 0;
+                audio.src = "";
+            }
+        } finally {
+            this.liveSubscriptions.delete(trackId);
+            this.audioElements.delete(trackId);
+            this.trackChannels.delete(trackId);
         }
     }
 

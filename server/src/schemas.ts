@@ -26,6 +26,7 @@ export const audioSourceSchema = z.object({
 
 export const audioPlayPayloadSchema = z.object({
     channel: z.string(),
+    trackId: z.string().optional(),
     source: audioSourceSchema,
     volume: z.number().min(0).max(1),
     loop: z.boolean(),
@@ -43,6 +44,7 @@ export const audioPauseEventSchema = z.object({
     type: z.literal("audio.pause"),
     payload: z.object({
         channel: z.string(),
+        trackId: z.string().optional(),
     }),
     metadata: eventMetadataSchema,
 });
@@ -51,6 +53,7 @@ export const audioResumeEventSchema = z.object({
     type: z.literal("audio.resume"),
     payload: z.object({
         channel: z.string(),
+        trackId: z.string().optional(),
     }),
     metadata: eventMetadataSchema,
 });
@@ -59,6 +62,7 @@ export const audioStopEventSchema = z.object({
     type: z.literal("audio.stop"),
     payload: z.object({
         channel: z.string(),
+        trackId: z.string().optional(),
     }),
     metadata: eventMetadataSchema,
 });
@@ -68,6 +72,7 @@ export const audioVolumeEventSchema = z.object({
     payload: z.object({
         channel: z.string(),
         volume: z.number().min(0).max(1),
+        trackId: z.string().optional(),
     }),
     metadata: eventMetadataSchema,
 });
@@ -255,12 +260,50 @@ export const timeEventSchema = z.discriminatedUnion("type", [
     timeScaleChangedEventSchema,
 ]);
 
+// WebRTC signaling schemas (transient — not stored in EventStore)
+export const webrtcOfferEventSchema = z.object({
+    type: z.literal("webrtc.offer"),
+    payload: z.object({
+        targetClientId: z.string(),
+        channel: z.string(),
+        sdp: z.string(),
+    }),
+    metadata: eventMetadataSchema,
+});
+
+export const webrtcAnswerEventSchema = z.object({
+    type: z.literal("webrtc.answer"),
+    payload: z.object({
+        targetClientId: z.string(),
+        channel: z.string(),
+        sdp: z.string(),
+    }),
+    metadata: eventMetadataSchema,
+});
+
+export const webrtcIceCandidateEventSchema = z.object({
+    type: z.literal("webrtc.ice_candidate"),
+    payload: z.object({
+        targetClientId: z.string(),
+        channel: z.string(),
+        candidate: z.string(),
+    }),
+    metadata: eventMetadataSchema,
+});
+
+export const webrtcEventSchema = z.discriminatedUnion("type", [
+    webrtcOfferEventSchema,
+    webrtcAnswerEventSchema,
+    webrtcIceCandidateEventSchema,
+]);
+
 // All events
 export const eventSchema = z.discriminatedUnion("type", [
     ...audioEventSchema.options,
     ...imageEventSchema.options,
     ...clockEventSchema.options,
     ...timeEventSchema.options,
+    ...webrtcEventSchema.options,
 ]);
 
 /**
@@ -302,4 +345,8 @@ export type ClockEvent = z.infer<typeof clockEventSchema>;
 export type TimeScaleChangedPayload = z.infer<typeof timeScaleChangedPayloadSchema>;
 export type TimeScaleChangedEvent = z.infer<typeof timeScaleChangedEventSchema>;
 export type TimeEvent = z.infer<typeof timeEventSchema>;
+export type WebRTCOfferEvent = z.infer<typeof webrtcOfferEventSchema>;
+export type WebRTCAnswerEvent = z.infer<typeof webrtcAnswerEventSchema>;
+export type WebRTCIceCandidateEvent = z.infer<typeof webrtcIceCandidateEventSchema>;
+export type WebRTCEvent = z.infer<typeof webrtcEventSchema>;
 export type ValidatedEvent = z.infer<typeof eventSchema>;

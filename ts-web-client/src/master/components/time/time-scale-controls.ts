@@ -1,8 +1,6 @@
 import { BaseComponent } from "@components/base/base-component";
 import { ServiceRegistry } from "@services/service-registry";
-import type { ConnectionService } from "@services/connection-service";
 import type { TimeScaleService } from "@services/time-scale-service";
-import { EventBuilder } from "@master/services/event-builder";
 import {
     containerStyles,
     sectionHeaderStyles,
@@ -22,13 +20,11 @@ import { colors, spacing, fontSize } from "@styles/theme";
  * ```
  */
 export class TimeScaleControls extends BaseComponent {
-    private connectionService!: ConnectionService;
     private timeScaleService!: TimeScaleService;
 
     override connectedCallback(): void {
         super.connectedCallback();
 
-        this.connectionService = ServiceRegistry.get<ConnectionService>("ConnectionService");
         this.timeScaleService = ServiceRegistry.get<TimeScaleService>("TimeScaleService");
 
         this.render();
@@ -92,7 +88,7 @@ export class TimeScaleControls extends BaseComponent {
             }
 
             const scale = parseFloat(button.dataset.scale ?? "1");
-            this.connectionService.send(EventBuilder.timeScaleChanged({ scale }));
+            this.timeScaleService.setScale(scale);
         });
     }
 

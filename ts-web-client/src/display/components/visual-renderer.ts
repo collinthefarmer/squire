@@ -1,5 +1,8 @@
+import { animationFrameScheduler } from "rxjs";
+import { observeOn } from "rxjs/operators";
 import { BaseComponent } from "@components/base/base-component";
 import { ServiceRegistry } from "@services/service-registry";
+import { observeResize } from "@utils/observe-resize";
 import type { ConfigService } from "@services/config-service";
 import type { VisualService } from "@display/services/visual-service";
 import type { ImageLayerState } from "@types";
@@ -11,17 +14,15 @@ import { colors } from "@styles/theme";
  * Visual renderer component
  *
  * Renders image layers on full-screen canvas with transforms and effects.
- * Uses requestAnimationFrame to coalesce rapid state updates (e.g.,
- * batched replay events) into a single render per frame.
+ * Uses animationFrameScheduler to coalesce rapid state updates into a
+ * single render per frame.
  */
 export class VisualRenderer extends BaseComponent {
     private logger = new Logger("VisualRenderer");
     private canvas: HTMLCanvasElement | null = null;
     private ctx: CanvasRenderingContext2D | null = null;
     private imageCache!: ImageCache;
-    private resizeObserver: ResizeObserver | null = null;
     private latestLayers: Map<string, ImageLayerState> = new Map();
-    private renderFrameId: number | null = null;
 
     override connectedCallback(): void {
         super.connectedCallback();
@@ -31,23 +32,20 @@ export class VisualRenderer extends BaseComponent {
 
         this.render();
         this.setupCanvas();
-        this.observeResize();
+
+        if (this.shadowRoot?.host) {
+            this.subscribe(observeResize(this.shadowRoot.host), () => this.resizeCanvas());
+        }
 
         const visualService = ServiceRegistry.get<VisualService>("VisualService");
 
-        this.subscribe(visualService.getLayers$(), (layers) => {
-            this.latestLayers = layers;
-            this.requestRender();
-        });
-    }
-
-    override disconnectedCallback(): void {
-        super.disconnectedCallback();
-        this.resizeObserver?.disconnect();
-
-        if (this.renderFrameId !== null) {
-            cancelAnimationFrame(this.renderFrameId);
-        }
+        this.subscribe(
+            visualService.getLayers$().pipe(observeOn(animationFrameScheduler)),
+            (layers) => {
+                this.latestLayers = layers;
+                this.drawFrame();
+            },
+        );
     }
 
     protected override getStyles(): string {
@@ -89,16 +87,6 @@ export class VisualRenderer extends BaseComponent {
         this.resizeCanvas();
     }
 
-    private observeResize(): void {
-        this.resizeObserver = new ResizeObserver(() => {
-            this.resizeCanvas();
-        });
-
-        if (this.shadowRoot?.host) {
-            this.resizeObserver.observe(this.shadowRoot.host);
-        }
-    }
-
     private resizeCanvas(): void {
         if (!this.canvas || !this.shadowRoot?.host) {
             return;
@@ -108,33 +96,16 @@ export class VisualRenderer extends BaseComponent {
         this.canvas.width = rect.width;
         this.canvas.height = rect.height;
 
-        this.requestRender();
+        this.drawFrame();
     }
 
-    /**
-     * Schedule a render on the next animation frame.
-     *
-     * Multiple calls in the same frame collapse into one render
-     * with the latest layer state. This naturally handles batched
-     * replay events and rapid live updates.
-     */
-    private requestRender(): void {
-        if (this.renderFrameId !== null) {
+    private drawFrame(): void {
+        if (!this.ctx || !this.canvas) {
             return;
         }
 
-        this.renderFrameId = requestAnimationFrame(async () => {
-            this.renderFrameId = null;
-
-            if (!this.ctx || !this.canvas) {
-                return;
-            }
-
-            try {
-                await drawLayers(this.ctx, this.canvas, this.latestLayers, this.imageCache);
-            } catch (error) {
-                this.logger.error("Render failed", { error });
-            }
+        drawLayers(this.ctx, this.canvas, this.latestLayers, this.imageCache).catch((error) => {
+            this.logger.error("Render failed", { error });
         });
     }
 }

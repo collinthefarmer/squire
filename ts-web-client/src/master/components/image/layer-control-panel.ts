@@ -1,4 +1,5 @@
-import { BehaviorSubject } from "rxjs";
+import { BehaviorSubject, fromEvent } from "rxjs";
+import { debounceTime } from "rxjs/operators";
 import { BaseComponent } from "@components/base/base-component";
 import { onDomEvent, emitDomEvent } from "@utils/dom-events";
 import type { AspectRatioMode } from "@types";
@@ -417,13 +418,14 @@ export class LayerControlPanel extends BaseComponent {
             }
         });
 
-        input.addEventListener("blur", () => {
-            setTimeout(() => {
+        this.subscribe(
+            fromEvent(input, "blur").pipe(debounceTime(LAYER.ADD_BLUR_DELAY)),
+            () => {
                 if (this.adding$.value) {
                     this.adding$.next(false);
                 }
-            }, LAYER.ADD_BLUR_DELAY);
-        });
+            },
+        );
     }
 
     /**

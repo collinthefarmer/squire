@@ -52,12 +52,13 @@ export abstract class BaseComponent<TState = unknown> extends HTMLElement {
     protected abstract render(state?: TState): void;
 
     /**
-     * Get component styles
+     * Get component styles (legacy — use adoptStyles for new components)
      *
      * Override this method to provide component-specific styles.
      * Returns an empty string by default.
      *
      * @returns CSS string to be injected into component's <style> tag
+     * @deprecated Use adoptStyles() with CSS file imports instead
      */
     protected getStyles(): string {
         return "";
@@ -68,11 +69,32 @@ export abstract class BaseComponent<TState = unknown> extends HTMLElement {
      *
      * @param styles - CSS string
      * @returns HTML style tag with CSS content
+     * @deprecated Use adoptStyles() with CSS file imports instead
      */
     protected styleTag(styles: string): string {
         if (!styles.trim()) {
             return "";
         }
         return `<style>${styles}</style>`;
+    }
+
+    /**
+     * Adopt constructable stylesheets into this component's Shadow DOM.
+     *
+     * Stylesheets are shared across all instances of the component,
+     * avoiding duplication. Use with `cssSheet()` helper and CSS file imports:
+     *
+     * @example
+     * ```typescript
+     * import css from "./my-component.css" with { type: "text" };
+     * import { cssSheet } from "@styles/adopt-styles";
+     *
+     * this.adoptStyles(cssSheet(css));
+     * ```
+     */
+    protected adoptStyles(...sheets: CSSStyleSheet[]): void {
+        if (this.shadowRoot) {
+            this.shadowRoot.adoptedStyleSheets = sheets;
+        }
     }
 }

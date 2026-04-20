@@ -1,4 +1,7 @@
+import { fromEvent } from "rxjs";
+import { filter, take } from "rxjs/operators";
 import { BaseComponent } from "@components/base/base-component";
+import { observeResize } from "@utils/observe-resize";
 import "@utils/dom-events";
 import { ServiceRegistry } from "@services/service-registry";
 import type { MasterVisualService } from "@master/services/visual-service";
@@ -39,14 +42,9 @@ export class CanvasPreview extends BaseComponent {
         this.imageToolbarService = ServiceRegistry.get<ImageToolbarService>("ImageToolbarService");
 
         this.render();
-        this.setupDragListeners();
+        this.setupDragSubscriptions();
         this.setupPreviewScaleSync();
         this.listenForDisplayReady();
-    }
-
-    override disconnectedCallback(): void {
-        super.disconnectedCallback();
-        this.cleanupDragListeners();
     }
 
     protected override getStyles(): string {
@@ -87,23 +85,15 @@ export class CanvasPreview extends BaseComponent {
 
     // -- Drag event handling --
 
-    private setupDragListeners(): void {
-        document.addEventListener("drag-start", this.handleDragStart);
-        document.addEventListener("drag-move", this.handleDragMove);
-        document.addEventListener("drag-end", this.handleDragEnd);
-        document.addEventListener("drag-scale", this.handleDragScale);
-        document.addEventListener("asset-click", this.handleAssetClick);
+    private setupDragSubscriptions(): void {
+        this.subscribe(fromEvent<CustomEvent<import("@utils/dom-events").DragStartDetail>>(document, "drag-start"), (e) => this.handleDragStart(e));
+        this.subscribe(fromEvent<CustomEvent<import("@utils/dom-events").DragMoveDetail>>(document, "drag-move"), (e) => this.handleDragMove(e));
+        this.subscribe(fromEvent<CustomEvent<import("@utils/dom-events").DragEndDetail>>(document, "drag-end"), (e) => this.handleDragEnd(e));
+        this.subscribe(fromEvent<CustomEvent<import("@utils/dom-events").DragScaleDetail>>(document, "drag-scale"), (e) => this.handleDragScale(e));
+        this.subscribe(fromEvent<CustomEvent<import("@utils/dom-events").AssetClickDetail>>(document, "asset-click"), (e) => this.handleAssetClick(e));
     }
 
-    private cleanupDragListeners(): void {
-        document.removeEventListener("drag-start", this.handleDragStart);
-        document.removeEventListener("drag-move", this.handleDragMove);
-        document.removeEventListener("drag-end", this.handleDragEnd);
-        document.removeEventListener("drag-scale", this.handleDragScale);
-        document.removeEventListener("asset-click", this.handleAssetClick);
-    }
-
-    private handleDragStart = (e: CustomEvent<import("@utils/dom-events").DragStartDetail>): void => {
+    private handleDragStart(e: CustomEvent<import("@utils/dom-events").DragStartDetail>): void {
         if (e.detail.source) {
             return;
         }
@@ -122,7 +112,7 @@ export class CanvasPreview extends BaseComponent {
         this.getDropZone()?.activate();
     };
 
-    private handleDragMove = (e: CustomEvent<import("@utils/dom-events").DragMoveDetail>): void => {
+    private handleDragMove(e: CustomEvent<import("@utils/dom-events").DragMoveDetail>): void {
         if (!this.isDragActive || e.detail.source) {
             return;
         }
@@ -136,7 +126,7 @@ export class CanvasPreview extends BaseComponent {
         this.imageToolbarService.setPosition(normalizedPos);
     };
 
-    private handleDragEnd = (e: CustomEvent<import("@utils/dom-events").DragEndDetail>): void => {
+    private handleDragEnd(e: CustomEvent<import("@utils/dom-events").DragEndDetail>): void {
         if (e.detail.source) {
             return;
         }
@@ -153,7 +143,7 @@ export class CanvasPreview extends BaseComponent {
         this.getDropZone()?.deactivate();
     };
 
-    private handleDragScale = (e: CustomEvent<import("@utils/dom-events").DragScaleDetail>): void => {
+    private handleDragScale(e: CustomEvent<import("@utils/dom-events").DragScaleDetail>): void {
         if (e.detail.source) {
             return;
         }
@@ -161,7 +151,7 @@ export class CanvasPreview extends BaseComponent {
         this.imageToolbarService.setScale(e.detail.scale);
     };
 
-    private handleAssetClick = (e: CustomEvent<import("@utils/dom-events").AssetClickDetail>): void => {
+    private handleAssetClick(e: CustomEvent<import("@utils/dom-events").AssetClickDetail>): void {
         const { asset, assetType, imageWidth, imageHeight } = e.detail;
 
         if (assetType !== "image" || !asset) {
@@ -240,35 +230,26 @@ export class CanvasPreview extends BaseComponent {
             return;
         }
 
-        const updateScale = (): void => {
-            this.imageToolbarService.setPreviewScale(
-                iframePreview.getPreviewScale(),
-            );
-        };
+        this.imageToolbarService.setPreviewScale(iframePreview.getPreviewScale());
 
-        // Initial sync + observe resizes
-        updateScale();
-        const observer = new ResizeObserver(updateScale);
-        observer.observe(iframePreview);
-        this.cleanup.push(() => observer.disconnect());
+        this.subscribe(observeResize(iframePreview), () => {
+            this.imageToolbarService.setPreviewScale(iframePreview.getPreviewScale());
+        });
     }
 
     private listenForDisplayReady(): void {
-        const handler = (e: MessageEvent): void => {
-            if (e.data?.type !== "squire:audio-enabled") {
-                return;
-            }
-
-            const preview = this.getIframePreview();
-            if (preview) {
-                preview.appendChild(document.createElement("drop-zone-overlay"));
-                preview.appendChild(document.createElement("canvas-overlay"));
-            }
-
-            window.removeEventListener("message", handler);
-        };
-
-        window.addEventListener("message", handler);
-        this.cleanup.push(() => window.removeEventListener("message", handler));
+        this.subscribe(
+            fromEvent<MessageEvent>(window, "message").pipe(
+                filter((e) => e.data?.type === "squire:audio-enabled"),
+                take(1),
+            ),
+            () => {
+                const preview = this.getIframePreview();
+                if (preview) {
+                    preview.appendChild(document.createElement("drop-zone-overlay"));
+                    preview.appendChild(document.createElement("canvas-overlay"));
+                }
+            },
+        );
     }
 }

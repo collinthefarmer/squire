@@ -1,10 +1,14 @@
 import { BaseComponent } from "@components/base/base-component";
+import { emitDomEvent } from "@utils/dom-events";
 import { colors, spacing, borderRadius, fontSize, transitions } from "@styles/theme";
 
 interface TabDefinition {
     id: string;
     label: string;
+    layout?: string;
 }
+
+const DEFAULT_LAYOUT = "minmax(0, 1fr) 1fr";
 
 /**
  * Generic tabbed container for the sidebar
@@ -34,6 +38,7 @@ export class SidebarTabs extends BaseComponent {
         this.render();
         this.setupTabListeners();
         this.updateVisibility();
+        this.emitTabChange();
     }
 
     override connectedCallback(): void {
@@ -145,6 +150,7 @@ export class SidebarTabs extends BaseComponent {
 
             this.activeTab = tabId;
             this.updateVisibility();
+            this.emitTabChange();
         });
     }
 
@@ -165,5 +171,13 @@ export class SidebarTabs extends BaseComponent {
             const slotName = slot?.getAttribute("name") ?? "";
             panel.classList.toggle("active", slotName === this.activeTab);
         }
+    }
+
+    private emitTabChange(): void {
+        const tab = this.tabs.find((t) => t.id === this.activeTab);
+        emitDomEvent(this, "tab-change", {
+            tabId: this.activeTab,
+            layout: tab?.layout ?? DEFAULT_LAYOUT,
+        });
     }
 }

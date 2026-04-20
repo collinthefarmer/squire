@@ -5,16 +5,11 @@ import { colors, spacing, borderRadius, transitions, alpha } from "@styles/theme
 /**
  * Audio channel card component
  *
- * Renders a single audio channel's state
+ * Renders a single audio channel's state, showing all active tracks.
  */
 export class AudioChannelCard extends BaseComponent {
     private channel: AudioChannelState | null = null;
 
-    static observedAttributes = ["channel-id"];
-
-    /**
-     * Set channel data
-     */
     setChannel(channel: AudioChannelState): void {
         this.channel = channel;
         this.render();
@@ -47,33 +42,33 @@ export class AudioChannelCard extends BaseComponent {
                 margin-bottom: ${spacing.xs};
             }
 
-            .channel-source {
-                font-size: 0.75rem;
-                opacity: 0.7;
-                margin-bottom: ${spacing.sm};
+            .track-list {
+                display: flex;
+                flex-direction: column;
+                gap: ${spacing.xs};
             }
 
-            .channel-status {
+            .track-entry {
+                font-size: 0.75rem;
+                opacity: 0.7;
                 display: flex;
                 align-items: center;
                 gap: ${spacing.sm};
-                font-size: 0.75rem;
             }
 
-            .status-indicator {
-                width: 8px;
-                height: 8px;
-                border-radius: ${borderRadius.full};
+            .track-indicator {
+                width: 6px;
+                height: 6px;
+                border-radius: 50%;
+            }
+
+            .track-indicator.playing {
+                background: ${colors.green[400]};
                 animation: pulse 2s infinite;
             }
 
-            .status-indicator.playing {
-                background: ${colors.green[400]};
-            }
-
-            .status-indicator.paused {
+            .track-indicator.paused {
                 background: ${colors.amber[400]};
-                animation: none;
             }
 
             .volume-bar {
@@ -104,12 +99,8 @@ export class AudioChannelCard extends BaseComponent {
             }
 
             @keyframes pulse {
-                0%, 100% {
-                    opacity: 1;
-                }
-                50% {
-                    opacity: 0.5;
-                }
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.5; }
             }
         `;
     }
@@ -121,18 +112,22 @@ export class AudioChannelCard extends BaseComponent {
         }
 
         const channel = this.channel;
+        const tracks = Array.from(channel.tracks.values());
+        const anyPlaying = tracks.some((t) => t.playing);
+
+        const trackEntries = tracks.map((track) => `
+            <div class="track-entry">
+                <span class="track-indicator ${track.playing ? "playing" : "paused"}"></span>
+                <span>${track.source.type === "live" ? "LIVE" : track.source.ref}</span>
+            </div>
+        `).join("");
 
         this.shadowRoot!.innerHTML = `
             ${this.styleTag(this.getStyles())}
 
-            <div class="channel ${channel.playing ? "playing" : "paused"}">
+            <div class="channel ${anyPlaying ? "playing" : "paused"}">
                 <div class="channel-name">${channel.id}</div>
-                <div class="channel-source">${channel.source?.ref || "Unknown"}</div>
-                <div class="channel-status">
-                    <span class="status-indicator ${channel.playing ? "playing" : "paused"}"></span>
-                    <span>${channel.playing ? "Playing" : "Paused"}</span>
-                    ${channel.loop ? " • Loop" : ""}
-                </div>
+                <div class="track-list">${trackEntries}</div>
                 <div class="volume-bar">
                     <span class="volume-label">Vol: ${Math.round(channel.volume * 100)}%</span>
                     <div class="volume-track">

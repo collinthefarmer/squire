@@ -36,6 +36,8 @@ export class EventBuilder {
     static audioPlay(params: {
         channel: string;
         source: string;
+        sourceType?: "file" | "stream" | "live";
+        trackId?: string;
         volume?: number;
         loop?: boolean;
         effects?: AudioEffect[];
@@ -45,8 +47,9 @@ export class EventBuilder {
             type: "audio.play",
             payload: {
                 channel: params.channel,
+                trackId: params.trackId,
                 source: {
-                    type: "file",
+                    type: params.sourceType ?? "file",
                     ref: params.source,
                 },
                 volume: params.volume ?? 1.0,
@@ -64,11 +67,12 @@ export class EventBuilder {
     /**
      * Create audio.pause event
      */
-    static audioPause(params: { channel: string }): AudioPauseEvent {
+    static audioPause(params: { channel: string; trackId?: string }): AudioPauseEvent {
         return {
             type: "audio.pause",
             payload: {
                 channel: params.channel,
+                trackId: params.trackId,
             },
             metadata: {
                 timestamp: Date.now(),
@@ -80,11 +84,12 @@ export class EventBuilder {
     /**
      * Create audio.resume event
      */
-    static audioResume(params: { channel: string }): AudioResumeEvent {
+    static audioResume(params: { channel: string; trackId?: string }): AudioResumeEvent {
         return {
             type: "audio.resume",
             payload: {
                 channel: params.channel,
+                trackId: params.trackId,
             },
             metadata: {
                 timestamp: Date.now(),
@@ -96,11 +101,12 @@ export class EventBuilder {
     /**
      * Create audio.stop event
      */
-    static audioStop(params: { channel: string }): AudioStopEvent {
+    static audioStop(params: { channel: string; trackId?: string }): AudioStopEvent {
         return {
             type: "audio.stop",
             payload: {
                 channel: params.channel,
+                trackId: params.trackId,
             },
             metadata: {
                 timestamp: Date.now(),
@@ -115,12 +121,14 @@ export class EventBuilder {
     static audioVolume(params: {
         channel: string;
         volume: number;
+        trackId?: string;
     }): AudioVolumeEvent {
         return {
             type: "audio.volume",
             payload: {
                 channel: params.channel,
                 volume: params.volume,
+                trackId: params.trackId,
             },
             metadata: {
                 timestamp: Date.now(),

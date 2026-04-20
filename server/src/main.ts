@@ -75,6 +75,7 @@ function initializeContainer(): Container {
  */
 function routeMessage(
     container: Container,
+    clientRegistry: ClientRegistry,
     clientId: string,
     message: string,
 ): void {
@@ -94,7 +95,6 @@ function routeMessage(
 
         const event = validationResult.data;
 
-        // Add/update metadata with server timestamp and source
         const validatedEvent: Event = {
             ...event,
             metadata: {
@@ -104,7 +104,13 @@ function routeMessage(
             },
         };
 
-        // Append to EventStore (services subscribe to EventStore)
+        // WebRTC signaling: relay to target client, don't store
+        if (event.type.startsWith("webrtc.")) {
+            const targetId = (event.payload as { targetClientId: string }).targetClientId;
+            clientRegistry.sendToClient(targetId, validatedEvent);
+            return;
+        }
+
         const eventStore = container.resolve<EventStore>(TOKENS.EventStore);
         eventStore.append(validatedEvent);
     } catch (error) {
@@ -112,6 +118,28 @@ function routeMessage(
             logger.error("Validation error:", error.format);
         } else {
             logger.error("Failed to route message:", error);
+        }
+    }
+}
+
+/**
+ * Broadcast the current display client list to all master clients.
+ */
+function broadcastClientList(clientRegistry: ClientRegistry): void {
+    const allClients = clientRegistry.getAllClients();
+    const displays = allClients
+        .filter((c) => c.type === "display")
+        .map((c) => ({ id: c.id, type: c.type }));
+
+    const event: Event = {
+        type: "system.client_list",
+        payload: { displays },
+        metadata: { timestamp: Date.now(), source: "server" },
+    };
+
+    for (const client of allClients) {
+        if (client.type === "master") {
+            clientRegistry.sendToClient(client.id, event);
         }
     }
 }
@@ -164,22 +192,24 @@ async function main() {
 
     // Start WebSocket server
     const PORT = parseInt(process.env.PORT ?? "3000", 10);
-    const server = Bun.serve<{ clientId: string }>({
+    const server = Bun.serve<{ clientId: string; clientType: "master" | "display" }>({
         port: PORT,
 
         async fetch(req, server) {
+            const url = new URL(req.url);
+
             // Upgrade HTTP to WebSocket
+            const clientType = url.searchParams.get("type") === "master" ? "master" : "display";
             const upgraded = server.upgrade(req, {
                 data: {
                     clientId: generateClientId(),
+                    clientType,
                 },
             });
 
             if (upgraded) {
                 return undefined;
             }
-
-            const url = new URL(req.url);
 
             // Try router match first
             const match = router.match(req.method, url.pathname);
@@ -278,18 +308,24 @@ async function main() {
         },
 
         websocket: {
-            open(ws: ServerWebSocket<{ clientId: string }>) {
-                const clientId = ws.data.clientId;
+            open(ws: ServerWebSocket<{ clientId: string; clientType: "master" | "display" }>) {
+                const { clientId, clientType } = ws.data;
 
-                // Register client
                 const client: ConnectedClient = {
                     id: clientId,
-                    type: "display",
+                    type: clientType,
                     ws,
                     connectedAt: Date.now(),
                 };
 
                 clientRegistry.register(client);
+
+                // Tell the client its own ID
+                ws.send(JSON.stringify({
+                    type: "system.connected",
+                    payload: { clientId },
+                    metadata: { timestamp: Date.now(), source: "server" },
+                }));
 
                 // Replay events from EventStore (preserves original timestamps)
                 const replayEvents = eventStore.getReplayEvents();
@@ -298,24 +334,27 @@ async function main() {
                     ws.send(JSON.stringify(replayEvents));
                 }
 
-                logger.debug(`Client ${clientId} synced with ${replayEvents.length} events`);
+                logger.debug(`Client ${clientId} (${clientType}) synced with ${replayEvents.length} events`);
+
+                // Notify master clients of the updated display list
+                broadcastClientList(clientRegistry);
             },
 
             message(
-                ws: ServerWebSocket<{ clientId: string }>,
+                ws: ServerWebSocket<{ clientId: string; clientType: "master" | "display" }>,
                 message: string | Buffer,
             ) {
                 const clientId = ws.data.clientId;
                 const messageStr =
                     typeof message === "string" ? message : message.toString();
 
-                // Route message to EventStore
-                routeMessage(container, clientId, messageStr);
+                routeMessage(container, clientRegistry, clientId, messageStr);
             },
 
-            close(ws: ServerWebSocket<{ clientId: string }>) {
+            close(ws: ServerWebSocket<{ clientId: string; clientType: "master" | "display" }>) {
                 const clientId = ws.data.clientId;
                 clientRegistry.unregister(clientId);
+                broadcastClientList(clientRegistry);
             },
         },
     });

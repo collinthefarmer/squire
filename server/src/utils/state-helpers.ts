@@ -64,6 +64,19 @@ export function setAudioChannel(
 }
 
 /**
+ * Remove a channel from audio state (immutable)
+ */
+export function removeAudioChannel(
+    state: ApplicationState,
+    channelId: string,
+): ApplicationState {
+    return updateAudioChannels(state, (channels) => {
+        channels.delete(channelId);
+        return channels;
+    });
+}
+
+/**
  * Update a channel in audio state (immutable)
  */
 export function updateAudioChannel(

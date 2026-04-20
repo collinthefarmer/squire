@@ -70,10 +70,12 @@ export class ReplayDomain {
     private roles = new Map<string, EventRole>();
     private replayFilter?: (sequence: Event[]) => boolean;
     private replayTransform?: (sequence: Event[]) => Event[];
-    private keyField: string;
+    private keyExtractor: (event: Event) => string | undefined;
 
-    constructor(keyField: string, config: ReplayConfig) {
-        this.keyField = keyField;
+    constructor(keyField: string | ((event: Event) => string | undefined), config: ReplayConfig) {
+        this.keyExtractor = typeof keyField === "string"
+            ? (event) => (event.payload as Record<string, unknown>)[keyField] as string | undefined
+            : keyField;
         this.buildRoles(config);
     }
 
@@ -81,7 +83,7 @@ export class ReplayDomain {
      * Process an event according to the domain's replay rules.
      */
     update(event: Event): void {
-        const key = (event.payload as Record<string, unknown>)[this.keyField] as string;
+        const key = this.keyExtractor(event);
         const role = this.roles.get(event.type);
 
         if (!key || !role) {
@@ -231,6 +233,9 @@ export class ReplayDomain {
 /**
  * Factory function to create a ReplayDomain from a declarative config.
  */
-export function defineReplay(keyField: string, config: ReplayConfig): ReplayDomain {
+export function defineReplay(
+    keyField: string | ((event: Event) => string | undefined),
+    config: ReplayConfig,
+): ReplayDomain {
     return new ReplayDomain(keyField, config);
 }

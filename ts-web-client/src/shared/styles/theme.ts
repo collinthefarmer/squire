@@ -34,6 +34,7 @@ export const colors = {
         700: "#374151",
         600: "#4b5563",
         500: "#6b7280",
+        400: "#9ca3af",
         200: "#e5e7eb",
         100: "#f3f4f6",
         50: "#f9fafb",
@@ -98,6 +99,12 @@ export const sizing = {
     checkboxLg:    gu(5),   // 20px
     sliderThumb:   gu(4),   // 16px
     sliderTrack:   gu(2),   // 8px
+    stripBtn:      gu(7),   // 28px — timeline strip buttons
+    trackBlock:    gu(6),   // 24px — track block height
+    trackVolume:   gu(12),  // 48px — inline volume slider width
+    levelBar:      gu(10),  // 40px — summary level bar width
+    levelBarH:     gu(1.5), // 6px  — summary level bar height
+    volumeMax:     gu(30),  // 120px — transport volume slider max
 } as const;
 
 export const transitions = {

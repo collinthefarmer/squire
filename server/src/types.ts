@@ -22,6 +22,7 @@ export interface EventMetadata {
  */
 export interface AudioPlayPayload {
     channel: string;
+    trackId?: string;
     source: {
         type: "file" | "stream" | "live";
         ref: string;
@@ -38,12 +39,12 @@ export interface AudioEffect {
 }
 
 export type AudioPlayEvent = Event<"audio.play", AudioPlayPayload>;
-export type AudioPauseEvent = Event<"audio.pause", { channel: string }>;
-export type AudioResumeEvent = Event<"audio.resume", { channel: string }>;
-export type AudioStopEvent = Event<"audio.stop", { channel: string }>;
+export type AudioPauseEvent = Event<"audio.pause", { channel: string; trackId?: string }>;
+export type AudioResumeEvent = Event<"audio.resume", { channel: string; trackId?: string }>;
+export type AudioStopEvent = Event<"audio.stop", { channel: string; trackId?: string }>;
 export type AudioVolumeEvent = Event<
     "audio.volume",
-    { channel: string; volume: number }
+    { channel: string; volume: number; trackId?: string }
 >;
 
 export type AudioEvent =
@@ -56,12 +57,12 @@ export type AudioEvent =
 /**
  * Audio state
  */
-export interface AudioChannelState {
+export interface AudioTrackState {
     id: string;
     source: {
         type: "file" | "stream" | "live";
         ref: string;
-    } | null;
+    };
     playing: boolean;
     position: number;
     volume: number;
@@ -70,9 +71,31 @@ export interface AudioChannelState {
     respectTimeScale: boolean;
 }
 
+export interface AudioChannelState {
+    id: string;
+    tracks: Map<string, AudioTrackState>;
+    volume: number;
+}
+
 export interface AudioState {
     channels: Map<string, AudioChannelState>;
     masterVolume: number;
+}
+
+/**
+ * System events — server-originated, not validated through eventSchema
+ */
+export interface SystemConnectedPayload {
+    clientId: string;
+}
+
+export interface ClientInfo {
+    id: string;
+    type: "master" | "display";
+}
+
+export interface SystemClientListPayload {
+    displays: ClientInfo[];
 }
 
 /**

@@ -11,6 +11,14 @@ import type {
     ImageEffectPayload,
     ImageLayerConfigPayload,
 } from "@types";
+import {
+    generateTrackId,
+    getOrCreateChannel,
+    createTrackState,
+    updateTracksConditional,
+    removeTrack,
+    isChannelEmpty,
+} from "@utils/audio-helpers";
 
 /**
  * Project audio state from an event sequence
@@ -22,22 +30,22 @@ export function projectAudioState(events: Event[]): AudioState {
     const channels = new Map<string, AudioChannelState>();
 
     for (const event of events) {
-        const payload = event.payload as { channel: string };
+        const payload = event.payload as { channel: string; trackId?: string };
         const channelId = payload.channel;
 
         switch (event.type) {
             case "audio.play": {
-                const playPayload = event.payload as AudioPlayPayload;
-                channels.set(channelId, {
-                    id: channelId,
-                    source: playPayload.source,
-                    playing: true,
-                    position: 0,
-                    volume: playPayload.volume,
-                    loop: playPayload.loop,
-                    effects: playPayload.effects || [],
-                    respectTimeScale: playPayload.respectTimeScale,
+                const p = event.payload as AudioPlayPayload;
+                const trackId = p.trackId ?? generateTrackId();
+                const track = createTrackState(trackId, p.source, {
+                    loop: p.loop,
+                    effects: p.effects,
+                    respectTimeScale: p.respectTimeScale,
                 });
+
+                const ch = getOrCreateChannel(channels, channelId, p.volume);
+                ch.tracks.set(trackId, track);
+                channels.set(channelId, ch);
                 break;
             }
 
@@ -46,7 +54,7 @@ export function projectAudioState(events: Event[]): AudioState {
                 if (channel) {
                     channels.set(channelId, {
                         ...channel,
-                        playing: false,
+                        tracks: updateTracksConditional(channel.tracks, payload.trackId, (t) => ({ ...t, playing: false })),
                     });
                 }
                 break;
@@ -57,14 +65,26 @@ export function projectAudioState(events: Event[]): AudioState {
                 if (channel) {
                     channels.set(channelId, {
                         ...channel,
-                        playing: true,
+                        tracks: updateTracksConditional(channel.tracks, payload.trackId, (t) => ({ ...t, playing: true })),
                     });
                 }
                 break;
             }
 
             case "audio.stop": {
-                channels.delete(channelId);
+                if (payload.trackId) {
+                    const channel = channels.get(channelId);
+                    if (channel) {
+                        const updated = removeTrack(channel, payload.trackId);
+                        if (isChannelEmpty(updated)) {
+                            channels.delete(channelId);
+                        } else {
+                            channels.set(channelId, updated);
+                        }
+                    }
+                } else {
+                    channels.delete(channelId);
+                }
                 break;
             }
 
@@ -72,10 +92,14 @@ export function projectAudioState(events: Event[]): AudioState {
                 const channel = channels.get(channelId);
                 if (channel) {
                     const volPayload = (event as AudioVolumeEvent).payload;
-                    channels.set(channelId, {
-                        ...channel,
-                        volume: volPayload.volume,
-                    });
+                    if (volPayload.trackId) {
+                        channels.set(channelId, {
+                            ...channel,
+                            tracks: updateTracksConditional(channel.tracks, volPayload.trackId, (t) => ({ ...t, volume: volPayload.volume })),
+                        });
+                    } else {
+                        channels.set(channelId, { ...channel, volume: volPayload.volume });
+                    }
                 }
                 break;
             }

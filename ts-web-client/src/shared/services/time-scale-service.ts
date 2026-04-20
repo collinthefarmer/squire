@@ -1,6 +1,7 @@
 import { BehaviorSubject, type Observable } from "rxjs";
 import { Logger } from "@utils/logger";
 import type { EventBus } from "@services/event-bus";
+import type { ConnectionService } from "@services/connection-service";
 import type { TimeScaleChangedEvent } from "@types";
 
 /**
@@ -13,8 +14,11 @@ import type { TimeScaleChangedEvent } from "@types";
 export class TimeScaleService {
     private logger = new Logger("TimeScaleService");
     private scale$ = new BehaviorSubject<number>(1.0);
+    private connectionService: ConnectionService | null;
 
-    constructor(eventBus: EventBus) {
+    constructor(eventBus: EventBus, connectionService?: ConnectionService) {
+        this.connectionService = connectionService ?? null;
+
         eventBus.on("server:time.scale_changed", (event: unknown) => {
             const { scale } = (event as TimeScaleChangedEvent).payload;
             this.logger.info("Time scale changed", { scale });
@@ -28,5 +32,18 @@ export class TimeScaleService {
 
     getScale(): number {
         return this.scale$.value;
+    }
+
+    setScale(scale: number): void {
+        if (!this.connectionService) {
+            this.logger.warn("Cannot set scale — no connection service");
+            return;
+        }
+
+        this.connectionService.send({
+            type: "time.scale_changed",
+            payload: { scale },
+            metadata: { timestamp: Date.now(), source: "master-client" },
+        });
     }
 }

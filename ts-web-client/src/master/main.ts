@@ -7,9 +7,15 @@ import { ImageToolbarService } from "@master/services/image-toolbar-service";
 import { MasterVisualService } from "@master/services/visual-service";
 import { MasterClockService } from "@master/services/clock-service";
 import { TimeScaleService } from "@services/time-scale-service";
+import { WebRTCSignalingService } from "@services/webrtc-signaling-service";
+import { MicCaptureService } from "@master/services/mic-capture-service";
+import { WebRTCBroadcastService } from "@master/services/webrtc-broadcast-service";
+import { LiveAudioService } from "@master/services/live-audio-service";
+import { MasterAudioService } from "@master/services/master-audio-service";
 
 import { Draggable } from "@components/draggable/draggable";
 import { DraggableImage } from "@components/draggable/draggable-image";
+import { DraggableAudio } from "@components/draggable/draggable-audio";
 import { ImageHandle } from "@components/image-handle";
 import { ImageAssetGridClass } from "@components/asset-gallery";
 
@@ -23,6 +29,12 @@ import { ChannelSelector } from "@master/components/audio/channel-selector";
 import { AudioAssetPicker } from "@master/components/audio/audio-asset-picker";
 import { AudioPlaybackButtons } from "@master/components/audio/audio-playback-buttons";
 import { VolumeControl } from "@master/components/audio/volume-control";
+import { SourceTypeSelector } from "@master/components/audio/source-type-selector";
+import { MicControls } from "@master/components/audio/mic-controls";
+import { AudioFileList } from "@master/components/audio/audio-file-list";
+import { AudioTimeline } from "@master/components/audio/audio-timeline";
+import { TimelineChannelLane } from "@master/components/audio/timeline-channel-lane";
+import { TimelineTrackBlock } from "@master/components/audio/timeline-track-block";
 import { ImageGallery } from "@master/components/image/image-gallery";
 import { ClockControls } from "@master/components/clock/clock-controls";
 import { TimeScaleControls } from "@master/components/time/time-scale-controls";
@@ -49,7 +61,7 @@ function init(): void {
     const imageToolbarService = new ImageToolbarService();
     ServiceRegistry.register("ImageToolbarService", imageToolbarService);
 
-    const timeScaleService = new TimeScaleService(eventBus);
+    const timeScaleService = new TimeScaleService(eventBus, connection);
     ServiceRegistry.register("TimeScaleService", timeScaleService);
 
     const visualService = new MasterVisualService(connection, eventBus);
@@ -58,8 +70,24 @@ function init(): void {
     const clockService = new MasterClockService(connection, eventBus);
     ServiceRegistry.register("MasterClockService", clockService);
 
+    const signalingService = new WebRTCSignalingService(connection, eventBus);
+    ServiceRegistry.register("WebRTCSignalingService", signalingService);
+
+    const micCaptureService = new MicCaptureService();
+    ServiceRegistry.register("MicCaptureService", micCaptureService);
+
+    const broadcastService = new WebRTCBroadcastService(signalingService);
+    ServiceRegistry.register("WebRTCBroadcastService", broadcastService);
+
+    const masterAudioService = new MasterAudioService(eventBus, connection, assetService);
+    ServiceRegistry.register("MasterAudioService", masterAudioService);
+
+    const liveAudioService = new LiveAudioService(connection, eventBus, micCaptureService, broadcastService);
+    ServiceRegistry.register("LiveAudioService", liveAudioService);
+
     customElements.define("squire-draggable", DraggableImage);
     customElements.define("squire-draggable-handle", Draggable);
+    customElements.define("squire-draggable-audio", DraggableAudio);
     customElements.define("image-handle", ImageHandle);
     customElements.define("image-asset-grid", ImageAssetGridClass);
 
@@ -67,6 +95,12 @@ function init(): void {
     customElements.define("audio-asset-picker", AudioAssetPicker);
     customElements.define("audio-playback-buttons", AudioPlaybackButtons);
     customElements.define("volume-control", VolumeControl);
+    customElements.define("source-type-selector", SourceTypeSelector);
+    customElements.define("mic-controls", MicControls);
+    customElements.define("audio-file-list", AudioFileList);
+    customElements.define("timeline-track-block", TimelineTrackBlock);
+    customElements.define("timeline-channel-lane", TimelineChannelLane);
+    customElements.define("audio-timeline", AudioTimeline);
     customElements.define("audio-controls", AudioControls);
 
     customElements.define("layer-control-panel", LayerControlPanel);

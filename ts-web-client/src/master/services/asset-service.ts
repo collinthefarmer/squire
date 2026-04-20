@@ -2,6 +2,12 @@ import { BehaviorSubject, type Observable } from "rxjs";
 import { Logger } from "@utils/logger";
 import type { ConfigService } from "@services/config-service";
 
+export interface AudioAsset {
+    name: string;
+    url: string;
+    duration: number;
+}
+
 export interface ImageAsset {
     name: string;
     url: string;
@@ -16,7 +22,7 @@ export interface ImageAsset {
  */
 export class AssetService {
     private logger = new Logger("AssetService");
-    private audioAssets$ = new BehaviorSubject<string[]>([]);
+    private audioAssets$ = new BehaviorSubject<AudioAsset[]>([]);
     private imageAssets$ = new BehaviorSubject<ImageAsset[]>([]);
     private apiUrl: string;
 
@@ -27,7 +33,7 @@ export class AssetService {
     /**
      * Get audio assets observable
      */
-    getAudioAssets$(): Observable<string[]> {
+    getAudioAssets$(): Observable<AudioAsset[]> {
         return this.audioAssets$.asObservable();
     }
 
@@ -41,7 +47,7 @@ export class AssetService {
     /**
      * Get current audio assets value
      */
-    getAudioAssets(): string[] {
+    getAudioAssets(): AudioAsset[] {
         return this.audioAssets$.value;
     }
 
@@ -67,13 +73,10 @@ export class AssetService {
                 return;
             }
 
-            const assetsData = await response.json();
-            const assetNames = assetsData.map(
-                (asset: { name: string; url: string }) => asset.name,
-            );
-            this.audioAssets$.next(assetNames);
+            const assets: AudioAsset[] = await response.json();
+            this.audioAssets$.next(assets);
             this.logger.info("Audio assets loaded", {
-                count: assetNames.length,
+                count: assets.length,
             });
         } catch (error) {
             this.logger.error("Error fetching audio assets", { error });

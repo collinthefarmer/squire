@@ -97,7 +97,7 @@ export class AssetPicker extends BaseComponent {
     private setupSubscriptions(): void {
         if (this.config.assetType === "audio") {
             this.subscribe(this.assetService.getAudioAssets$(), (assets) => {
-                this.updateAssetList(assets);
+                this.updateAssetList(assets.map((a) => a.name));
             });
         } else {
             this.subscribe(this.assetService.getImageAssets$(), (assets) => {

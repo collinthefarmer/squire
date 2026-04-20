@@ -9,13 +9,23 @@ import type {
     AudioVolumeEvent,
     AudioChannelState,
     AudioEvent,
+    Event,
 } from "@types";
 import {
     setAudioChannel,
     updateAudioChannel,
     getAudioChannel,
     getAllAudioChannels,
+    removeAudioChannel,
 } from "@utils/state-helpers";
+import {
+    generateTrackId,
+    getOrCreateChannel,
+    createTrackState,
+    updateTracksConditional,
+    removeTrack,
+    isChannelEmpty,
+} from "@utils/audio-helpers";
 import { Logger } from "@utils/logger";
 
 const logger = new Logger("AudioService");
@@ -25,6 +35,7 @@ const logger = new Logger("AudioService");
  *
  * Subscribes to EventStore for audio events and maintains
  * a materialized view in StateStore for quick lookups.
+ * Supports multiple simultaneous tracks per channel.
  */
 export class AudioService {
     constructor(
@@ -37,7 +48,6 @@ export class AudioService {
     }
 
     private setupEventListeners(): void {
-        // Subscribe to all audio events from EventStore
         this.eventStore.ofType<AudioEvent>("audio.*").subscribe((event) => {
             this.handleEvent(event);
         });
@@ -67,112 +77,127 @@ export class AudioService {
         const { channel, source, volume, loop, effects, respectTimeScale } =
             event.payload;
 
-        logger.info(`Audio play: channel=${channel}, source=${source.ref}`);
+        const trackId = event.payload.trackId ?? generateTrackId();
 
-        // Update materialized view
-        this.stateStore.updateState((state) => {
-            const channelState: AudioChannelState = {
-                id: channel,
-                source,
-                playing: true,
-                position: 0,
-                volume,
-                loop,
-                effects: effects || [],
-                respectTimeScale,
-            };
+        logger.info(`Audio play: channel=${channel}, track=${trackId}, source=${source.ref}`);
 
-            return setAudioChannel(state, channel, channelState);
+        const track = createTrackState(trackId, source, {
+            loop, effects, respectTimeScale,
         });
 
-        // Broadcast to all clients
-        this.clientRegistry.broadcast(event);
+        this.stateStore.updateState((state) => {
+            const ch = getOrCreateChannel(
+                state.audio?.channels ?? new Map(),
+                channel,
+                volume,
+            );
+            ch.tracks.set(trackId, track);
+            return setAudioChannel(state, channel, ch);
+        });
+
+        const broadcastEvent: Event = {
+            ...event,
+            payload: { ...event.payload, trackId },
+        };
+        this.clientRegistry.broadcast(broadcastEvent);
     }
 
     private handlePause(event: AudioPauseEvent): void {
-        const { channel } = event.payload;
+        const { channel, trackId } = event.payload;
 
-        logger.info(`Audio pause: channel=${channel}`);
+        logger.info(`Audio pause: channel=${channel}, track=${trackId ?? "all"}`);
 
-        // Update materialized view
         this.stateStore.updateState((state) => {
-            return updateAudioChannel(state, channel, (channelState) => ({
-                ...channelState,
-                playing: false,
+            return updateAudioChannel(state, channel, (ch) => ({
+                ...ch,
+                tracks: updateTracksConditional(ch.tracks, trackId, (t) => ({
+                    ...t,
+                    playing: false,
+                })),
             }));
         });
 
-        // Broadcast to all clients
         this.clientRegistry.broadcast(event);
     }
 
     private handleResume(event: AudioResumeEvent): void {
-        const { channel } = event.payload;
+        const { channel, trackId } = event.payload;
 
-        // Check if channel exists and is paused
         const channelState = this.getChannel(channel);
         if (!channelState) {
             logger.debug(`Audio resume: channel=${channel} does not exist, no-op`);
             return;
         }
 
-        if (channelState.playing) {
-            logger.debug(`Audio resume: channel=${channel} already playing, no-op`);
-            return;
-        }
+        logger.info(`Audio resume: channel=${channel}, track=${trackId ?? "all"}`);
 
-        logger.info(`Audio resume: channel=${channel}`);
-
-        // Update materialized view
         this.stateStore.updateState((state) => {
             return updateAudioChannel(state, channel, (ch) => ({
                 ...ch,
-                playing: true,
+                tracks: updateTracksConditional(ch.tracks, trackId, (t) => ({
+                    ...t,
+                    playing: true,
+                })),
             }));
         });
 
-        // Broadcast to all clients
         this.clientRegistry.broadcast(event);
     }
 
     private handleStop(event: AudioStopEvent): void {
-        const { channel } = event.payload;
+        const { channel, trackId } = event.payload;
 
-        logger.info(`Audio stop: channel=${channel}`);
+        logger.info(`Audio stop: channel=${channel}, track=${trackId ?? "all"}`);
 
-        // Update materialized view
         this.stateStore.updateState((state) => {
-            return updateAudioChannel(state, channel, (channelState) => ({
-                ...channelState,
-                playing: false,
-                position: 0,
-            }));
+            if (!trackId) {
+                return removeAudioChannel(state, channel);
+            }
+
+            const ch = getAudioChannel(state, channel);
+            if (!ch) {
+                return state;
+            }
+
+            const updated = removeTrack(ch, trackId);
+
+            if (isChannelEmpty(updated)) {
+                return removeAudioChannel(state, channel);
+            }
+
+            return setAudioChannel(state, channel, updated);
         });
 
-        // Broadcast to all clients
         this.clientRegistry.broadcast(event);
     }
 
     private handleVolumeChange(event: AudioVolumeEvent): void {
-        const { channel, volume } = event.payload;
+        const { channel, volume, trackId } = event.payload;
 
-        logger.info(`Audio volume: channel=${channel}, volume=${volume}`);
+        logger.info(`Audio volume: channel=${channel}, track=${trackId ?? "channel"}, volume=${volume}`);
 
-        // Update materialized view
         this.stateStore.updateState((state) => {
-            return updateAudioChannel(state, channel, (channelState) => ({
-                ...channelState,
-                volume,
-            }));
+            if (trackId) {
+                return updateAudioChannel(state, channel, (ch) => ({
+                    ...ch,
+                    tracks: updateTracksConditional(ch.tracks, trackId, (t) => ({
+                        ...t,
+                        volume,
+                    })),
+                }));
+            }
+
+            const existing = getAudioChannel(state, channel);
+            if (!existing) {
+                return state;
+            }
+
+            return setAudioChannel(state, channel, { ...existing, volume });
         });
 
-        // Broadcast to all clients
         this.clientRegistry.broadcast(event);
     }
 
-    /**
-     * Get all channels from materialized view
-     */
     getAllChannels(): AudioChannelState[] {
         const state = this.stateStore.getState();
         if (!state.audio) {
@@ -181,9 +206,6 @@ export class AudioService {
         return getAllAudioChannels(state);
     }
 
-    /**
-     * Get channel state from materialized view
-     */
     getChannel(channelId: string): AudioChannelState | undefined {
         const state = this.stateStore.getState();
         if (!state.audio) {

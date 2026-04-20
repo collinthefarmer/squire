@@ -479,3 +479,57 @@ export function segmentedButtonStyles(): string {
         }
     `;
 }
+
+/**
+ * Strip button — square touch-friendly button for timeline controls.
+ * Used in channel lane strips and the global transport strip.
+ */
+export function stripButtonStyles(): string {
+    return `
+        .strip-btn {
+            width: ${sizing.stripBtn};
+            height: ${sizing.stripBtn};
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: 1px solid ${colors.gray[600]};
+            border-radius: ${borderRadius.md};
+            color: ${colors.gray[500]};
+            cursor: pointer;
+            font-size: ${fontSize.xs};
+            font-weight: 700;
+            text-transform: uppercase;
+            transition: ${transitions.fast};
+            padding: 0;
+        }
+
+        .strip-btn:hover {
+            border-color: ${colors.gray[400]};
+            color: ${colors.gray[200]};
+        }
+    `;
+}
+
+/**
+ * Level bar — small horizontal fill bar for summary indicators.
+ */
+export function levelBarStyles(): string {
+    return `
+        .level-bar {
+            width: ${sizing.levelBar};
+            height: ${sizing.levelBarH};
+            background: ${colors.gray[700]};
+            border-radius: ${borderRadius.sm};
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .level-bar-fill {
+            height: 100%;
+            background: ${colors.green[500]};
+            border-radius: ${borderRadius.sm};
+            transition: width 0.2s ease;
+        }
+    `;
+}

@@ -1,0 +1,91 @@
+:host {
+    display: block;
+}
+
+.track-block {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: var(--sizing-track-block);
+    padding: 0 var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.track-block.file {
+    background: #3b82f633;
+    border: 1px solid #3b82f666;
+}
+
+.track-block.live {
+    background: #ef444433;
+    border: 1px solid #ef444466;
+}
+
+.track-block.paused {
+    opacity: 0.5;
+}
+
+.track-name {
+    font-size: var(--font-xs);
+    color: var(--color-gray-200);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    position: relative;
+    z-index: 1;
+}
+
+.track-volume {
+    width: var(--sizing-track-volume);
+    height: var(--spacing-md);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+    accent-color: var(--color-blue-500);
+    cursor: pointer;
+}
+
+.track-block.live .track-volume {
+    accent-color: var(--color-red-500);
+}
+
+.track-stop {
+    background: transparent;
+    border: none;
+    color: var(--color-gray-500);
+    cursor: pointer;
+    font-size: var(--font-sm);
+    padding: 0 var(--spacing-xs);
+    line-height: 1;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.track-stop:hover {
+    color: var(--color-red-500);
+}
+
+.track-progress {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: var(--progress, 0%);
+    background: #3b82f644;
+}
+
+.track-block.live .track-progress {
+    background: #ef444444;
+    animation: live-pulse 2s ease-in-out infinite;
+}
+
+@keyframes live-pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 0.8; }
+}

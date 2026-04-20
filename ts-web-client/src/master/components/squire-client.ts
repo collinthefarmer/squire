@@ -1,4 +1,5 @@
 import { BaseComponent } from "@components/base/base-component";
+import { onDomEvent } from "@utils/dom-events";
 import type { SidebarTabs } from "./sidebar-tabs";
 import { colors, spacing, borderRadius, fontSize, sizing } from "@styles/theme";
 
@@ -47,9 +48,10 @@ export class SquireMasterClient extends BaseComponent {
 
             .preview-section {
                 display: grid;
-                grid-template-columns: minmax(0, 1fr) ${sizing.sidebarWidth};
+                grid-template-columns: minmax(0, 3fr) 1fr;
                 gap: ${spacing.xl};
                 margin-bottom: ${spacing.xl};
+                transition: grid-template-columns 0.3s ease;
             }
 
             .preview-main {
@@ -142,7 +144,7 @@ export class SquireMasterClient extends BaseComponent {
                 </div>
 
                 <div class="bottom-section">
-                    <slot name="bottom"></slot>
+                    <audio-timeline></audio-timeline>
                 </div>
             </div>
 
@@ -154,12 +156,25 @@ export class SquireMasterClient extends BaseComponent {
     }
 
     private initTabs(): void {
-        const tabs = this.shadowRoot?.querySelector("sidebar-tabs") as SidebarTabs | null;
+        if (!this.shadowRoot) {
+            return;
+        }
+
+        this.cleanup.push(
+            onDomEvent(this.shadowRoot, "tab-change", (e) => {
+                const section = this.shadowRoot?.querySelector(".preview-section") as HTMLElement;
+                if (section) {
+                    section.style.gridTemplateColumns = e.detail.layout;
+                }
+            }),
+        );
+
+        const tabs = this.shadowRoot.querySelector("sidebar-tabs") as SidebarTabs | null;
 
         tabs?.setTabs([
-            { id: "image", label: "Image" },
-            { id: "time", label: "Time" },
-            { id: "audio", label: "Audio" },
+            { id: "image", label: "Image", layout: "minmax(0, 3fr) 1fr" },
+            { id: "time", label: "Time", layout: "minmax(0, 1fr) 1fr" },
+            { id: "audio", label: "Audio", layout: "minmax(0, 1fr) 2fr" },
         ]);
     }
 }

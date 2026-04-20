@@ -15,6 +15,7 @@ export type {
     AudioVolumeEvent,
     AudioEvent,
     AudioChannelState,
+    AudioTrackState,
     AudioEffect,
     ImageSetEvent,
     ImageClearEvent,

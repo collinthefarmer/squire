@@ -8,6 +8,8 @@ import { AudioService } from "@display/services/audio-service";
 import { VisualService } from "@display/services/visual-service";
 import { DisplayClockService } from "@display/services/clock-service";
 import { TimeScaleService } from "@services/time-scale-service";
+import { WebRTCSignalingService } from "@services/webrtc-signaling-service";
+import { WebRTCReceiverService } from "@display/services/webrtc-receiver-service";
 import { AudioEnableModal } from "@display/components/audio-enable-modal";
 import { AudioPlayer } from "@display/components/audio-player";
 import { AudioChannelCard } from "@display/components/audio-channel-card";
@@ -31,6 +33,12 @@ function init(): void {
 
     const connection = new ConnectionService(eventBus, config);
     ServiceRegistry.register("ConnectionService", connection);
+
+    const signalingService = new WebRTCSignalingService(connection, eventBus);
+    ServiceRegistry.register("WebRTCSignalingService", signalingService);
+
+    const receiverService = new WebRTCReceiverService(signalingService);
+    ServiceRegistry.register("WebRTCReceiverService", receiverService);
 
     const audioService = new AudioService(eventBus, config);
     ServiceRegistry.register("AudioService", audioService);

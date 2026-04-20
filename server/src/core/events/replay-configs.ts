@@ -52,7 +52,13 @@ function handleAudioResume(sequence: Event[], resumeEvent: Event): Event[] {
  * playback position computation.
  */
 export function createAudioReplay(timeService: TimeService) {
-    return defineReplay("channel", {
+    // Key by trackId (stamped by server on play events) with channel as fallback
+    const audioKey = (event: Event) => {
+        const payload = event.payload as { trackId?: string; channel?: string };
+        return payload.trackId ?? payload.channel;
+    };
+
+    return defineReplay(audioKey, {
         "audio.play": {
             removes: ["audio.stop"],
             folds: {
@@ -70,8 +76,13 @@ export function createAudioReplay(timeService: TimeService) {
                 const payload = playEvent.payload as {
                     loop?: boolean;
                     respectTimeScale?: boolean;
-                    source?: { ref?: string };
+                    source?: { type?: string; ref?: string };
                 };
+
+                // Live audio can't be replayed — master re-offers WebRTC
+                if (payload.source?.type === "live") {
+                    return false;
+                }
 
                 if (payload.loop) {
                     return true;
