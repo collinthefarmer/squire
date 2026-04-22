@@ -31,6 +31,8 @@ export class LiveAudioService {
         private broadcastService: WebRTCBroadcastService,
     ) {
         this.setupClientListListener();
+        this.setupStopListener();
+        this.setupEffectsListener();
     }
 
     isLive$(): Observable<boolean> {
@@ -76,7 +78,7 @@ export class LiveAudioService {
             sourceType: "live",
             volume: 1.0,
             loop: false,
-            respectTimeScale: true,
+            respectTimeScale: false,
         });
         this.connectionService.send(event);
 
@@ -160,5 +162,66 @@ export class LiveAudioService {
                 }
             }
         });
+    }
+
+    /**
+     * Listen for audio.stop events on the active live channel.
+     * When the live channel is stopped (by timeline transport,
+     * per-track stop, or any other path), release the mic.
+     */
+    private setupStopListener(): void {
+        this.eventBus.on("server:audio.stop", (event: unknown) => {
+            if (!this.live$.value || !this.activeChannel) {
+                return;
+            }
+
+            const { channel } = (event as { payload: { channel: string } })
+                .payload;
+
+            if (channel !== this.activeChannel) {
+                return;
+            }
+
+            this.broadcastService.closeAll();
+            this.micCaptureService.stopCapture();
+
+            this.logger.info("Live audio stopped via audio.stop event", {
+                channel,
+            });
+
+            this.activeChannel = null;
+            this.live$.next(false);
+        });
+    }
+
+    /**
+     * Listen for channel effects changes on the active live channel.
+     * Applies the effect chain to the mic capture graph so the
+     * processed audio flows through WebRTC.
+     */
+    private setupEffectsListener(): void {
+        this.eventBus.on(
+            "server:audio.channel_effects",
+            (event: unknown) => {
+                if (!this.live$.value || !this.activeChannel) {
+                    return;
+                }
+
+                const { channel, effects } = (
+                    event as {
+                        payload: {
+                            channel: string;
+                            effects: import("@types").AudioEffect[];
+                        };
+                    }
+                ).payload;
+
+                if (channel !== this.activeChannel) {
+                    return;
+                }
+
+                this.micCaptureService.setEffects(effects);
+            },
+        );
     }
 }

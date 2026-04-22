@@ -1,16 +1,10 @@
-import {
-    BehaviorSubject,
-    interval,
-    animationFrameScheduler,
-    of,
-    type Observable,
-} from "rxjs";
-import { map, distinctUntilChanged, switchMap } from "rxjs/operators";
+import { BehaviorSubject, interval, animationFrameScheduler, of, type Observable, map, distinctUntilChanged, switchMap } from "rxjs";
 import { Logger } from "@utils/logger";
 import { generateTrackId } from "@utils/audio-helpers";
 import { setInMap, updateInMap, removeFromMap } from "@utils/state-helpers";
 import type { EventBus } from "@services/event-bus";
 import type { ConnectionService } from "@services/connection-service";
+import type { LocalStore } from "@services/local-store";
 import type { AssetService, AudioAsset } from "./asset-service";
 import { EventBuilder } from "./event-builder";
 import type {
@@ -63,14 +57,17 @@ export class MasterAudioService {
     private progress = new Map<string, TrackProgress>();
     private currentTimeScale = 1.0;
     private connectionService: ConnectionService;
+    private localStore: LocalStore;
     private assetService: AssetService;
 
     constructor(
         eventBus: EventBus,
         connectionService: ConnectionService,
+        localStore: LocalStore,
         assetService: AssetService,
     ) {
         this.connectionService = connectionService;
+        this.localStore = localStore;
         this.assetService = assetService;
         this.setupEventListeners(eventBus);
     }
@@ -199,6 +196,49 @@ export class MasterAudioService {
                 respectTimeScale: options?.respectTimeScale,
             }),
         );
+
+        this.trackChannelUsage(source, channel);
+    }
+
+    /**
+     * Returns the channel this source has been played on most often,
+     * or "ambient" if no history exists.
+     */
+    bestChannelFor(source: string): string {
+        const history =
+            this.localStore.get<Record<string, Record<string, number>>>(
+                "audio.channelHistory",
+            ) ?? {};
+
+        const fileHistory = history[source];
+        if (!fileHistory) {
+            return "ambient";
+        }
+
+        let best = "ambient";
+        let bestCount = 0;
+
+        for (const [channel, count] of Object.entries(fileHistory)) {
+            if (count > bestCount) {
+                best = channel;
+                bestCount = count;
+            }
+        }
+
+        return best;
+    }
+
+    private trackChannelUsage(source: string, channel: string): void {
+        const history =
+            this.localStore.get<Record<string, Record<string, number>>>(
+                "audio.channelHistory",
+            ) ?? {};
+
+        const fileHistory = history[source] ?? {};
+        fileHistory[channel] = (fileHistory[channel] ?? 0) + 1;
+        history[source] = fileHistory;
+
+        this.localStore.set("audio.channelHistory", history);
     }
 
     pauseAudio(channel: string, trackId?: string): void {
@@ -216,6 +256,18 @@ export class MasterAudioService {
     stopAudio(channel: string, trackId?: string): void {
         this.connectionService.send(
             EventBuilder.audioStop({ channel, trackId }),
+        );
+    }
+
+    setLoop(channel: string, trackId: string, loop: boolean): void {
+        this.connectionService.send(
+            EventBuilder.audioLoop({ channel, trackId, loop }),
+        );
+    }
+
+    setChannelEffects(channel: string, effects: import("@types").AudioEffect[]): void {
+        this.connectionService.send(
+            EventBuilder.audioChannelEffects({ channel, effects }),
         );
     }
 
@@ -314,6 +366,14 @@ export class MasterAudioService {
             (e) => this.handleResume(e),
         );
         on<AudioVolumeEvent>("audio.volume", (e) => this.handleVolume(e));
+        on<{ payload: { channel: string; trackId: string; loop: boolean } }>(
+            "audio.loop",
+            (e) => this.handleLoop(e),
+        );
+        on<{ payload: { channel: string; effects: import("@types").AudioEffect[] } }>(
+            "audio.channel_effects",
+            (e) => this.handleChannelEffects(e),
+        );
         on<{ payload: { scale: number } }>("time.scale_changed", (e) =>
             this.handleTimeScaleChanged(e),
         );
@@ -323,13 +383,15 @@ export class MasterAudioService {
         const { channel, source, volume, loop, effects, respectTimeScale } =
             event.payload;
         const trackId = event.payload.trackId ?? generateTrackId();
+        const eventTime =
+            event.metadata.gameTimestamp ?? event.metadata.timestamp;
 
         const current = this.channels$.value;
         const existing = current.get(channel);
 
         const ch: AudioChannelState = existing
             ? { ...existing, tracks: new Map(existing.tracks) }
-            : { id: channel, tracks: new Map(), volume };
+            : { id: channel, tracks: new Map(), volume, effects: [] };
 
         if (!this.intendedVolumes.has(channel)) {
             this.intendedVolumes.set(channel, volume);
@@ -347,7 +409,7 @@ export class MasterAudioService {
         });
 
         this.progress.set(trackId, {
-            playStartTime: Date.now(),
+            playStartTime: eventTime,
             accumulatedMs: 0,
             pausedAt: null,
             timeScale: this.currentTimeScale,
@@ -470,6 +532,47 @@ export class MasterAudioService {
                 })),
             );
         }
+    }
+
+    private handleLoop(event: {
+        payload: { channel: string; trackId: string; loop: boolean };
+    }): void {
+        const { channel, trackId, loop } = event.payload;
+        const ch = this.channels$.value.get(channel);
+        if (!ch) {
+            return;
+        }
+
+        const tracks = new Map(ch.tracks);
+        const track = tracks.get(trackId);
+        if (!track) {
+            return;
+        }
+
+        tracks.set(trackId, { ...track, loop });
+        this.channels$.next(
+            updateInMap(this.channels$.value, channel, () => ({
+                ...ch,
+                tracks,
+            })),
+        );
+    }
+
+    private handleChannelEffects(event: {
+        payload: { channel: string; effects: import("@types").AudioEffect[] };
+    }): void {
+        const { channel, effects } = event.payload;
+        const ch = this.channels$.value.get(channel);
+        if (!ch) {
+            return;
+        }
+
+        this.channels$.next(
+            updateInMap(this.channels$.value, channel, () => ({
+                ...ch,
+                effects,
+            })),
+        );
     }
 
     private handleTimeScaleChanged(event: {

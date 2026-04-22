@@ -50,6 +50,28 @@
     color: var(--color-gray-900);
 }
 
+.fx-select {
+    height: var(--sizing-strip-btn);
+    padding: 0 var(--spacing-sm);
+    font-size: var(--font-xs);
+    background: var(--color-gray-800);
+    border: 1px solid var(--color-gray-600);
+    border-radius: var(--radius-md);
+    color: var(--color-gray-200);
+    cursor: pointer;
+    min-width: 0;
+    max-width: 100px;
+}
+
+.fx-select:focus {
+    outline: none;
+    border-color: var(--color-blue-400);
+}
+
+.fx-edit-btn {
+    font-size: var(--font-sm);
+}
+
 /* -- Right body -- */
 
 .lane-body {
@@ -58,6 +80,7 @@
     display: flex;
     flex-direction: column;
     padding: var(--spacing-xs) var(--spacing-sm);
+    min-height: var(--sizing-channel-lane);
 }
 
 .lane-label {

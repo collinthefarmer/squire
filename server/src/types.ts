@@ -55,13 +55,23 @@ export type AudioVolumeEvent = Event<
     "audio.volume",
     { channel: string; volume: number; trackId?: string }
 >;
+export type AudioLoopEvent = Event<
+    "audio.loop",
+    { channel: string; trackId: string; loop: boolean }
+>;
+export type AudioChannelEffectsEvent = Event<
+    "audio.channel_effects",
+    { channel: string; effects: AudioEffect[] }
+>;
 
 export type AudioEvent =
     | AudioPlayEvent
     | AudioPauseEvent
     | AudioResumeEvent
     | AudioStopEvent
-    | AudioVolumeEvent;
+    | AudioVolumeEvent
+    | AudioLoopEvent
+    | AudioChannelEffectsEvent;
 
 /**
  * Audio state
@@ -84,6 +94,7 @@ export interface AudioChannelState {
     id: string;
     tracks: Map<string, AudioTrackState>;
     volume: number;
+    effects: AudioEffect[];
 }
 
 export interface AudioState {

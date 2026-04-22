@@ -4,6 +4,8 @@ import type {
     AudioResumeEvent,
     AudioStopEvent,
     AudioVolumeEvent,
+    AudioLoopEvent,
+    AudioChannelEffectsEvent,
     ImageSetEvent,
     ImageClearEvent,
     ImageTransformEvent,
@@ -138,6 +140,42 @@ export class EventBuilder {
                 channel: params.channel,
                 volume: params.volume,
                 trackId: params.trackId,
+            },
+            metadata: {
+                timestamp: Date.now(),
+                source: "master-client",
+            },
+        };
+    }
+
+    static audioChannelEffects(params: {
+        channel: string;
+        effects: AudioEffect[];
+    }): AudioChannelEffectsEvent {
+        return {
+            type: "audio.channel_effects",
+            payload: {
+                channel: params.channel,
+                effects: params.effects,
+            },
+            metadata: {
+                timestamp: Date.now(),
+                source: "master-client",
+            },
+        };
+    }
+
+    static audioLoop(params: {
+        channel: string;
+        trackId: string;
+        loop: boolean;
+    }): AudioLoopEvent {
+        return {
+            type: "audio.loop",
+            payload: {
+                channel: params.channel,
+                trackId: params.trackId,
+                loop: params.loop,
             },
             metadata: {
                 timestamp: Date.now(),

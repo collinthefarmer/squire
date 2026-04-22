@@ -77,6 +77,25 @@ export const audioVolumeEventSchema = z.object({
     metadata: eventMetadataSchema,
 });
 
+export const audioLoopEventSchema = z.object({
+    type: z.literal("audio.loop"),
+    payload: z.object({
+        channel: z.string(),
+        trackId: z.string(),
+        loop: z.boolean(),
+    }),
+    metadata: eventMetadataSchema,
+});
+
+export const audioChannelEffectsEventSchema = z.object({
+    type: z.literal("audio.channel_effects"),
+    payload: z.object({
+        channel: z.string(),
+        effects: z.array(audioEffectSchema),
+    }),
+    metadata: eventMetadataSchema,
+});
+
 // Union of all audio events
 export const audioEventSchema = z.discriminatedUnion("type", [
     audioPlayEventSchema,
@@ -84,6 +103,8 @@ export const audioEventSchema = z.discriminatedUnion("type", [
     audioResumeEventSchema,
     audioStopEventSchema,
     audioVolumeEventSchema,
+    audioLoopEventSchema,
+    audioChannelEffectsEventSchema,
 ]);
 
 // Image/Visual schemas

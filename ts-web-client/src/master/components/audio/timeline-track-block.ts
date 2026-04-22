@@ -1,11 +1,14 @@
-import { Subject } from "rxjs";
-import { throttleTime } from "rxjs/operators";
+import { Subject, throttleTime } from "rxjs";
 import { BaseComponent } from "@components/base/base-component";
 import { emitDomEvent } from "@utils/dom-events";
 import { cssSheet } from "@styles/adopt-styles";
 import { ServiceRegistry } from "@services/service-registry";
 import type { MasterAudioService } from "@master/services/master-audio-service";
 import type { AssetService } from "@master/services/asset-service";
+import type {
+    ContextMenuService,
+    MenuProvider,
+} from "@services/context-menu-service";
 import type { AudioTrackState } from "@types";
 
 // @ts-expect-error — Bun imports CSS as text
@@ -29,10 +32,47 @@ import commonCss from "@styles/common.css" with { type: "text" };
 export class TimelineTrackBlock extends BaseComponent {
     private audioService!: MasterAudioService;
     private assetService!: AssetService;
+    private contextMenuService!: ContextMenuService;
     private volumeChange$ = new Subject<number>();
 
     private trackId = "";
     private channel = "";
+
+    private menuProvider: MenuProvider = (_target, path) => {
+        const block = path.find(
+            (el) => (el as HTMLElement).classList?.contains("track-block"),
+        );
+        if (!block) {
+            return null;
+        }
+
+        const track = this.audioService.findTrack(this.trackId);
+        if (!track) {
+            return null;
+        }
+
+        const isLooping = track.loop;
+
+        return [
+            {
+                label: "Loop",
+                suffix: isLooping ? "✓" : undefined,
+                action: () =>
+                    this.audioService.setLoop(
+                        this.channel,
+                        this.trackId,
+                        !isLooping,
+                    ),
+            },
+            {
+                label: "Stop track",
+                icon: "×",
+                danger: true,
+                action: () =>
+                    this.audioService.stopAudio(this.channel, this.trackId),
+            },
+        ];
+    };
 
     static observedAttributes = ["track-id", "channel"];
 
@@ -42,13 +82,22 @@ export class TimelineTrackBlock extends BaseComponent {
         this.audioService =
             ServiceRegistry.get<MasterAudioService>("MasterAudioService");
         this.assetService = ServiceRegistry.get<AssetService>("AssetService");
+        this.contextMenuService =
+            ServiceRegistry.get<ContextMenuService>("ContextMenuService");
 
         this.trackId = this.getAttribute("track-id") ?? "";
         this.channel = this.getAttribute("channel") ?? "";
 
+        this.contextMenuService.registerProvider(this.menuProvider);
+
         this.adoptStyles(cssSheet(commonCss), cssSheet(trackBlockCss));
         this.render();
         this.setupSubscriptions();
+    }
+
+    override disconnectedCallback(): void {
+        super.disconnectedCallback();
+        this.contextMenuService.unregisterProvider(this.menuProvider);
     }
 
     protected override render(): void {
@@ -58,11 +107,11 @@ export class TimelineTrackBlock extends BaseComponent {
 
         this.shadowRoot.innerHTML = `
             <div class="track-block" id="block">
+                <button class="track-stop" id="stop" title="Stop track">×</button>
                 <div class="track-progress" id="progress"></div>
                 <span class="track-name" id="name"></span>
                 <input type="range" class="track-volume" id="volume"
                     min="0" max="1" step="0.01" value="1" />
-                <button class="track-stop" id="stop" title="Stop track">×</button>
             </div>
         `;
 

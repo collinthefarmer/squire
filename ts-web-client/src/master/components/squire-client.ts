@@ -49,6 +49,9 @@ export class SquireMasterClient extends BaseComponent {
                         <div slot="audio" class="tab-panel">
                             <audio-controls></audio-controls>
                         </div>
+                        <div slot="settings" class="tab-panel">
+                            <settings-panel></settings-panel>
+                        </div>
                     </sidebar-tabs>
                 </div>
 
@@ -86,8 +89,9 @@ export class SquireMasterClient extends BaseComponent {
 
         tabs?.setTabs([
             { id: "image", label: "Image", layout: "minmax(0, 3fr) 1fr" },
-            { id: "time", label: "Time", layout: "minmax(0, 1fr) 1fr" },
+            { id: "time", label: "Time", layout: "minmax(0, 3fr) 1fr" },
             { id: "audio", label: "Audio", layout: "minmax(0, 1fr) 2fr" },
+            { id: "settings", label: "Settings", layout: "minmax(0, 3fr) 1fr" },
         ]);
     }
 }

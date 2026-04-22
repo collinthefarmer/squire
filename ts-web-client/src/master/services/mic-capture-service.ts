@@ -1,5 +1,7 @@
 import { BehaviorSubject, type Observable } from "rxjs";
 import { Logger } from "@utils/logger";
+import { EffectChain } from "@services/effect-chain";
+import type { AudioEffect } from "@types";
 
 export type MicState = "inactive" | "capturing" | "error";
 
@@ -22,6 +24,7 @@ export class MicCaptureService {
     private destinationNode: MediaStreamAudioDestinationNode | null = null;
     private analyserNode: AnalyserNode | null = null;
     private monitorGainNode: GainNode | null = null;
+    private effectChain: EffectChain | null = null;
 
     private state$ = new BehaviorSubject<MicState>("inactive");
     private monitoring = false;
@@ -71,9 +74,22 @@ export class MicCaptureService {
             return;
         }
 
+        if (!navigator.mediaDevices) {
+            this.state$.next("error");
+            this.logger.error(
+                "mediaDevices API unavailable (requires HTTPS or localhost)",
+            );
+            return;
+        }
+
         try {
             const constraints: MediaStreamConstraints = {
-                audio: deviceId ? { deviceId: { exact: deviceId } } : true,
+                audio: {
+                    ...(deviceId && { deviceId: { exact: deviceId } }),
+                    autoGainControl: false,
+                    noiseSuppression: false,
+                    echoCancellation: false,
+                },
                 video: false,
             };
 
@@ -122,6 +138,11 @@ export class MicCaptureService {
             this.mediaStream = null;
         }
 
+        if (this.effectChain) {
+            this.effectChain.dispose();
+            this.effectChain = null;
+        }
+
         this.sourceNode?.disconnect();
         this.inputGainNode?.disconnect();
         this.analyserNode?.disconnect();
@@ -140,6 +161,45 @@ export class MicCaptureService {
         this.monitoring = false;
         this.state$.next("inactive");
         this.logger.info("Mic capture stopped");
+    }
+
+    /**
+     * Apply effects to the mic capture graph.
+     * Rewires: inputGain → EffectChain → destination
+     * Empty array removes the chain: inputGain → destination
+     */
+    setEffects(effects: AudioEffect[]): void {
+        if (!this.audioContext || !this.inputGainNode || !this.destinationNode) {
+            return;
+        }
+
+        // Disconnect all outputs from inputGain, then rebuild connections
+        this.inputGainNode.disconnect();
+
+        if (this.effectChain) {
+            this.effectChain.dispose();
+            this.effectChain = null;
+        }
+
+        // Audio path: inputGain → [chain] → destination
+        if (effects.length === 0) {
+            this.inputGainNode.connect(this.destinationNode);
+            this.logger.info("Mic effects cleared");
+        } else {
+            this.effectChain = new EffectChain(this.audioContext);
+            this.effectChain.setEffects(effects);
+            this.inputGainNode.connect(this.effectChain.getInput());
+            this.effectChain.getOutput().connect(this.destinationNode);
+            this.logger.info("Mic effects applied", { count: effects.length });
+        }
+
+        // Reconnect analyser and monitor paths
+        if (this.analyserNode) {
+            this.inputGainNode.connect(this.analyserNode);
+        }
+        if (this.monitorGainNode) {
+            this.inputGainNode.connect(this.monitorGainNode);
+        }
     }
 
     setInputGain(value: number): void {
@@ -163,6 +223,13 @@ export class MicCaptureService {
     }
 
     async getInputDevices(): Promise<MediaDeviceInfo[]> {
+        if (!navigator.mediaDevices) {
+            this.logger.warn(
+                "mediaDevices API unavailable (requires HTTPS or localhost)",
+            );
+            return [];
+        }
+
         const devices = await navigator.mediaDevices.enumerateDevices();
         return devices.filter((d) => d.kind === "audioinput");
     }

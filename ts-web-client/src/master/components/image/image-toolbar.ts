@@ -149,7 +149,15 @@ export class ImageToolbar extends BaseComponent {
             };
         });
 
-        entries.sort((a, b) => b.zIndex - a.zIndex);
+        // Sort so top of list = frontmost on display.
+        // Primary: descending zIndex. Tiebreaker: later-registered layers
+        // appear on top (matching Map insertion order in the renderer).
+        entries.sort((a, b) => {
+            if (a.zIndex !== b.zIndex) {
+                return b.zIndex - a.zIndex;
+            }
+            return registered.indexOf(b.id) - registered.indexOf(a.id);
+        });
         return entries;
     }
 

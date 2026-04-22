@@ -196,11 +196,24 @@ async function main() {
 
     // Start WebSocket server
     const PORT = parseInt(process.env.PORT ?? "3000", 10);
+
+    const certPath = "./certs/cert.pem";
+    const keyPath = "./certs/key.pem";
+    const hasCerts =
+        (await Bun.file(certPath).exists()) &&
+        (await Bun.file(keyPath).exists());
+
     const server = Bun.serve<{
         clientId: string;
         clientType: "master" | "display";
     }>({
         port: PORT,
+        ...(hasCerts && {
+            tls: {
+                cert: Bun.file(certPath),
+                key: Bun.file(keyPath),
+            },
+        }),
 
         async fetch(req, server) {
             const url = new URL(req.url);
@@ -398,7 +411,8 @@ async function main() {
         },
     });
 
-    logger.info(`Server running on ${server.hostname}:${server.port}`);
+    const protocol = hasCerts ? "https" : "http";
+    logger.info(`Server running on ${protocol}://${server.hostname}:${server.port}`);
     logger.info(`WebSocket endpoint: ws://localhost:${PORT}`);
     logger.info(`Health check: http://localhost:${PORT}/health`);
 }

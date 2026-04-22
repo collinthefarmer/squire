@@ -1,5 +1,4 @@
-import { BehaviorSubject, timer, type Observable } from "rxjs";
-import { take } from "rxjs/operators";
+import { BehaviorSubject, timer, type Observable, take } from "rxjs";
 import { Logger } from "@utils/logger";
 import { eventSchema } from "@schemas";
 import type { EventBus } from "@services/event-bus";

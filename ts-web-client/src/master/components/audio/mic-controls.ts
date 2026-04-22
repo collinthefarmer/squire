@@ -1,6 +1,5 @@
-import { EMPTY, Observable, animationFrameScheduler, interval } from "rxjs";
+import { EMPTY, Observable, animationFrameScheduler, interval, switchMap } from "rxjs";
 import { cssSheet } from "@styles/adopt-styles";
-import { switchMap } from "rxjs/operators";
 import { BaseComponent } from "@components/base/base-component";
 import { emitDomEvent } from "@utils/dom-events";
 import { ServiceRegistry } from "@services/service-registry";

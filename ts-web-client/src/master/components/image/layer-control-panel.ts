@@ -1,6 +1,5 @@
-import { BehaviorSubject, fromEvent } from "rxjs";
+import { BehaviorSubject, fromEvent, debounceTime } from "rxjs";
 import { cssSheet } from "@styles/adopt-styles";
-import { debounceTime } from "rxjs/operators";
 import { BaseComponent } from "@components/base/base-component";
 import { onDomEvent, emitDomEvent } from "@utils/dom-events";
 import type { AspectRatioMode } from "@types";
@@ -16,14 +15,6 @@ import {
     outlineButtonStyles,
     inputStyles,
 } from "@styles/common-styles";
-import {
-    colors,
-    spacing,
-    borderRadius,
-    fontSize,
-    alpha,
-    transitions,
-} from "@styles/theme";
 
 /**
  * A single layer's display state, computed by the parent toolbar
@@ -144,45 +135,29 @@ export class LayerControlPanel extends BaseComponent {
         row.className = layer.selected ? "layer-row selected" : "layer-row";
         row.dataset.layer = layer.id;
 
-        row.appendChild(this.createLabel(layer.id));
-        row.appendChild(this.createImageRef(layer.imageRef));
-        row.appendChild(this.createRowActions(layer));
+        row.appendChild(this.createStrip(layer));
+        row.appendChild(this.createBody(layer));
 
         draggable.appendChild(row);
         return draggable;
     }
 
-    private createLabel(text: string): HTMLSpanElement {
-        const el = document.createElement("span");
-        el.className = "layer-name";
-        el.textContent = text;
-        return el;
-    }
-
-    private createImageRef(imageRef: string | null): HTMLSpanElement {
-        const el = document.createElement("span");
-        el.className = "layer-image";
-        el.textContent = imageRef ?? "(empty)";
-        return el;
-    }
-
-    private createRowActions(layer: LayerEntry): HTMLDivElement {
-        const actions = document.createElement("div");
-        actions.className = "layer-actions";
+    private createStrip(layer: LayerEntry): HTMLDivElement {
+        const strip = document.createElement("div");
+        strip.className = "layer-strip";
 
         const visBtn = this.createActionButton(
             layer.visible ? "●" : "○",
             layer.visible ? "Hide layer" : "Show layer",
             "visibility",
             layer.id,
-            layer.visible ? "active" : "",
+            `vis-btn${layer.visible ? " active" : ""}`,
         );
         visBtn.dataset.visible = layer.visible ? "true" : "false";
+        strip.appendChild(visBtn);
 
         const hasImage = layer.imageRef !== null;
         const isLastLayer = this.layers$.value.length <= 1;
-
-        actions.appendChild(visBtn);
 
         if (hasImage) {
             const containBtn = this.createActionButton(
@@ -190,7 +165,7 @@ export class LayerControlPanel extends BaseComponent {
                 "Contain",
                 "aspect-ratio",
                 layer.id,
-                layer.aspectRatio === "contain" ? "selected" : "",
+                `ar-btn${layer.aspectRatio === "contain" ? " selected" : ""}`,
             );
             containBtn.dataset.aspectRatio = "contain";
 
@@ -199,35 +174,52 @@ export class LayerControlPanel extends BaseComponent {
                 "Cover",
                 "aspect-ratio",
                 layer.id,
-                layer.aspectRatio === "cover" ? "selected" : "",
+                `ar-btn${layer.aspectRatio === "cover" ? " selected" : ""}`,
             );
             coverBtn.dataset.aspectRatio = "cover";
 
-            actions.appendChild(containBtn);
-            actions.appendChild(coverBtn);
+            strip.appendChild(containBtn);
+            strip.appendChild(coverBtn);
 
-            actions.appendChild(
+            strip.appendChild(
                 this.createActionButton(
-                    "▢",
+                    "✕",
                     "Clear image",
                     "clear",
                     layer.id,
-                    "danger",
+                    "clear-btn",
                 ),
             );
         } else if (!isLastLayer) {
-            actions.appendChild(
+            strip.appendChild(
                 this.createActionButton(
-                    "×",
+                    "✕",
                     "Remove layer",
                     "remove",
                     layer.id,
-                    "danger",
+                    "remove-btn",
                 ),
             );
         }
 
-        return actions;
+        return strip;
+    }
+
+    private createBody(layer: LayerEntry): HTMLDivElement {
+        const body = document.createElement("div");
+        body.className = "layer-body";
+
+        const name = document.createElement("span");
+        name.className = "layer-name";
+        name.textContent = layer.id;
+
+        const image = document.createElement("span");
+        image.className = "layer-image";
+        image.textContent = layer.imageRef ?? "(empty)";
+
+        body.appendChild(name);
+        body.appendChild(image);
+        return body;
     }
 
     private renderAddInput(adding: boolean): void {
@@ -310,7 +302,7 @@ export class LayerControlPanel extends BaseComponent {
         extraClass: string,
     ): HTMLButtonElement {
         const btn = document.createElement("button");
-        btn.className = `icon-btn${extraClass ? ` ${extraClass}` : ""}`;
+        btn.className = `strip-btn${extraClass ? ` ${extraClass}` : ""}`;
         btn.type = "button";
         btn.dataset.action = action;
         btn.dataset.layer = layer;

@@ -3,9 +3,11 @@ import { Logger } from "@utils/logger";
 import { setInMap, updateInMap, removeFromMap } from "@utils/state-helpers";
 import { generateTrackId } from "@utils/audio-helpers";
 import { ServiceRegistry } from "@services/service-registry";
+import { EffectChain } from "@services/effect-chain";
 import type { EventBus } from "@services/event-bus";
 import type { ConfigService } from "@services/config-service";
 import type { WebRTCReceiverService } from "@display/services/webrtc-receiver-service";
+import type { AudioEffect } from "@types";
 import type {
     AudioChannelState,
     AudioPlayEvent,
@@ -31,6 +33,11 @@ export class AudioService {
     /** Track-to-channel mapping for volume/time-scale lookups */
     private trackChannels = new Map<string, string>();
     private liveSubscriptions = new Map<string, () => void>();
+    /** Per-channel effect chains (only created when effects are active) */
+    private channelChains = new Map<string, EffectChain>();
+    private channelContexts = new Map<string, AudioContext>();
+    /** MediaElementSourceNodes keyed by trackId (needed to route through effects) */
+    private sourceNodes = new Map<string, MediaElementAudioSourceNode>();
     private apiUrl: string;
 
     constructor(
@@ -88,6 +95,14 @@ export class AudioService {
         );
         this.onAudioEvent<AudioVolumeEvent>("audio.volume", (e) =>
             this.handleVolume(e),
+        );
+        this.onAudioEvent<{ payload: { channel: string; trackId: string; loop: boolean } }>(
+            "audio.loop",
+            (e) => this.handleLoop(e),
+        );
+        this.onAudioEvent<{ payload: { channel: string; effects: import("@types").AudioEffect[] } }>(
+            "audio.channel_effects",
+            (e) => this.handleChannelEffects(e),
         );
     }
 
@@ -188,6 +203,10 @@ export class AudioService {
         this.audioElements.set(trackId, audio);
         this.trackChannels.set(trackId, channel);
 
+        if (this.channelChains.has(channel)) {
+            this.routeThroughChain(trackId, audio, channel);
+        }
+
         this.updateChannelState(
             channel,
             trackId,
@@ -225,21 +244,11 @@ export class AudioService {
         audio.volume = volume;
         audio.autoplay = true;
 
-        const existingStream = receiver.getStream();
-        if (existingStream) {
-            audio.srcObject = existingStream;
-            audio.play().catch((err) => {
-                this.logger.error("Failed to play live audio", {
-                    channel,
-                    error: err,
-                });
-            });
-        }
-
         const sub = receiver.getStream$().subscribe((stream) => {
-            if (!stream) {
+            if (!stream || audio.srcObject === stream) {
                 return;
             }
+
             audio.srcObject = stream;
             audio.play().catch((err) => {
                 this.logger.error("Failed to play live audio", {
@@ -286,7 +295,7 @@ export class AudioService {
 
         const channelState: AudioChannelState = existing
             ? { ...existing, tracks: new Map(existing.tracks) }
-            : { id: channel, tracks: new Map(), volume };
+            : { id: channel, tracks: new Map(), volume, effects: [] };
 
         channelState.tracks.set(trackId, track);
 
@@ -372,6 +381,59 @@ export class AudioService {
             const updated = removeFromMap(this.channels$.value, channel);
             this.channels$.next(updated);
         }
+    }
+
+    private handleChannelEffects(event: {
+        payload: { channel: string; effects: import("@types").AudioEffect[] };
+    }): void {
+        const { channel, effects } = event.payload;
+
+        this.logger.info("Channel effects", { channel, count: effects.length });
+
+        // Update state
+        const ch = this.channels$.value.get(channel);
+        if (ch) {
+            const updated = updateInMap(this.channels$.value, channel, (c) => ({
+                ...c,
+                effects,
+            }));
+            this.channels$.next(updated);
+        }
+
+        // Only rebuild if effect types/count changed; otherwise update params in-place
+        const chain = this.channelChains.get(channel);
+        const prevEffects = ch?.effects ?? [];
+
+        const structureChanged =
+            effects.length !== prevEffects.length ||
+            effects.some((e, i) => e.type !== prevEffects[i]?.type);
+
+        if (structureChanged || !chain) {
+            this.rebuildChannelEffects(channel, effects);
+        } else {
+            for (const effect of effects) {
+                chain.updateParams(effect.type, effect.params);
+            }
+        }
+    }
+
+    private handleLoop(event: {
+        payload: { channel: string; trackId: string; loop: boolean };
+    }): void {
+        const { channel, trackId, loop } = event.payload;
+
+        this.logger.info("Audio loop", { channel, trackId, loop });
+
+        const audio = this.audioElements.get(trackId);
+        if (audio) {
+            audio.loop = loop;
+        }
+
+        const updated = this.updateTracks(channel, trackId, (track) => ({
+            ...track,
+            loop,
+        }));
+        this.channels$.next(updated);
     }
 
     private handleVolume(event: AudioVolumeEvent): void {
@@ -490,6 +552,7 @@ export class AudioService {
         startPosition: number = 0,
     ): HTMLAudioElement {
         const audio = new Audio();
+        audio.crossOrigin = "anonymous";
         audio.volume = volume;
         audio.loop = loop;
         audio.preload = "auto";
@@ -658,6 +721,97 @@ export class AudioService {
             this.liveSubscriptions.delete(trackId);
             this.audioElements.delete(trackId);
             this.trackChannels.delete(trackId);
+        }
+    }
+
+    // -- Effect chain management --
+
+    private rebuildChannelEffects(
+        channel: string,
+        effects: AudioEffect[],
+    ): void {
+        // Ensure a persistent AudioContext for this channel
+        let ctx = this.channelContexts.get(channel);
+        if (!ctx) {
+            ctx = new AudioContext();
+            this.channelContexts.set(channel, ctx);
+        }
+
+        const existingChain = this.channelChains.get(channel);
+
+        if (effects.length === 0) {
+            if (existingChain) {
+                existingChain.dispose();
+                this.channelChains.delete(channel);
+            }
+
+            // Reconnect source nodes directly to ctx.destination
+            for (const [trackId, sourceNode] of this.sourceNodes) {
+                if (this.trackChannels.get(trackId) !== channel) {
+                    continue;
+                }
+
+                try {
+                    sourceNode.disconnect();
+                } catch {
+                    // Already disconnected
+                }
+
+                sourceNode.connect(ctx.destination);
+            }
+
+            return;
+        }
+
+        let chain = existingChain;
+        if (!chain) {
+            chain = new EffectChain(ctx);
+            chain.getOutput().connect(ctx.destination);
+            this.channelChains.set(channel, chain);
+        }
+
+        chain.setEffects(effects);
+
+        // Route all existing tracks on this channel through the chain
+        for (const [trackId, audio] of this.audioElements) {
+            if (this.trackChannels.get(trackId) !== channel) {
+                continue;
+            }
+
+            this.routeThroughChain(trackId, audio, channel);
+        }
+    }
+
+    private routeThroughChain(
+        trackId: string,
+        audio: HTMLAudioElement,
+        channel: string,
+    ): void {
+        const chain = this.channelChains.get(channel);
+        const ctx = this.channelContexts.get(channel);
+
+        if (!ctx) {
+            return;
+        }
+
+        // MediaElementAudioSourceNode is permanently bound to its element.
+        // Create once and reuse — never delete from the map.
+        let sourceNode = this.sourceNodes.get(trackId);
+        if (!sourceNode) {
+            sourceNode = ctx.createMediaElementSource(audio);
+            this.sourceNodes.set(trackId, sourceNode);
+        }
+
+        try {
+            sourceNode.disconnect();
+        } catch {
+            // Not connected yet
+        }
+
+        if (chain) {
+            sourceNode.connect(chain.getInput());
+        } else {
+            sourceNode.connect(ctx.destination);
         }
     }
 

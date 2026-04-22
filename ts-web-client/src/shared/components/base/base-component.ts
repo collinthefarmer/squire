@@ -1,5 +1,4 @@
-import { Subject, type Observable } from "rxjs";
-import { takeUntil } from "rxjs/operators";
+import { Subject, type Observable, takeUntil } from "rxjs";
 
 /**
  * Base class for all web components

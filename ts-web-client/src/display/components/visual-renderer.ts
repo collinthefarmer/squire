@@ -1,6 +1,5 @@
-import { animationFrameScheduler } from "rxjs";
+import { animationFrameScheduler, observeOn } from "rxjs";
 import { cssSheet } from "@styles/adopt-styles";
-import { observeOn } from "rxjs/operators";
 import { BaseComponent } from "@components/base/base-component";
 import { ServiceRegistry } from "@services/service-registry";
 import { observeResize } from "@utils/observe-resize";

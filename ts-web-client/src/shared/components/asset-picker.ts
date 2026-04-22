@@ -7,7 +7,6 @@ import {
 } from "@utils/dom-events";
 import { ServiceRegistry } from "@services/service-registry";
 import type { AssetService, ImageAsset } from "@master/services/asset-service";
-import { selectStyles, labelStyles, flexColumn } from "@styles/common-styles";
 // @ts-expect-error — Bun imports CSS as text
 import assetPickerCss from "./asset-picker.css" with { type: "text" };
 // @ts-expect-error — Bun imports CSS as text

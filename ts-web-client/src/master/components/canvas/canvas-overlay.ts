@@ -10,8 +10,17 @@ import type {
 } from "@utils/dom-events";
 import { ServiceRegistry } from "@services/service-registry";
 import { Logger } from "@utils/logger";
-import type { CanvasObject } from "@master/services/visual-service";
+import type {
+    CanvasObject,
+    MasterVisualService,
+} from "@master/services/visual-service";
 import type { CanvasObjectProvider } from "@master/services/canvas-object-provider";
+import type { ImageToolbarService } from "@master/services/image-toolbar-service";
+import type {
+    ContextMenuService,
+    MenuProvider,
+} from "@services/context-menu-service";
+import { DISPLAY } from "@shared/constants/display";
 import { DRAG } from "@shared/constants/drag";
 import { boundsToPercentages, applyDragDelta } from "./display-coordinates";
 import type { IframePreview } from "./iframe-preview";
@@ -45,23 +54,109 @@ export class CanvasOverlay extends BaseComponent {
     private dragDy = 0;
     private pendingScale: number | null = null;
 
+    private visualService!: MasterVisualService;
+    private imageToolbarService!: ImageToolbarService;
+    private contextMenuService!: ContextMenuService;
+
+    private menuProvider: MenuProvider = (_target, path) => {
+        const handle = path.find(
+            (el) => (el as HTMLElement).classList?.contains("overlay-handle"),
+        );
+        if (!handle) {
+            return null;
+        }
+
+        const draggable = (handle as HTMLElement).closest(
+            "squire-draggable-handle",
+        );
+        const layerId = draggable?.getAttribute("data-drag-data");
+        if (!layerId) {
+            return null;
+        }
+
+        const obj = this.objects.find((o) => o.id === layerId);
+        if (!obj || obj.type !== "image") {
+            return null;
+        }
+
+        const zIndices = this.objects.map((o) => o.zIndex);
+        const maxZ = Math.max(...zIndices);
+        const minZ = Math.min(...zIndices);
+
+        const unscaledW = obj.bounds.width / obj.scale;
+        const unscaledH = obj.bounds.height / obj.scale;
+        const centerX = DISPLAY.WIDTH / 2 - unscaledW / 2;
+        const centerY = DISPLAY.HEIGHT / 2 - unscaledH / 2;
+
+        return [
+            {
+                label: "Center image",
+                icon: "⊹",
+                action: () =>
+                    this.visualService.transformImage(layerId, {
+                        position: { x: `${centerX}px`, y: `${centerY}px` },
+                    }),
+            },
+            {
+                label: "Bring to front",
+                icon: "⬆",
+                disabled: obj.zIndex >= maxZ,
+                action: () =>
+                    this.visualService.setLayerConfig(layerId, {
+                        zIndex: maxZ + 1,
+                    }),
+            },
+            {
+                label: "Send to back",
+                icon: "⬇",
+                disabled: obj.zIndex <= minZ,
+                action: () =>
+                    this.visualService.setLayerConfig(layerId, {
+                        zIndex: minZ - 1,
+                    }),
+            },
+            {
+                label: "Replace image…",
+                icon: "⟲",
+                action: () => this.imageToolbarService.setLayer(layerId),
+            },
+            {
+                label: "Remove image",
+                icon: "✕",
+                danger: true,
+                action: () => this.visualService.clearImage(layerId),
+            },
+        ];
+    };
+
     override connectedCallback(): void {
         super.connectedCallback();
 
-        this.registerProvider(
-            "image",
-            ServiceRegistry.get<CanvasObjectProvider>("MasterVisualService"),
-        );
+        this.visualService =
+            ServiceRegistry.get<MasterVisualService>("MasterVisualService");
+        this.imageToolbarService =
+            ServiceRegistry.get<ImageToolbarService>("ImageToolbarService");
+        this.contextMenuService =
+            ServiceRegistry.get<ContextMenuService>("ContextMenuService");
+
+        this.registerProvider("image", this.visualService);
         this.registerProvider(
             "clock",
             ServiceRegistry.get<CanvasObjectProvider>("MasterClockService"),
         );
+
+        this.contextMenuService.registerProvider(this.menuProvider);
 
         this.adoptStyles(cssSheet(commonCss), cssSheet(canvasOverlayCss));
 
         this.render();
         this.setupSubscriptions();
         this.setupDragListeners();
+    }
+
+    override disconnectedCallback(): void {
+        super.disconnectedCallback();
+        this.contextMenuService.unregisterProvider(this.menuProvider);
     }
     protected override render(): void {
         if (!this.shadowRoot) {

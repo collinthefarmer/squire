@@ -1,11 +1,5 @@
-import { Subject, Observable, Subscription } from "rxjs";
-import { filter } from "rxjs/operators";
+import { Subject, Observable, filter } from "rxjs";
 import type { Event } from "@types";
-import { Logger } from "@utils/logger";
-
-const logger = new Logger("EventBus");
-
-type EventHandler<T = any> = (event: T) => void | Promise<void>;
 
 /**
  * Central event bus for pub/sub
@@ -14,47 +8,6 @@ type EventHandler<T = any> = (event: T) => void | Promise<void>;
  */
 export class EventBus {
     private events$ = new Subject<Event>();
-    private subscriptions = new Map<EventHandler, Subscription>();
-
-    /**
-     * Subscribe to events (legacy API - maintains compatibility)
-     *
-     * Supports exact match and wildcard patterns:
-     * - "audio.play" matches only audio.play
-     * - "audio.*" matches audio.play, audio.pause, etc.
-     */
-    on<T = any>(eventType: string, handler: EventHandler<T>): () => void {
-        const subscription = this.events$
-            .pipe(filter((e) => this.matchesPattern(e.type, eventType)))
-            .subscribe((event) => {
-                try {
-                    handler(event as T);
-                } catch (error) {
-                    logger.error(
-                        `Error in event handler for ${eventType}:`,
-                        error,
-                    );
-                }
-            });
-
-        this.subscriptions.set(handler, subscription);
-
-        return () => {
-            subscription.unsubscribe();
-            this.subscriptions.delete(handler);
-        };
-    }
-
-    /**
-     * Unsubscribe from events (legacy API)
-     */
-    off(_eventType: string, handler: EventHandler): void {
-        const subscription = this.subscriptions.get(handler);
-        if (subscription) {
-            subscription.unsubscribe();
-            this.subscriptions.delete(handler);
-        }
-    }
 
     /**
      * Get observable for event type (new RxJS API)

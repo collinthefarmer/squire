@@ -1,7 +1,12 @@
 import { BaseComponent } from "@components/base/base-component";
 import { cssSheet } from "@styles/adopt-styles";
+import { emitDomEvent } from "@utils/dom-events";
 import { ServiceRegistry } from "@services/service-registry";
 import type { MasterAudioService } from "@master/services/master-audio-service";
+import type {
+    EffectChainLibrary,
+    NamedChain,
+} from "@master/services/effect-chain-library";
 import type { AudioChannelState } from "@types";
 
 // @ts-expect-error — Bun imports CSS as text
@@ -19,9 +24,11 @@ import commonCss from "@styles/common.css" with { type: "text" };
  */
 export class TimelineChannelLane extends BaseComponent {
     private audioService!: MasterAudioService;
+    private library!: EffectChainLibrary;
     private channelId = "";
     private currentTrackIds: string[] = [];
     private collapsed = false;
+    private activeChainId = "";
 
     static observedAttributes = ["channel"];
 
@@ -30,6 +37,8 @@ export class TimelineChannelLane extends BaseComponent {
 
         this.audioService =
             ServiceRegistry.get<MasterAudioService>("MasterAudioService");
+        this.library =
+            ServiceRegistry.get<EffectChainLibrary>("EffectChainLibrary");
         this.channelId = this.getAttribute("channel") ?? "";
 
         this.adoptStyles(cssSheet(commonCss), cssSheet(timelineChannelLaneCss));
@@ -62,6 +71,10 @@ export class TimelineChannelLane extends BaseComponent {
                     <button class="strip-btn play-btn" id="play-btn" title="Play/Pause">▶</button>
                     <button class="strip-btn mute-btn" id="mute-btn" title="Mute">M</button>
                     <button class="strip-btn solo-btn" id="solo-btn" title="Solo">S</button>
+                    <select class="fx-select" id="fx-select" title="Effect Chain">
+                        <option value="">None</option>
+                    </select>
+                    <button class="strip-btn fx-edit-btn" id="fx-edit" title="Edit effects">&#9881;</button>
                 </div>
                 <div class="lane-body">
                     <span class="lane-label">${this.channelId}</span>
@@ -109,6 +122,32 @@ export class TimelineChannelLane extends BaseComponent {
                 e.stopPropagation();
                 this.audioService.toggleSolo(this.channelId);
             });
+
+        const fxSelect = this.shadowRoot?.querySelector(
+            "#fx-select",
+        ) as HTMLSelectElement;
+
+        fxSelect?.addEventListener("mousedown", (e) => e.stopPropagation());
+        fxSelect?.addEventListener("change", () => {
+            const chainId = fxSelect.value;
+            this.activeChainId = chainId;
+            const chain = chainId ? this.library.getChain(chainId) : null;
+            const effects = chain?.effects ?? [];
+            this.audioService.setChannelEffects(this.channelId, effects);
+        });
+
+        const fxEditBtn = this.shadowRoot?.querySelector("#fx-edit");
+        fxEditBtn?.addEventListener("mousedown", (e) => e.stopPropagation());
+        fxEditBtn?.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const rect = (e.target as HTMLElement).getBoundingClientRect();
+            emitDomEvent(this, "fx-rack-open", {
+                channel: this.channelId,
+                chainId: this.activeChainId,
+                x: rect.left,
+                y: rect.bottom + 4,
+            });
+        });
     }
 
     private handlePlayPause(): void {
@@ -143,8 +182,13 @@ export class TimelineChannelLane extends BaseComponent {
                 this.syncTrackBlocks(newTrackIds);
                 this.updateSummary(channel);
                 this.updatePlayButton(channel);
+                this.updateFxSelect(channel);
             },
         );
+
+        this.subscribe(this.library.getChains$(), (chains) => {
+            this.populateFxOptions(chains);
+        });
 
         this.subscribe(this.audioService.getMixState$(), (mix) => {
             this.setMuted(mix.muted.has(this.channelId));
@@ -235,6 +279,47 @@ export class TimelineChannelLane extends BaseComponent {
         summaryText.textContent = parts.join(", ") || "empty";
         levelFill.style.width =
             total > 0 ? `${(playing / total) * 100}%` : "0%";
+    }
+
+    private populateFxOptions(chains: NamedChain[]): void {
+        const select = this.shadowRoot?.querySelector(
+            "#fx-select",
+        ) as HTMLSelectElement;
+        if (!select) {
+            return;
+        }
+
+        const currentValue = select.value;
+        select.innerHTML = '<option value="">None</option>';
+
+        for (const chain of chains) {
+            const opt = document.createElement("option");
+            opt.value = chain.id;
+            opt.textContent = chain.label;
+            select.appendChild(opt);
+        }
+
+        select.value = currentValue;
+    }
+
+    private updateFxSelect(channel: AudioChannelState | null): void {
+        const select = this.shadowRoot?.querySelector(
+            "#fx-select",
+        ) as HTMLSelectElement;
+        if (!select) {
+            return;
+        }
+
+        const effects = channel?.effects ?? [];
+        if (effects.length === 0) {
+            this.activeChainId = "";
+            select.value = "";
+            return;
+        }
+
+        const matchedId = this.library.findMatchingChain(effects);
+        this.activeChainId = matchedId ?? "";
+        select.value = this.activeChainId;
     }
 
     private updateCollapsedState(): void {

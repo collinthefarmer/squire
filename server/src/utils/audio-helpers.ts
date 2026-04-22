@@ -22,7 +22,7 @@ export function getOrCreateChannel(
         return { ...existing, tracks: new Map(existing.tracks) };
     }
 
-    return { id: channelId, tracks: new Map(), volume };
+    return { id: channelId, tracks: new Map(), volume, effects: [] };
 }
 
 /**

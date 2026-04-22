@@ -13,6 +13,8 @@ export type {
     AudioResumeEvent,
     AudioStopEvent,
     AudioVolumeEvent,
+    AudioLoopEvent,
+    AudioChannelEffectsEvent,
     AudioEvent,
     AudioChannelState,
     AudioTrackState,

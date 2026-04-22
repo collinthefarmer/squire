@@ -1,5 +1,4 @@
-import { Subject, Observable } from "rxjs";
-import { filter } from "rxjs/operators";
+import { Subject, Observable, filter } from "rxjs";
 import type { Event } from "@types";
 import { Logger } from "@utils/logger";
 import { imageReplay } from "./replay-configs";

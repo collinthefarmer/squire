@@ -1,6 +1,8 @@
 import { ConfigService } from "@services/config-service";
 import { EventBus } from "@services/event-bus";
 import { ConnectionService } from "@services/connection-service";
+import { LocalStore } from "@services/local-store";
+import { ContextMenuService } from "@services/context-menu-service";
 import { ServiceRegistry } from "@services/service-registry";
 import { AssetService } from "@master/services/asset-service";
 import { ImageToolbarService } from "@master/services/image-toolbar-service";
@@ -12,6 +14,7 @@ import { MicCaptureService } from "@master/services/mic-capture-service";
 import { WebRTCBroadcastService } from "@master/services/webrtc-broadcast-service";
 import { LiveAudioService } from "@master/services/live-audio-service";
 import { MasterAudioService } from "@master/services/master-audio-service";
+import { EffectChainLibrary } from "@master/services/effect-chain-library";
 
 import { Draggable } from "@components/draggable/draggable";
 import { DraggableImage } from "@components/draggable/draggable-image";
@@ -33,6 +36,7 @@ import { SourceTypeSelector } from "@master/components/audio/source-type-selecto
 import { MicControls } from "@master/components/audio/mic-controls";
 import { AudioFileList } from "@master/components/audio/audio-file-list";
 import { AudioTimeline } from "@master/components/audio/audio-timeline";
+import { EffectsRack } from "@master/components/audio/effects-rack";
 import { TimelineChannelLane } from "@master/components/audio/timeline-channel-lane";
 import { TimelineTrackBlock } from "@master/components/audio/timeline-track-block";
 import { ImageGallery } from "@master/components/image/image-gallery";
@@ -41,6 +45,8 @@ import { TimeScaleControls } from "@master/components/time/time-scale-controls";
 import { ImageToolbar } from "@master/components/image/image-toolbar";
 import { LayerControlPanel } from "@master/components/image/layer-control-panel";
 import { SidebarTabs } from "@master/components/sidebar-tabs";
+import { SettingsPanel } from "@master/components/settings/settings-panel";
+import { ContextMenu } from "@master/components/context-menu";
 
 /**
  * Initialize master client
@@ -54,6 +60,12 @@ function init(): void {
 
     const connection = new ConnectionService(eventBus, config);
     ServiceRegistry.register("ConnectionService", connection);
+
+    const localStore = new LocalStore();
+    ServiceRegistry.register("LocalStore", localStore);
+
+    const contextMenuService = new ContextMenuService();
+    ServiceRegistry.register("ContextMenuService", contextMenuService);
 
     const assetService = new AssetService(config);
     ServiceRegistry.register("AssetService", assetService);
@@ -82,6 +94,7 @@ function init(): void {
     const masterAudioService = new MasterAudioService(
         eventBus,
         connection,
+        localStore,
         assetService,
     );
     ServiceRegistry.register("MasterAudioService", masterAudioService);
@@ -93,6 +106,9 @@ function init(): void {
         broadcastService,
     );
     ServiceRegistry.register("LiveAudioService", liveAudioService);
+
+    const effectChainLibrary = new EffectChainLibrary(localStore);
+    ServiceRegistry.register("EffectChainLibrary", effectChainLibrary);
 
     customElements.define("squire-draggable", DraggableImage);
     customElements.define("squire-draggable-handle", Draggable);
@@ -111,6 +127,7 @@ function init(): void {
     customElements.define("timeline-channel-lane", TimelineChannelLane);
     customElements.define("audio-timeline", AudioTimeline);
     customElements.define("audio-controls", AudioControls);
+    customElements.define("effects-rack", EffectsRack);
 
     customElements.define("layer-control-panel", LayerControlPanel);
     customElements.define("image-toolbar", ImageToolbar);
@@ -125,7 +142,42 @@ function init(): void {
     customElements.define("canvas-preview", CanvasPreview);
 
     customElements.define("sidebar-tabs", SidebarTabs);
+    customElements.define("settings-panel", SettingsPanel);
+    customElements.define("context-menu", ContextMenu);
     customElements.define("squire-master-client", SquireMasterClient);
+
+    // Mount context menu and effects rack on document.body (outside Shadow DOM)
+    document.body.appendChild(document.createElement("context-menu"));
+
+    const effectsRack = document.createElement(
+        "effects-rack",
+    ) as InstanceType<typeof EffectsRack>;
+    document.body.appendChild(effectsRack);
+
+    document.addEventListener("fx-rack-open", (e) => {
+        const detail = (e as CustomEvent).detail as {
+            channel: string;
+            chainId: string;
+            x: number;
+            y: number;
+        };
+        effectsRack.show(detail.x, detail.y, detail.channel, detail.chainId);
+    });
+
+    // Intercept right-clicks and show custom context menu
+    document.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        const path = e.composedPath();
+        const items = contextMenuService.collectItems(
+            e.target as EventTarget,
+            path as EventTarget[],
+        );
+        if (items.length > 0) {
+            contextMenuService.show(e.clientX, e.clientY, items);
+        } else {
+            contextMenuService.hide();
+        }
+    });
 
     // Fetch assets before connecting so image dimensions are
     // available when the server replays image events on connect.

@@ -1,301 +1,229 @@
+import {
+    Subject,
+    fromEvent,
+    merge,
+    map,
+    filter,
+    switchMap,
+    takeUntil,
+    take,
+    tap,
+    finalize,
+} from "rxjs";
 import { DRAG } from "@shared/constants/drag";
 import { emitDomEvent, type DragStartDetail } from "@utils/dom-events";
 import { ScaleGesture } from "./scale-gesture";
 
+interface Point {
+    x: number;
+    y: number;
+}
+
+interface PointerStart extends Point {
+    source: "mouse" | "touch";
+}
+
+function distance(a: Point, b: Point): number {
+    const dx = a.x - b.x;
+    const dy = a.y - b.y;
+    return Math.sqrt(dx * dx + dy * dy);
+}
+
 /**
  * Base draggable wrapper component
  *
- * Wraps any element to make it draggable. Provides core drag mechanics:
- * pending/threshold click detection, mouse + touch handling, wheel/pinch
- * scale gesture, and consistent event emission. Does not create visual
- * overlays (ghost, shadow) — subclasses add those via lifecycle hooks.
+ * Models pointer interaction as a flat observable pipeline:
  *
- * @fires drag-start - When drag begins { detail: { data, element, x, y, ...extraDetail } }
- * @fires drag-move - During drag { detail: { data, x, y } }
- * @fires drag-end - When drag ends { detail: { data, x, y } }
- * @fires drag-click - When a click is detected (no drag movement) { detail: { data, x, y, ...extraDetail } }
- * @fires drag-scale - When scale changes during drag { detail: { data, scale } }
+ *   pointerDown → switchMap(gesture)
+ *     gesture: merge(moves, scales) | takeUntil(up) | finalize
+ *       - moves update position, trigger drag once threshold crossed
+ *       - scales forward to hook while dragging
+ *       - finalize emits click or drag-end based on whether drag started
+ *
+ * Subclasses override lifecycle hooks for visual feedback.
+ * ScaleGesture is self-contained (owns its wheel + pinch listeners).
+ *
+ * @fires drag-start  { detail: { data, element, x, y, ...extraDetail } }
+ * @fires drag-move   { detail: { data, x, y } }
+ * @fires drag-end    { detail: { data, x, y } }
+ * @fires drag-click  { detail: { data, x, y, ...extraDetail } }
+ * @fires drag-scale  { detail: { data, scale } }
  *
  * @attr data-drag-data - Data to include in drag events
- * @attr data-drag-source - Optional source tag included in all events for filtering
- *
- * @example
- * ```html
- * <squire-draggable data-drag-data="item-id">
- *     <div>Drag me</div>
- * </squire-draggable>
- * ```
+ * @attr data-drag-source - Source tag for filtering
  */
 export class Draggable extends HTMLElement {
-    private isDragging = false;
-    private dragPhase: "idle" | "pending" | "dragging" = "idle";
-    private startX = 0;
-    private startY = 0;
+    private destroy$ = new Subject<void>();
 
-    protected currentX = 0;
-    protected currentY = 0;
-
-    protected scaleGesture = new ScaleGesture(
-        {
-            min: DRAG.SCALE_MIN,
-            max: DRAG.SCALE_MAX,
-            wheelFactor: DRAG.WHEEL_FACTOR,
-        },
-        (scale) => this.handleScaleChange(scale),
-    );
+    protected scaleGesture = new ScaleGesture({
+        min: DRAG.SCALE_MIN,
+        max: DRAG.SCALE_MAX,
+        wheelFactor: DRAG.WHEEL_FACTOR,
+    });
 
     connectedCallback(): void {
         this.style.display = "contents";
-        this.addEventListener("mousedown", this.handleMouseDown);
-        this.addEventListener("touchstart", this.handleTouchStart, {
+
+        const mouseDown$ = fromEvent<MouseEvent>(this, "mousedown").pipe(
+            filter((e) => e.button === 0),
+            tap((e) => e.preventDefault()),
+            map(
+                (e): PointerStart => ({
+                    x: e.clientX,
+                    y: e.clientY,
+                    source: "mouse",
+                }),
+            ),
+        );
+
+        const touchDown$ = fromEvent<TouchEvent>(this, "touchstart", {
             passive: false,
-        });
+        }).pipe(
+            filter((e) => e.touches.length === 1 && !!e.touches[0]),
+            tap((e) => e.preventDefault()),
+            map(
+                (e): PointerStart => ({
+                    x: e.touches[0]!.clientX,
+                    y: e.touches[0]!.clientY,
+                    source: "touch",
+                }),
+            ),
+        );
+
+        merge(mouseDown$, touchDown$)
+            .pipe(
+                switchMap((start) => this.gesture(start)),
+                takeUntil(this.destroy$),
+            )
+            .subscribe();
     }
 
     disconnectedCallback(): void {
-        this.cleanup();
+        this.destroy$.next();
+        this.destroy$.complete();
     }
 
     // -- Lifecycle hooks for subclasses --
 
-    /** Called when drag begins. Override to create visual elements. */
     protected onDragStart(_x: number, _y: number): void {}
-
-    /** Called on each drag movement. Override to update visual elements. */
     protected onDragMove(_x: number, _y: number): void {}
-
-    /** Called when drag ends. Override to destroy visual elements. */
     protected onDragEnd(_x: number, _y: number): void {}
+    protected onScaleChange(_scale: number, _x: number, _y: number): void {}
 
-    /** Called when scale changes during drag. Override to update visual elements. */
-    protected onScaleChange(_scale: number): void {}
-
-    /** Returns extra fields merged into drag-start and drag-click event details. */
     protected getExtraDetail(): Partial<DragStartDetail> {
         return {};
     }
 
-    // -- Mouse handlers --
+    // -- Gesture pipeline --
 
-    private handleMouseDown = (e: MouseEvent): void => {
-        if (e.button !== 0) {
-            return;
-        }
+    private gesture(start: PointerStart) {
+        const { move$, up$ } = this.pointerStreams(start.source);
+        let pos: Point = start;
+        let dragging = false;
 
-        e.preventDefault();
-        this.enterPending(e.clientX, e.clientY);
+        const moves$ = move$.pipe(
+            tap((p) => {
+                pos = p;
 
-        document.addEventListener("mousemove", this.handleMouseMove);
-        document.addEventListener("mouseup", this.handleMouseUp);
-    };
+                if (!dragging && distance(p, start) >= DRAG.CLICK_THRESHOLD) {
+                    dragging = true;
+                    this.beginDrag(start);
+                }
 
-    private handleMouseMove = (e: MouseEvent): void => {
-        e.preventDefault();
+                if (dragging) this.emitMove(p);
+            }),
+        );
 
-        if (this.dragPhase === "pending") {
-            this.checkThreshold(e.clientX, e.clientY);
-            return;
-        }
+        const scales$ = this.scaleGesture.scale$.pipe(
+            tap((scale) => this.emitScale(scale, pos)),
+        );
 
-        if (!this.isDragging) {
-            return;
-        }
-
-        this.moveDrag(e.clientX, e.clientY);
-    };
-
-    private handleMouseUp = (e: MouseEvent): void => {
-        if (this.dragPhase === "pending") {
-            this.emitClick();
-            this.dragPhase = "idle";
-            document.removeEventListener("mousemove", this.handleMouseMove);
-            document.removeEventListener("mouseup", this.handleMouseUp);
-            return;
-        }
-
-        this.endDrag(e.clientX, e.clientY);
-
-        document.removeEventListener("mousemove", this.handleMouseMove);
-        document.removeEventListener("mouseup", this.handleMouseUp);
-    };
-
-    // -- Touch handlers --
-
-    private handleTouchStart = (e: TouchEvent): void => {
-        if (e.touches.length === 2 && this.isDragging) {
-            e.preventDefault();
-            this.scaleGesture.handlePinchStart(e.touches);
-            return;
-        }
-
-        if (e.touches.length !== 1) {
-            return;
-        }
-
-        const touch = e.touches[0];
-        if (!touch) {
-            return;
-        }
-
-        e.preventDefault();
-        this.enterPending(touch.clientX, touch.clientY);
-
-        document.addEventListener("touchmove", this.handleTouchMove, {
-            passive: false,
-        });
-        document.addEventListener("touchend", this.handleTouchEnd);
-        document.addEventListener("touchcancel", this.handleTouchEnd);
-    };
-
-    private handleTouchMove = (e: TouchEvent): void => {
-        if (e.touches.length === 2 && this.isDragging) {
-            e.preventDefault();
-            this.scaleGesture.handlePinchMove(e.touches);
-            return;
-        }
-
-        if (e.touches.length === 1 && this.isDragging) {
-            this.scaleGesture.resetPinch();
-        }
-
-        if (e.touches.length !== 1) {
-            return;
-        }
-
-        const touch = e.touches[0];
-        if (!touch) {
-            return;
-        }
-
-        e.preventDefault();
-
-        if (this.dragPhase === "pending") {
-            this.checkThreshold(touch.clientX, touch.clientY);
-            return;
-        }
-
-        if (!this.isDragging) {
-            return;
-        }
-
-        this.moveDrag(touch.clientX, touch.clientY);
-    };
-
-    private handleTouchEnd = (): void => {
-        if (this.dragPhase === "pending") {
-            this.emitClick();
-            this.dragPhase = "idle";
-            document.removeEventListener("touchmove", this.handleTouchMove);
-            document.removeEventListener("touchend", this.handleTouchEnd);
-            document.removeEventListener("touchcancel", this.handleTouchEnd);
-            return;
-        }
-
-        this.endDrag(this.currentX, this.currentY);
-
-        document.removeEventListener("touchmove", this.handleTouchMove);
-        document.removeEventListener("touchend", this.handleTouchEnd);
-        document.removeEventListener("touchcancel", this.handleTouchEnd);
-    };
-
-    // -- Drag lifecycle --
-
-    private enterPending(x: number, y: number): void {
-        this.dragPhase = "pending";
-        this.startX = x;
-        this.startY = y;
+        return merge(moves$, scales$).pipe(
+            takeUntil(up$),
+            finalize(() => (dragging ? this.endDrag(pos) : this.emitClick(start))),
+        );
     }
 
-    private checkThreshold(x: number, y: number): void {
-        const dx = x - this.startX;
-        const dy = y - this.startY;
+    // -- Pointer event factories --
 
-        if (Math.sqrt(dx * dx + dy * dy) < DRAG.CLICK_THRESHOLD) {
-            return;
+    private pointerStreams(source: "mouse" | "touch") {
+        if (source === "mouse") {
+            return {
+                move$: fromEvent<MouseEvent>(document, "mousemove").pipe(
+                    tap((e) => e.preventDefault()),
+                    map((e): Point => ({ x: e.clientX, y: e.clientY })),
+                ),
+                up$: fromEvent(document, "mouseup").pipe(take(1)),
+            };
         }
 
-        this.dragPhase = "dragging";
-        this.startDrag(this.startX, this.startY);
-        this.moveDrag(x, y);
+        return {
+            move$: fromEvent<TouchEvent>(document, "touchmove", {
+                passive: false,
+            }).pipe(
+                filter((e) => e.touches.length === 1 && !!e.touches[0]),
+                tap((e) => e.preventDefault()),
+                map(
+                    (e): Point => ({
+                        x: e.touches[0]!.clientX,
+                        y: e.touches[0]!.clientY,
+                    }),
+                ),
+            ),
+            up$: merge(
+                fromEvent(document, "touchend"),
+                fromEvent(document, "touchcancel"),
+            ).pipe(take(1)),
+        };
     }
+
+    // -- Event emission --
 
     private dragData(): string {
         return this.dataset.dragData ?? "";
     }
 
-    private emitClick(): void {
+    private emitClick(pos: Point): void {
         emitDomEvent(this, "drag-click", {
             data: this.dragData(),
             source: this.dataset.dragSource,
-            x: this.startX,
-            y: this.startY,
+            x: pos.x,
+            y: pos.y,
             ...this.getExtraDetail(),
         });
     }
 
-    private startDrag(x: number, y: number): void {
-        this.isDragging = true;
-        this.currentX = x;
-        this.currentY = y;
-
+    private beginDrag(pos: Point): void {
         this.scaleGesture.reset();
-        this.onDragStart(x, y);
+        this.scaleGesture.attach();
+        this.onDragStart(pos.x, pos.y);
 
         document.body.style.userSelect = "none";
         document.body.style.cursor = "grabbing";
-
-        this.scaleGesture.attach();
 
         emitDomEvent(this, "drag-start", {
             data: this.dragData(),
             source: this.dataset.dragSource,
             element: this,
-            x,
-            y,
+            x: pos.x,
+            y: pos.y,
             ...this.getExtraDetail(),
         });
     }
 
-    private moveDrag(x: number, y: number): void {
-        this.currentX = x;
-        this.currentY = y;
-
-        this.onDragMove(x, y);
+    private emitMove(pos: Point): void {
+        this.onDragMove(pos.x, pos.y);
 
         emitDomEvent(this, "drag-move", {
             data: this.dragData(),
             source: this.dataset.dragSource,
-            x,
-            y,
+            x: pos.x,
+            y: pos.y,
         });
     }
 
-    private endDrag(x: number, y: number): void {
-        if (!this.isDragging) {
-            return;
-        }
-
-        this.isDragging = false;
-        this.dragPhase = "idle";
-        this.scaleGesture.detach();
-
-        emitDomEvent(this, "drag-end", {
-            data: this.dragData(),
-            source: this.dataset.dragSource,
-            x,
-            y,
-        });
-
-        document.body.style.userSelect = "";
-        document.body.style.cursor = "";
-
-        this.onDragEnd(x, y);
-    }
-
-    // -- Scale change callback --
-
-    private handleScaleChange(scale: number): void {
-        this.onScaleChange(scale);
+    private emitScale(scale: number, pos: Point): void {
+        this.onScaleChange(scale, pos.x, pos.y);
 
         emitDomEvent(this, "drag-scale", {
             data: this.dragData(),
@@ -304,16 +232,19 @@ export class Draggable extends HTMLElement {
         });
     }
 
-    private cleanup(): void {
-        if (this.isDragging) {
-            this.endDrag(this.currentX, this.currentY);
-        }
-        this.dragPhase = "idle";
+    private endDrag(pos: Point): void {
+        this.scaleGesture.detach();
 
-        document.removeEventListener("mousemove", this.handleMouseMove);
-        document.removeEventListener("mouseup", this.handleMouseUp);
-        document.removeEventListener("touchmove", this.handleTouchMove);
-        document.removeEventListener("touchend", this.handleTouchEnd);
-        document.removeEventListener("touchcancel", this.handleTouchEnd);
+        document.body.style.userSelect = "";
+        document.body.style.cursor = "";
+
+        this.onDragEnd(pos.x, pos.y);
+
+        emitDomEvent(this, "drag-end", {
+            data: this.dragData(),
+            source: this.dataset.dragSource,
+            x: pos.x,
+            y: pos.y,
+        });
     }
 }

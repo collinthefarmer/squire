@@ -5,6 +5,7 @@ import { stripButtonStyles } from "@styles/common-styles";
 import { onDomEvent } from "@utils/dom-events";
 import { ServiceRegistry } from "@services/service-registry";
 import type { MasterAudioService } from "@master/services/master-audio-service";
+import type { LiveAudioService } from "@master/services/live-audio-service";
 import { Logger } from "@utils/logger";
 import { generateTrackId } from "@utils/audio-helpers";
 
@@ -33,6 +34,7 @@ const DEFAULT_CHANNELS = ["ambient", "music", "sfx", "voice"];
 export class AudioTimeline extends BaseComponent {
     private logger = new Logger("AudioTimeline");
     private audioService!: MasterAudioService;
+    private liveAudioService!: LiveAudioService;
 
     private currentLaneIds: string[] = [];
 
@@ -41,6 +43,8 @@ export class AudioTimeline extends BaseComponent {
 
         this.audioService =
             ServiceRegistry.get<MasterAudioService>("MasterAudioService");
+        this.liveAudioService =
+            ServiceRegistry.get<LiveAudioService>("LiveAudioService");
 
         this.adoptStyles(cssSheet(commonCss), cssSheet(audioTimelineCss));
 
@@ -57,10 +61,10 @@ export class AudioTimeline extends BaseComponent {
             <div class="timeline">
                 <div class="transport-row">
                     <div class="global-strip">
-                        <button class="strip-btn global-btn" id="global-pause" title="Pause All">⏸</button>
+                        <button class="strip-btn play-btn global-btn" id="global-pause" title="Pause All">⏸</button>
+                        <button class="strip-btn stop-btn" id="stop-btn" title="Stop All">⏹</button>
                     </div>
                     <div class="transport-controls">
-                        <button class="transport-btn" id="stop-btn" title="Stop All">⏹</button>
                         <div class="transport-volume">
                             <label>Vol</label>
                             <input type="range" id="transport-volume" min="0" max="1" step="0.01" value="1">
@@ -186,6 +190,14 @@ export class AudioTimeline extends BaseComponent {
 
         const channel = this.findLaneAtPosition(e.detail.x, e.detail.y);
         if (!channel) {
+            return;
+        }
+
+        if (e.detail.data === "master-mic") {
+            this.logger.info("Mic drop — routing to voice channel");
+            this.liveAudioService.goLive("voice").catch((err) => {
+                this.logger.error("Failed to go live", { error: err });
+            });
             return;
         }
 

@@ -1,6 +1,5 @@
-import { of, concat, timer } from "rxjs";
+import { of, concat, timer, switchMap, tap, map } from "rxjs";
 import { cssSheet } from "@styles/adopt-styles";
-import { switchMap, tap, map } from "rxjs/operators";
 import { BaseComponent } from "@components/base/base-component";
 import { ServiceRegistry } from "@services/service-registry";
 import type { AudioService } from "@display/services/audio-service";

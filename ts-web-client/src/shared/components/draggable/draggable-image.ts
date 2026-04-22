@@ -54,10 +54,10 @@ export class DraggableImage extends Draggable {
         this.imageMetadata = null;
     }
 
-    protected override onScaleChange(scale: number): void {
+    protected override onScaleChange(scale: number, x: number, y: number): void {
         this.ghost.setScale(scale);
         this.updateShadowSize();
-        this.shadow.position(this.currentX, this.currentY);
+        this.shadow.position(x, y);
     }
 
     protected override getExtraDetail(): Partial<DragStartDetail> {

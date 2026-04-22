@@ -82,8 +82,9 @@
     --sizing-slider-thumb: calc(var(--grid-unit) * 4); /* 16px */
     --sizing-slider-track: calc(var(--grid-unit) * 2); /* 8px */
     --sizing-strip-btn: calc(var(--grid-unit) * 7); /* 28px */
+    --sizing-channel-lane: calc(var(--grid-unit) * 12);
     --sizing-track-block: calc(var(--grid-unit) * 6); /* 24px */
-    --sizing-track-volume: calc(var(--grid-unit) * 12); /* 48px */
+    --sizing-track-volume: calc(var(--grid-unit) * 16); /* 64px */
     --sizing-level-bar: calc(var(--grid-unit) * 10); /* 40px */
     --sizing-level-bar-h: calc(var(--grid-unit) * 1.5); /* 6px */
     --sizing-volume-max: calc(var(--grid-unit) * 30); /* 120px */

@@ -7,6 +7,8 @@ import type {
     AudioResumeEvent,
     AudioStopEvent,
     AudioVolumeEvent,
+    AudioLoopEvent,
+    AudioChannelEffectsEvent,
     AudioChannelState,
     AudioEvent,
     Event,
@@ -69,6 +71,12 @@ export class AudioService {
                 break;
             case "audio.volume":
                 this.handleVolumeChange(event);
+                break;
+            case "audio.loop":
+                this.handleLoopChange(event);
+                break;
+            case "audio.channel_effects":
+                this.handleChannelEffects(event);
                 break;
         }
     }
@@ -211,6 +219,41 @@ export class AudioService {
             }
 
             return setAudioChannel(state, channel, { ...existing, volume });
+        });
+
+        this.clientRegistry.broadcast(event);
+    }
+
+    private handleLoopChange(event: AudioLoopEvent): void {
+        const { channel, trackId, loop } = event.payload;
+
+        logger.info(`Audio loop: channel=${channel}, track=${trackId}, loop=${loop}`);
+
+        this.stateStore.updateState((state) =>
+            updateAudioChannel(state, channel, (ch) => ({
+                ...ch,
+                tracks: updateTracksConditional(ch.tracks, trackId, (t) => ({
+                    ...t,
+                    loop,
+                })),
+            })),
+        );
+
+        this.clientRegistry.broadcast(event);
+    }
+
+    private handleChannelEffects(event: AudioChannelEffectsEvent): void {
+        const { channel, effects } = event.payload;
+
+        logger.info(`Audio channel effects: channel=${channel}, count=${effects.length}`);
+
+        this.stateStore.updateState((state) => {
+            const existing = getAudioChannel(state, channel);
+            if (!existing) {
+                return state;
+            }
+
+            return setAudioChannel(state, channel, { ...existing, effects });
         });
 
         this.clientRegistry.broadcast(event);

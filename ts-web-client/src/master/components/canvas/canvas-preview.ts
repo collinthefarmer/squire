@@ -1,6 +1,5 @@
-import { fromEvent } from "rxjs";
+import { fromEvent, filter, take } from "rxjs";
 import { cssSheet } from "@styles/adopt-styles";
-import { filter, take } from "rxjs/operators";
 import { BaseComponent } from "@components/base/base-component";
 import { observeResize } from "@utils/observe-resize";
 import "@utils/dom-events";

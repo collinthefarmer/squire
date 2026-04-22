@@ -130,6 +130,15 @@ export interface GainChangeDetail {
     gain: number;
 }
 
+// -- Effects event details --
+
+export interface FxRackOpenDetail {
+    channel: string;
+    chainId: string;
+    x: number;
+    y: number;
+}
+
 // -- Image event details --
 
 export interface ApplyConfigDetail {
@@ -206,6 +215,8 @@ export interface AppEventMap {
     "image-asset-change": AssetChangeDetail;
 
     "audio-enabled": void;
+
+    "fx-rack-open": FxRackOpenDetail;
 }
 
 // -- Utilities --
