@@ -58,6 +58,7 @@ When two services handle the same event types with identical logic, extract the 
 Examples from the codebase:
 - `layer-state.ts`: `applyImageSet`, `applyImageClear`, `applyImageTransform`, `applyImageEffect`, `applyImageLayerConfig`
 - `clock-state.ts`: `applyClockCreate`, `applyClockStart`, `applyClockPause`, `applyClockAdjust`, `applyClockDestroy`
+- `audio-channel-state.ts`: `applyAudioPlay`, `applyAudioStop`, `applyAudioVolume`, `applyAudioChannelEffects`, `updateMatchingTracks`
 
 **Signature pattern:** Each reducer takes the current `Map<string, State>` and a typed event, returning a new map. They use the immutable helpers from `@utils/state-helpers` (`setInMap`, `updateInMap`, `removeFromMap`).
 
@@ -81,6 +82,49 @@ private handleEvent(event: { type: string }): void {
 ```
 
 This pattern keeps each service lean while ensuring event-to-state logic is written once, tested once, and used everywhere.
+
+#### When to Create a Shared Reducer
+
+**The rule:** If both display and master clients handle the same event type, the state transformation **MUST** live in a shared reducer under `shared/services/{domain}-state.ts`. Do not implement event-to-state logic in individual service files.
+
+**File naming:** `{domain}-state.ts` for the reducer module, `{domain}-state.test.ts` for co-located tests.
+
+**Checklist for new domains:**
+
+1. Create `shared/services/{domain}-state.ts`
+2. Export `apply{Domain}{Action}` functions for each event type the domain handles
+3. Each function signature: `(map: Map<string, State>, event: TypedEvent) => Map<string, State>`
+4. Import and use `setInMap`, `updateInMap`, `removeFromMap` from `@utils/state-helpers`
+5. Both display and master services import these reducers and call them from their event handlers
+6. Write tests in `{domain}-state.test.ts` co-located with the reducer file
+
+**Bad — duplicated logic across services:**
+```typescript
+// display/services/audio-service.ts
+private handleStop(channel: string, trackId?: string): void {
+    const tracks = new Map(ch.tracks);
+    tracks.delete(trackId);
+    if (tracks.size === 0) { /* remove channel */ }
+    // ... 15 lines of inline state manipulation
+}
+
+// master/services/master-audio-service.ts
+private handleStop(channel: string, trackId?: string): void {
+    const tracks = new Map(ch.tracks);
+    tracks.delete(trackId);
+    if (tracks.size === 0) { /* remove channel */ }
+    // ... same 15 lines, slightly different
+}
+```
+
+**Good — shared reducer, services delegate:**
+```typescript
+// shared/services/audio-channel-state.ts
+export function applyAudioStop(channels, channel, trackId) { /* once */ }
+
+// Both services:
+this.channels$.next(applyAudioStop(this.channels$.value, channel, trackId));
+```
 
 ### 3.2 Shared State Interfaces and Helpers
 
@@ -109,6 +153,8 @@ When two or more components define similar CSS, extract it into `shared/styles/c
 ```typescript
 background: ${alpha(colors.blue[500], 0.2)};
 ```
+
+For guidance on when to use external `.css` files vs inline `getStyles()` methods, see `/docs/CLIENT_ARCHITECTURE.md` §5.2.
 
 ---
 

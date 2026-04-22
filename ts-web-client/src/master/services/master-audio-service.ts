@@ -1,7 +1,14 @@
 import { BehaviorSubject, interval, animationFrameScheduler, of, type Observable, map, distinctUntilChanged, switchMap } from "rxjs";
 import { Logger } from "@utils/logger";
 import { generateTrackId } from "@utils/audio-helpers";
-import { setInMap, updateInMap, removeFromMap } from "@utils/state-helpers";
+import {
+    applyAudioPlay,
+    applyAudioStop,
+    applyAudioVolume,
+    updateMatchingTracks,
+    applyAudioChannelEffects,
+    forEachMatchingTrack as forEachTrack,
+} from "@services/audio-channel-state";
 import type { EventBus } from "@services/event-bus";
 import type { ConnectionService } from "@services/connection-service";
 import type { LocalStore } from "@services/local-store";
@@ -351,7 +358,11 @@ export class MasterAudioService {
     private setupEventListeners(eventBus: EventBus): void {
         const on = <T>(type: string, handler: (event: T) => void): void => {
             eventBus.on(`server:${type}`, (event: unknown) => {
-                handler(event as T);
+                try {
+                    handler(event as T);
+                } catch (error) {
+                    this.logger.error("Failed to handle audio event", { type, error: String(error) });
+                }
             });
         };
 
@@ -386,27 +397,9 @@ export class MasterAudioService {
         const eventTime =
             event.metadata.gameTimestamp ?? event.metadata.timestamp;
 
-        const current = this.channels$.value;
-        const existing = current.get(channel);
-
-        const ch: AudioChannelState = existing
-            ? { ...existing, tracks: new Map(existing.tracks) }
-            : { id: channel, tracks: new Map(), volume, effects: [] };
-
         if (!this.intendedVolumes.has(channel)) {
             this.intendedVolumes.set(channel, volume);
         }
-
-        ch.tracks.set(trackId, {
-            id: trackId,
-            source,
-            playing: true,
-            position: 0,
-            volume: 1.0,
-            loop,
-            effects: effects ?? [],
-            respectTimeScale,
-        });
 
         this.progress.set(trackId, {
             playStartTime: eventTime,
@@ -416,12 +409,23 @@ export class MasterAudioService {
             respectTimeScale,
         });
 
-        this.channels$.next(setInMap(current, channel, ch));
+        this.channels$.next(
+            applyAudioPlay(this.channels$.value, {
+                channel,
+                trackId,
+                source,
+                volume,
+                loop,
+                effects,
+                respectTimeScale,
+            }),
+        );
     }
 
     private handleStop(event: AudioStopEvent): void {
         const { channel, trackId } = event.payload;
 
+        // Clean up progress tracking
         if (!trackId) {
             const ch = this.channels$.value.get(channel);
             if (ch) {
@@ -430,31 +434,18 @@ export class MasterAudioService {
                 }
             }
             this.intendedVolumes.delete(channel);
-            this.channels$.next(removeFromMap(this.channels$.value, channel));
-            return;
-        }
-
-        this.progress.delete(trackId);
-
-        const ch = this.channels$.value.get(channel);
-        if (!ch) {
-            return;
-        }
-
-        const tracks = new Map(ch.tracks);
-        tracks.delete(trackId);
-
-        if (tracks.size === 0) {
-            this.intendedVolumes.delete(channel);
-            this.channels$.next(removeFromMap(this.channels$.value, channel));
         } else {
-            this.channels$.next(
-                updateInMap(this.channels$.value, channel, () => ({
-                    ...ch,
-                    tracks,
-                })),
-            );
+            this.progress.delete(trackId);
         }
+
+        const updated = applyAudioStop(this.channels$.value, channel, trackId);
+
+        // Clean up intendedVolumes if channel was removed
+        if (trackId && !updated.has(channel)) {
+            this.intendedVolumes.delete(channel);
+        }
+
+        this.channels$.next(updated);
     }
 
     private handlePause(event: {
@@ -462,7 +453,7 @@ export class MasterAudioService {
     }): void {
         const { channel, trackId } = event.payload;
 
-        this.forEachMatchingTrack(channel, trackId, (tid) => {
+        forEachTrack(this.channels$.value, channel, trackId, (tid) => {
             const prog = this.progress.get(tid);
             if (prog && prog.pausedAt === null) {
                 const scale = prog.respectTimeScale ? prog.timeScale : 1.0;
@@ -473,7 +464,12 @@ export class MasterAudioService {
             }
         });
 
-        this.updateTrackPlaying(channel, trackId, false);
+        this.channels$.next(
+            updateMatchingTracks(this.channels$.value, channel, trackId, (t) => ({
+                ...t,
+                playing: false,
+            })),
+        );
     }
 
     private handleResume(event: {
@@ -481,7 +477,7 @@ export class MasterAudioService {
     }): void {
         const { channel, trackId } = event.payload;
 
-        this.forEachMatchingTrack(channel, trackId, (tid) => {
+        forEachTrack(this.channels$.value, channel, trackId, (tid) => {
             const prog = this.progress.get(tid);
             if (!prog || prog.pausedAt === null) {
                 return;
@@ -501,59 +497,31 @@ export class MasterAudioService {
             prog.pausedAt = null;
         });
 
-        this.updateTrackPlaying(channel, trackId, true);
+        this.channels$.next(
+            updateMatchingTracks(this.channels$.value, channel, trackId, (t) => ({
+                ...t,
+                playing: true,
+            })),
+        );
     }
 
     private handleVolume(event: AudioVolumeEvent): void {
         const { channel, volume, trackId } = event.payload;
 
-        const ch = this.channels$.value.get(channel);
-        if (!ch) {
-            return;
-        }
-
-        if (trackId) {
-            const tracks = new Map(ch.tracks);
-            const track = tracks.get(trackId);
-            if (track) {
-                tracks.set(trackId, { ...track, volume });
-                this.channels$.next(
-                    updateInMap(this.channels$.value, channel, () => ({
-                        ...ch,
-                        tracks,
-                    })),
-                );
-            }
-        } else {
-            this.channels$.next(
-                updateInMap(this.channels$.value, channel, () => ({
-                    ...ch,
-                    volume,
-                })),
-            );
-        }
+        this.channels$.next(
+            applyAudioVolume(this.channels$.value, channel, volume, trackId),
+        );
     }
 
     private handleLoop(event: {
         payload: { channel: string; trackId: string; loop: boolean };
     }): void {
         const { channel, trackId, loop } = event.payload;
-        const ch = this.channels$.value.get(channel);
-        if (!ch) {
-            return;
-        }
 
-        const tracks = new Map(ch.tracks);
-        const track = tracks.get(trackId);
-        if (!track) {
-            return;
-        }
-
-        tracks.set(trackId, { ...track, loop });
         this.channels$.next(
-            updateInMap(this.channels$.value, channel, () => ({
-                ...ch,
-                tracks,
+            updateMatchingTracks(this.channels$.value, channel, trackId, (t) => ({
+                ...t,
+                loop,
             })),
         );
     }
@@ -562,16 +530,9 @@ export class MasterAudioService {
         payload: { channel: string; effects: import("@types").AudioEffect[] };
     }): void {
         const { channel, effects } = event.payload;
-        const ch = this.channels$.value.get(channel);
-        if (!ch) {
-            return;
-        }
 
         this.channels$.next(
-            updateInMap(this.channels$.value, channel, () => ({
-                ...ch,
-                effects,
-            })),
+            applyAudioChannelEffects(this.channels$.value, channel, effects),
         );
     }
 
@@ -598,50 +559,7 @@ export class MasterAudioService {
 
     // -- Helpers --
 
-    private updateTrackPlaying(
-        channel: string,
-        trackId: string | undefined,
-        playing: boolean,
-    ): void {
-        const ch = this.channels$.value.get(channel);
-        if (!ch) {
-            return;
-        }
-
-        const tracks = new Map(ch.tracks);
-
-        for (const [id, track] of tracks) {
-            if (!trackId || id === trackId) {
-                tracks.set(id, { ...track, playing });
-            }
-        }
-
-        this.channels$.next(
-            updateInMap(this.channels$.value, channel, () => ({
-                ...ch,
-                tracks,
-            })),
-        );
-    }
-
     private findAsset(name: string): AudioAsset | undefined {
         return this.assetService.getAudioAssets().find((a) => a.name === name);
-    }
-
-    private forEachMatchingTrack(
-        channel: string,
-        trackId: string | undefined,
-        callback: (trackId: string) => void,
-    ): void {
-        const ch = this.channels$.value.get(channel);
-        if (!ch) {
-            return;
-        }
-
-        for (const tid of ch.tracks.keys()) {
-            if (!trackId || tid === trackId) {
-                callback(tid);
-            }
-        }
     }
 }

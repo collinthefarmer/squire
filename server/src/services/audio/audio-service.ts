@@ -51,34 +51,29 @@ export class AudioService {
 
     private setupEventListeners(): void {
         this.eventStore.ofType<AudioEvent>("audio.*").subscribe((event) => {
-            this.handleEvent(event);
+            try {
+                this.handleEvent(event);
+            } catch (error) {
+                logger.error("Failed to handle audio event", { type: event.type, error: String(error) });
+            }
         });
     }
 
+    private readonly handlers: {
+        [K in AudioEvent["type"]]: (e: Extract<AudioEvent, { type: K }>) => void;
+    } = {
+        "audio.play": (e) => this.handlePlay(e),
+        "audio.pause": (e) => this.handlePause(e),
+        "audio.resume": (e) => this.handleResume(e),
+        "audio.stop": (e) => this.handleStop(e),
+        "audio.volume": (e) => this.handleVolumeChange(e),
+        "audio.loop": (e) => this.handleLoopChange(e),
+        "audio.channel_effects": (e) => this.handleChannelEffects(e),
+    };
+
     private handleEvent(event: AudioEvent): void {
-        switch (event.type) {
-            case "audio.play":
-                this.handlePlay(event);
-                break;
-            case "audio.pause":
-                this.handlePause(event);
-                break;
-            case "audio.resume":
-                this.handleResume(event);
-                break;
-            case "audio.stop":
-                this.handleStop(event);
-                break;
-            case "audio.volume":
-                this.handleVolumeChange(event);
-                break;
-            case "audio.loop":
-                this.handleLoopChange(event);
-                break;
-            case "audio.channel_effects":
-                this.handleChannelEffects(event);
-                break;
-        }
+        const handler = this.handlers[event.type];
+        (handler as (e: AudioEvent) => void)(event);
     }
 
     private handlePlay(event: AudioPlayEvent): void {
@@ -103,8 +98,9 @@ export class AudioService {
                 channel,
                 volume,
             );
-            ch.tracks.set(trackId, track);
-            return setAudioChannel(state, channel, ch);
+            const tracks = new Map(ch.tracks);
+            tracks.set(trackId, track);
+            return setAudioChannel(state, channel, { ...ch, tracks });
         });
 
         const broadcastEvent: Event = {

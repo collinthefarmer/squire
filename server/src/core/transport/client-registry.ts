@@ -1,9 +1,11 @@
+import { Logger } from "@utils/logger";
 import type { ConnectedClient, Event } from "../../types";
 
 /**
  * Registry of connected WebSocket clients
  */
 export class ClientRegistry {
+    private logger = new Logger("ClientRegistry");
     private clients: Map<string, ConnectedClient> = new Map();
 
     /**
@@ -11,7 +13,7 @@ export class ClientRegistry {
      */
     register(client: ConnectedClient): void {
         this.clients.set(client.id, client);
-        console.log(`Client registered: ${client.id} (${client.type})`);
+        this.logger.info("Client registered", { clientId: client.id, type: client.type });
     }
 
     /**
@@ -21,7 +23,7 @@ export class ClientRegistry {
         const client = this.clients.get(clientId);
         if (client) {
             this.clients.delete(clientId);
-            console.log(`Client unregistered: ${clientId}`);
+            this.logger.info("Client unregistered", { clientId });
         }
     }
 
@@ -56,7 +58,7 @@ export class ClientRegistry {
             try {
                 client.ws.send(message);
             } catch (error) {
-                console.error(`Failed to send to client ${client.id}:`, error);
+                this.logger.error("Failed to send to client", { clientId: client.id, error });
             }
         }
     }
@@ -67,14 +69,14 @@ export class ClientRegistry {
     sendToClient(clientId: string, event: Event): void {
         const client = this.clients.get(clientId);
         if (!client) {
-            console.warn(`Client ${clientId} not found`);
+            this.logger.warn("Client not found", { clientId });
             return;
         }
 
         try {
             client.ws.send(JSON.stringify(event));
         } catch (error) {
-            console.error(`Failed to send to client ${clientId}:`, error);
+            this.logger.error("Failed to send to client", { clientId, error });
         }
     }
 

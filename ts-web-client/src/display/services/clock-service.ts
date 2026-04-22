@@ -15,6 +15,7 @@ import {
     applyTimeScaleChange,
 } from "@services/clock-state";
 import type {
+    ClockEvent,
     ClockCreateEvent,
     ClockStartEvent,
     ClockPauseEvent,
@@ -69,76 +70,46 @@ export class DisplayClockService {
 
     private setupEventListeners(): void {
         this.eventBus.on("server:ui.clock.*", (event: unknown) => {
-            this.handleEvent(event as { type: string });
+            try {
+                this.handleEvent(event as ClockEvent);
+            } catch (error) {
+                this.logger.error("Failed to handle clock event", { error: String(error) });
+            }
         });
     }
 
     private setupTimeScaleListener(): void {
         this.eventBus.on("server:time.scale_changed", (event: unknown) => {
-            const { scale } = (event as { payload: { scale: number } }).payload;
-            this.logger.info("Time scale changed, updating clocks", { scale });
-            const updated = applyTimeScaleChange(this.clocks$.value, scale);
-            this.clocks$.next(updated);
+            try {
+                const { scale } = (event as { payload: { scale: number } }).payload;
+                this.logger.info("Time scale changed, updating clocks", { scale });
+                const updated = applyTimeScaleChange(this.clocks$.value, scale);
+                this.clocks$.next(updated);
+            } catch (error) {
+                this.logger.error("Failed to handle time scale change", { error: String(error) });
+            }
         });
     }
 
-    private handleEvent(event: { type: string }): void {
+    private handleEvent(event: ClockEvent): void {
         const current = this.clocks$.value;
         const scale = this.getTimeScale();
-        let updated: Map<string, ClockState>;
 
-        switch (event.type) {
-            case "ui.clock.create":
-                updated = applyClockCreate(
-                    current,
-                    event as ClockCreateEvent,
-                    scale,
-                );
-                this.logger.info("Clock created", {
-                    id: (event as ClockCreateEvent).payload.id,
-                });
-                break;
-            case "ui.clock.start":
-                updated = applyClockStart(
-                    current,
-                    event as ClockStartEvent,
-                    scale,
-                );
-                this.logger.info("Clock started", {
-                    id: (event as ClockStartEvent).payload.id,
-                });
-                break;
-            case "ui.clock.pause":
-                updated = applyClockPause(current, event as ClockPauseEvent);
-                this.logger.info("Clock paused", {
-                    id: (event as ClockPauseEvent).payload.id,
-                });
-                break;
-            case "ui.clock.adjust":
-                updated = applyClockAdjust(current, event as ClockAdjustEvent);
-                this.logger.info("Clock adjusted", {
-                    id: (event as ClockAdjustEvent).payload.id,
-                });
-                break;
-            case "ui.clock.destroy":
-                updated = applyClockDestroy(
-                    current,
-                    event as ClockDestroyEvent,
-                );
-                this.logger.info("Clock destroyed", {
-                    id: (event as ClockDestroyEvent).payload.id,
-                });
-                break;
-            case "ui.clock.update":
-                updated = applyClockUpdate(current, event as ClockUpdateEvent);
-                this.logger.info("Clock updated", {
-                    id: (event as ClockUpdateEvent).payload.id,
-                });
-                break;
-            default:
-                return;
-        }
+        const handlers: {
+            [K in ClockEvent["type"]]: (e: Extract<ClockEvent, { type: K }>) => Map<string, ClockState>;
+        } = {
+            "ui.clock.create": (e) => applyClockCreate(current, e, scale),
+            "ui.clock.start": (e) => applyClockStart(current, e, scale),
+            "ui.clock.pause": (e) => applyClockPause(current, e),
+            "ui.clock.adjust": (e) => applyClockAdjust(current, e),
+            "ui.clock.destroy": (e) => applyClockDestroy(current, e),
+            "ui.clock.update": (e) => applyClockUpdate(current, e),
+        };
 
+        const handler = handlers[event.type];
+        const updated = (handler as (e: ClockEvent) => Map<string, ClockState>)(event);
+
+        this.logger.info(event.type, { id: event.payload.id });
         this.clocks$.next(updated);
     }
 }

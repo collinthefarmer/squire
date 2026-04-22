@@ -10,6 +10,7 @@ import {
 import type { EventBus } from "@services/event-bus";
 import type {
     ImageLayerState,
+    ImageEvent,
     ImageSetEvent,
     ImageClearEvent,
     ImageTransformEvent,
@@ -49,57 +50,35 @@ export class VisualService {
         return Array.from(this.layers$.value.values());
     }
 
+    private readonly imageHandlers: {
+        [K in ImageEvent["type"]]: (
+            current: Map<string, ImageLayerState>,
+            event: Extract<ImageEvent, { type: K }>,
+        ) => Map<string, ImageLayerState>;
+    } = {
+        "visual.image.set": (c, e) => applyImageSet(c, e),
+        "visual.image.clear": (c, e) => applyImageClear(c, e),
+        "visual.image.transform": (c, e) => applyImageTransform(c, e),
+        "visual.image.effect": (c, e) => applyImageEffect(c, e),
+        "visual.image.layer_config": (c, e) => applyImageLayerConfig(c, e),
+    };
+
     private setupEventListeners(): void {
         this.eventBus.on("server:visual.image.*", (event: unknown) => {
-            this.handleImageEvent(event as { type: string });
+            try {
+                this.handleImageEvent(event as ImageEvent);
+            } catch (error) {
+                this.logger.error("Failed to handle image event", { error: String(error) });
+            }
         });
     }
 
-    private handleImageEvent(event: { type: string }): void {
+    private handleImageEvent(event: ImageEvent): void {
         const current = this.layers$.value;
-        let updated: Map<string, ImageLayerState>;
+        const handler = this.imageHandlers[event.type];
+        const updated = (handler as (c: Map<string, ImageLayerState>, e: ImageEvent) => Map<string, ImageLayerState>)(current, event);
 
-        switch (event.type) {
-            case "visual.image.set":
-                updated = applyImageSet(current, event as ImageSetEvent);
-                this.logger.info("Image set", {
-                    layer: (event as ImageSetEvent).payload.layer,
-                });
-                break;
-            case "visual.image.clear":
-                updated = applyImageClear(current, event as ImageClearEvent);
-                this.logger.info("Image clear", {
-                    layer: (event as ImageClearEvent).payload.layer,
-                });
-                break;
-            case "visual.image.transform":
-                updated = applyImageTransform(
-                    current,
-                    event as ImageTransformEvent,
-                );
-                this.logger.info("Image transform", {
-                    layer: (event as ImageTransformEvent).payload.layer,
-                });
-                break;
-            case "visual.image.effect":
-                updated = applyImageEffect(current, event as ImageEffectEvent);
-                this.logger.info("Image effect", {
-                    layer: (event as ImageEffectEvent).payload.layer,
-                });
-                break;
-            case "visual.image.layer_config":
-                updated = applyImageLayerConfig(
-                    current,
-                    event as ImageLayerConfigEvent,
-                );
-                this.logger.info("Layer config", {
-                    layer: (event as ImageLayerConfigEvent).payload.layer,
-                });
-                break;
-            default:
-                return;
-        }
-
+        this.logger.info(event.type, { layer: event.payload.layer });
         this.layers$.next(updated);
     }
 }

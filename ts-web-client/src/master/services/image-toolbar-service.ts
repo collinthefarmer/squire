@@ -48,6 +48,11 @@ export class ImageToolbarService {
 
     private registeredLayers$ = new BehaviorSubject<string[]>([LAYER.DEFAULT]);
 
+    private readonly selectedLayer$ = this.settings$.pipe(
+        map((s) => s.layer),
+        distinctUntilChanged(),
+    );
+
     /**
      * Get settings as observable for reactive updates
      */
@@ -131,13 +136,10 @@ export class ImageToolbarService {
 
     /**
      * Get the currently selected layer as an observable.
-     * Derived from settings$ to avoid a separate subject.
+     * Derived from settings$ as a stable field — safe for multiple subscribers.
      */
     getSelectedLayer$(): Observable<string> {
-        return this.settings$.pipe(
-            map((s) => s.layer),
-            distinctUntilChanged(),
-        );
+        return this.selectedLayer$;
     }
 
     /**

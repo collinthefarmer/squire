@@ -12,7 +12,7 @@ export function generateTrackId(): string {
  * Returns a new object with a copied tracks map (safe for mutation).
  */
 export function getOrCreateChannel(
-    channels: Map<string, AudioChannelState>,
+    channels: ReadonlyMap<string, AudioChannelState>,
     channelId: string,
     volume: number,
 ): AudioChannelState {
@@ -30,7 +30,7 @@ export function getOrCreateChannel(
  * Returns a new Map.
  */
 export function updateTracksConditional(
-    tracks: Map<string, AudioTrackState>,
+    tracks: ReadonlyMap<string, AudioTrackState>,
     trackId: string | undefined,
     updater: (track: AudioTrackState) => AudioTrackState,
 ): Map<string, AudioTrackState> {

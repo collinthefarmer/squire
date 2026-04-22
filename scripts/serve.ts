@@ -3,10 +3,16 @@
 import { $ } from "bun";
 
 async function main(): Promise<void> {
-    const server_process = $`cd ./server ; bun serve`;
-    const client_process = $`cd ./ts-web-client ; bun serve`;
+    const serverProcess = $`cd ./server ; bun serve`;
+    const clientProcess = $`cd ./ts-web-client ; bun serve`;
 
-    await Promise.race([server_process, client_process]);
+    const results = await Promise.allSettled([serverProcess, clientProcess]);
+
+    for (const result of results) {
+        if (result.status === "rejected") {
+            console.error("Process exited with error:", result.reason);
+        }
+    }
 }
 
 main().catch((err) => {

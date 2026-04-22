@@ -639,6 +639,91 @@ export class AudioPlayer extends HTMLElement {
 
 ---
 
+### 3.3 Observable Lifecycle & Derived State
+
+**Principles:**
+- Choose the right Subject type for the data semantics
+- Derived observables are stable references created once, not computed on each access
+- Completed subjects cannot emit again — protect against accidental completion
+
+**MUST:**
+- Use `BehaviorSubject<T>` for state that has a meaningful initial value and where new subscribers need the current value immediately (channels map, connection status, layer state)
+- Use `Subject<T>` for one-shot events with no "current value" semantics (user actions, transient notifications)
+- Never use `ReplaySubject` unless you specifically need N-value replay for late subscribers (currently no use case in Squire)
+- Create derived observables as `private readonly` class fields, not inside getter methods — a getter creates a new pipeline on every call, which means unbounded subscriptions if called in a render loop
+
+**SHOULD:**
+- Use `distinctUntilChanged()` on derived observables to avoid redundant render cycles
+- Provide a comparison function for non-primitive values (`distinctUntilChanged(shallowEquals)`)
+- Use `combineLatest` when a component needs state from multiple services
+- Use `shareReplay({ bufferSize: 1, refCount: true })` if a derived observable is subscribed from multiple consumers and the pipeline is expensive
+
+**AVOID:**
+- Calling `.complete()` on a BehaviorSubject that outlives its service (service subjects live for the application lifetime)
+- Creating derived observables inside `connectedCallback` — subscribe to the service's pre-built observable instead
+- Using `ReplaySubject(1)` as a substitute for `BehaviorSubject` — they differ in `.value` access and initial-emission semantics
+
+**Example - Good (derived observable as class field):**
+```typescript
+export class AudioService {
+  private channels$ = new BehaviorSubject<Map<string, AudioChannelState>>(new Map());
+
+  // Created once, stable reference — safe for multiple subscribers
+  private readonly activeChannels$ = this.channels$.pipe(
+      map(channels => [...channels.values()].filter(ch => ch.playing)),
+      distinctUntilChanged((a, b) =>
+          a.length === b.length && a.every((ch, i) => ch === b[i])
+      ),
+  );
+
+  getActiveChannels$(): Observable<AudioChannelState[]> {
+      return this.activeChannels$;
+  }
+}
+```
+
+**Example - Bad (pipeline created per call):**
+```typescript
+// DON'T: New pipeline on every call — if called in a render loop,
+// creates unbounded subscriptions
+getActiveChannels$(): Observable<AudioChannelState[]> {
+    return this.channels$.pipe(
+        map(channels => [...channels.values()].filter(ch => ch.playing)),
+    );
+}
+```
+
+**Rationale:** Choosing the correct Subject type prevents subtle bugs (late subscribers missing state, completed streams silently dropping events). Stable derived observables avoid unnecessary garbage collection pressure and subscription management.
+
+---
+
+### 3.4 Connection Resilience
+
+**Principles:**
+- ConnectionService handles WebSocket reconnection automatically
+- EventBus is local and independent of WebSocket — it continues functioning during disconnection
+- Services must be designed to handle reconnection gracefully
+
+**Key guarantee:** The EventBus is an in-process pub/sub system. It does not depend on WebSocket connectivity. Client-to-client events (prefixed `client:`) work even when the server is unreachable. Only `server:` prefixed events require an active connection.
+
+**MUST:**
+- Never assume the WebSocket is connected — always check before sending
+- On reconnection, the server sends full state sync — services should accept this as a fresh state replacement, not an incremental merge
+
+**SHOULD:**
+- Show connection status to the user via a UI indicator
+- Use exponential backoff for reconnection attempts (already implemented in ConnectionService)
+- Log connection state transitions at INFO level
+
+**AVOID:**
+- Building reconnection logic in individual services — ConnectionService owns this concern
+- Assuming EventBus subscriptions are lost on disconnect — they are local and persist across reconnections
+- Manual WebSocket management outside ConnectionService
+
+**Rationale:** Separating connection management from event routing means services only need to handle "new state arrived" events, not "connection dropped" recovery logic. This is a deliberate architectural guarantee that simplifies service design.
+
+---
+
 ## 4. TypeScript Patterns
 
 ### 4.1 Strict Typing & Interfaces
@@ -667,6 +752,8 @@ export class AudioPlayer extends HTMLElement {
 - Mixing type and value imports from same source
 - Optional parameters in middle of parameter list
 - Returning different types based on parameters
+
+> **See also:** For event handlers with 4+ cases, use typed dispatch maps to eliminate casts — see `/docs/CODE_STANDARDS.md` §3.3.
 
 **Example - Good:**
 ```typescript
@@ -839,6 +926,62 @@ export class AudioPlayer extends BaseComponent {
 
 ---
 
+### 5.2 CSS Architecture: External Files vs `getStyles()`
+
+**Principles:**
+- Two CSS strategies coexist: external `.css` files adopted via Shadow DOM, and `getStyles()` methods returning template strings
+- Choose based on CSS volume and reuse needs
+- Both approaches use CSS custom properties (theme tokens) for consistency
+
+**MUST:**
+- Use an **external `.css` file** when the component's styles exceed ~20 lines of CSS
+- Use **`getStyles()`** (inline template string) for small components with fewer than 20 lines of CSS
+- Never mix both approaches in a single component
+- External CSS files live adjacent to their component: `my-component.css` next to `my-component.ts`
+
+**SHOULD:**
+- Import shared style utilities from `shared/styles/common-styles.ts` into `getStyles()` methods
+- Use CSS custom properties (theme tokens) in both approaches — never hardcode colors or spacing
+- Prefer external `.css` files for layout-heavy components (grids, toolbars, panels)
+- Prefer `getStyles()` for components where styles are mostly dynamic or composed from shared utilities
+
+**AVOID:**
+- Large inline style blocks (>20 lines) inside `render()` template literals — extract to a `.css` file
+- Duplicating theme values — always reference `var(--token-name)`
+- Importing `.css` files from unrelated component directories
+
+**Example - Good (external file for complex styles):**
+```typescript
+// audio-controls.ts — complex layout, many rules
+protected override render(): void {
+    this.shadowRoot!.innerHTML = `
+        <link rel="stylesheet" href="./audio-controls.css">
+        <div class="controls">...</div>
+    `;
+}
+```
+
+**Example - Good (getStyles for simple components):**
+```typescript
+// small-badge.ts — minimal styles
+protected override getStyles(): string {
+    return `
+        :host { display: inline-flex; }
+        .badge {
+            padding: 2px 8px;
+            border-radius: var(--radius-sm);
+            background: var(--surface-secondary);
+        }
+    `;
+}
+```
+
+For extracting shared CSS utilities (repeated patterns across components), see `/docs/REFACTORING_GUIDE.md` §3.3.
+
+**Rationale:** A clear threshold prevents both over-inlining (giant template strings that obscure component logic) and over-extracting (tiny `.css` files for 3 lines of CSS). Consistent use of theme tokens ensures both approaches produce visually cohesive results.
+
+---
+
 ## 6. Event Handling
 
 ### 6.1 WebSocket & EventBus Integration
@@ -961,6 +1104,52 @@ export class AudioService {
 
 ---
 
+### 6.2 Error Boundaries in Event Subscriptions
+
+**Principles:**
+- A thrown error in an RxJS `Subject.next()` subscriber terminates the Subject permanently
+- All future `.next()` calls on a terminated Subject silently no-op
+- Services must catch internally in every event handler to prevent cascading failure
+
+**MUST:**
+- Wrap the body of every EventBus subscription handler in try/catch:
+```typescript
+this.eventBus.on('server:audio.*', (event: AudioEvent) => {
+    try {
+        this.handleAudioEvent(event);
+    } catch (error) {
+        this.logger.error('Failed to handle audio event', {
+            type: event.type,
+            error: String(error),
+        });
+    }
+});
+```
+- Log the error with event type and relevant payload context
+
+**SHOULD:**
+- Centralize the try/catch at the subscription site, not inside each individual handler — one try/catch per `eventBus.on()` call
+- Consider a wrapper helper to reduce boilerplate:
+```typescript
+private safeHandle<T>(handler: (event: T) => void): (event: T) => void {
+    return (event: T) => {
+        try {
+            handler.call(this, event);
+        } catch (error) {
+            this.logger.error('Event handler error', { error: String(error) });
+        }
+    };
+}
+```
+
+**AVOID:**
+- Relying on the EventBus implementation to catch subscriber errors — defend at both layers
+- Rethrowing inside handlers (the outer subscription would still terminate the Subject)
+
+**Rationale:** RxJS Subjects follow the Observable contract: an error terminates the stream. Since EventBus uses Subjects internally, a single unhandled throw in any subscriber silently kills event delivery for every other subscriber on that stream. This is the most dangerous silent-failure mode in the architecture.
+
+---
+
 ## 7. State Management
 
 ### 7.1 Immutable State Updates
@@ -976,6 +1165,7 @@ export class AudioService {
 - Call `.next(newState)` on BehaviorSubject after updates
 - Name helpers with strict prefixes: get*, set*, update*, remove*
 - Return new state from helpers (never mutate parameters)
+- Use `ReadonlyMap<K, V>` in state interfaces to enforce immutability at the type level (see `/docs/CODE_STANDARDS.md` §2.1 for details and examples)
 
 **SHOULD:**
 - Create typed helper functions for complex updates
@@ -1237,6 +1427,8 @@ export class LayerStack extends BaseComponent {
 - Use descriptive test names
 - Test error cases and edge conditions
 - Keep tests focused (one assertion preferred)
+- Use shared test data factories following the `make{Entity}(overrides?)` convention (see `/docs/CODE_STANDARDS.md` §8.1 for patterns and examples)
+- When adding a new event type or state shape, add a corresponding factory
 
 **AVOID:**
 - Testing implementation details

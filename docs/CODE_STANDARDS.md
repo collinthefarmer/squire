@@ -287,11 +287,13 @@ export class AudioService {
 - Copy Maps with `new Map(existingMap)` before mutations
 - Use object spread (`{ ...obj }`) for object updates
 - Use helper functions from `/server/src/utils/state-helpers.ts`
+- Use `ReadonlyMap<K, V>` in state interfaces so `.set()` and `.delete()` are type errors — consumers must create a mutable copy via `new Map(...)` before mutating
 
 **SHOULD:**
 - Create domain-specific helpers for common state transformations
 - Keep updater functions pure (no side effects)
 - Name helpers descriptively with strict prefixes (see Section 2.2)
+- Use `Readonly<T>` or `readonly` modifier on state interface properties to reinforce immutability at the type level, not just by convention
 
 **AVOID:**
 - Direct mutation: `state.audio.channels.set(...)` without copying
@@ -331,7 +333,25 @@ this.stateStore.updateState((state) => {
 });
 ```
 
-**Rationale:** Immutability prevents bugs from shared state mutations, makes state changes traceable, and enables potential optimizations like time-travel debugging and change detection.
+**Example - ReadonlyMap enforcement:**
+```typescript
+// State interface uses ReadonlyMap — mutation is a type error
+interface AudioState {
+    channels: ReadonlyMap<string, AudioChannelState>;
+    masterVolume: number;
+}
+
+state.channels.set("x", val); // Error: Property 'set' does not exist on ReadonlyMap
+
+// State helpers create a mutable copy internally:
+export function setAudioChannel(state: ApplicationState, ...): ApplicationState {
+    const mutable = new Map(audioState.channels); // ReadonlyMap → Map
+    mutable.set(channelId, channelState);
+    return { ...state, audio: { ...audioState, channels: mutable } };
+}
+```
+
+**Rationale:** Immutability prevents bugs from shared state mutations, makes state changes traceable, and enables potential optimizations like time-travel debugging and change detection. `ReadonlyMap` shifts enforcement from convention to compiler — mutations become type errors rather than code review findings.
 
 ---
 
@@ -359,6 +379,7 @@ this.stateStore.updateState((state) => {
 - Return early for undefined/null cases
 - Use default values for missing nested state
 - Compose complex helpers from simple ones
+- When both clients handle the same event types, extract state transformations into shared reducers following the `apply{Domain}{Action}` convention (see `/docs/REFACTORING_GUIDE.md` §3.1)
 
 **AVOID:**
 - State helpers with side effects (logging, network calls)
@@ -590,6 +611,60 @@ try {
 ```
 
 **Rationale:** Zod provides runtime type safety that TypeScript cannot. Schemas catch malformed client data, prevent injection attacks, and document expected input structure. `safeParse` enables graceful error handling without exceptions.
+
+---
+
+### 3.3 Typed Dispatch Maps for Event Handling
+
+**Principles:**
+- Eliminate `event as SpecificEvent` casts in large switch/case blocks
+- Use typed dispatch maps where the compiler verifies exhaustiveness
+- Let the discriminated union's `type` field drive narrowing automatically
+
+**SHOULD:**
+- For event handlers that switch over a union's `type` field, prefer a typed dispatch map over a manual switch when there are 4+ cases
+- Type the map using a mapped type over the union's discriminant so the compiler errors on missing handlers
+- Keep the switch/case + cast pattern for simple 2-3 case handlers (this remains acceptable per `/docs/REFACTORING_GUIDE.md` §6.2)
+
+**AVOID:**
+- Casting inside individual switch cases (`event as AudioPlayEvent`) when the handler count is large enough to warrant a dispatch map
+- Partial dispatch maps that silently ignore missing cases — always type the full union
+
+**Example - Good (typed dispatch map):**
+```typescript
+type HandlerMap<U extends { type: string }> = {
+    [K in U["type"]]: (event: Extract<U, { type: K }>) => void;
+};
+
+// Compiler errors if a ClockEvent type is missing from this map
+const handlers: HandlerMap<ClockEvent> = {
+    "ui.clock.create": (e) => this.handleCreate(e),    // e: ClockCreateEvent
+    "ui.clock.start":  (e) => this.handleStart(e),     // e: ClockStartEvent
+    "ui.clock.pause":  (e) => this.handlePause(e),     // e: ClockPauseEvent
+    "ui.clock.adjust": (e) => this.handleAdjust(e),    // e: ClockAdjustEvent
+    "ui.clock.destroy": (e) => this.handleDestroy(e),  // e: ClockDestroyEvent
+    "ui.clock.update": (e) => this.handleUpdate(e),    // e: ClockUpdateEvent
+};
+
+private handleEvent(event: ClockEvent): void {
+    const handler = handlers[event.type];
+    handler(event as any); // Single cast at call site — map guarantees per-handler safety
+}
+```
+
+**Example - Acceptable (switch + cast for small unions):**
+```typescript
+// 2-3 cases: switch + cast is fine, no dispatch map needed
+private handleEvent(event: TimeEvent): void {
+    switch (event.type) {
+        case "time.scale_changed":
+            this.handleScaleChanged(event as TimeScaleChangedEvent);
+            break;
+    }
+}
+```
+
+**Rationale:** Typed dispatch maps turn missing-handler bugs into compile errors. They replace N casts per handler with one at the call site. For small unions (2-3 cases), the switch/case pattern remains clear and acceptable.
 
 ---
 
@@ -1097,11 +1172,12 @@ function getAllChannels(): AudioChannelState[] { /* ... */ }
 - Validate user input with Zod (don't trust external data)
 - Log all caught errors with context using Logger
 - Use `Promise.allSettled()` when handling multiple async operations
+- Wrap event subscription callbacks in try/catch — a thrown error in an RxJS `Subject.next()` subscriber terminates the Subject, silently breaking all future event delivery to every subscriber on that stream
 
 **SHOULD:**
 - Distinguish between recoverable and non-recoverable errors
 - Return early for error conditions rather than throwing
-- Use error boundaries at service/handler level
+- Apply error boundaries at the service subscription level — each service's event handler should catch internally rather than relying on the EventBus to protect other subscribers
 - Include relevant context in error messages (clientId, event type, etc.)
 
 **AVOID:**
@@ -1463,6 +1539,38 @@ export type AudioPlayEvent =
 - Test Zod schemas with valid and invalid inputs
 - Use descriptive test names: `test("should pause channel when audio.pause event received")`
 - Group related tests with `describe()` blocks
+- Use shared test data factories from `test-utils/factories.ts` rather than creating ad-hoc helpers in each test file
+- Factory functions should follow the `make{Entity}(overrides?)` convention, returning a valid default with optional partial overrides
+
+**Example - Test data factory:**
+```typescript
+// test-utils/factories.ts
+export function makeMetadata(overrides?: Partial<EventMetadata>): EventMetadata {
+    return {
+        timestamp: Date.now(),
+        source: "test",
+        ...overrides,
+    };
+}
+
+export function makeAudioPlayEvent(
+    overrides?: Partial<AudioPlayPayload>,
+): AudioPlayEvent {
+    return {
+        type: "audio.play",
+        payload: {
+            channel: "ambient",
+            source: { type: "file", ref: "test.mp3" },
+            volume: 0.8,
+            loop: false,
+            effects: [],
+            respectTimeScale: false,
+            ...overrides,
+        },
+        metadata: makeMetadata(),
+    };
+}
+```
 
 **AVOID:**
 - Testing implementation details (test behavior, not internals)

@@ -1,6 +1,9 @@
 import { Input, FilePathSource, ALL_FORMATS } from "mediabunny";
 import { errorResponse, jsonResponse } from "@core/http/responses";
+import { Logger } from "@utils/logger";
 import type { RouteHandler } from "@core/http/router";
+
+const logger = new Logger("AssetsMetadata");
 
 /**
  * Audio metadata interface
@@ -68,8 +71,8 @@ async function extractAudioMetadata(
                 sampleRate = audioTrack.sampleRate ?? 0;
                 channels = audioTrack.numberOfChannels ?? 0;
             }
-        } catch {
-            // Fall back to zero values if parsing fails
+        } catch (error) {
+            logger.debug("Audio metadata extraction failed, using defaults", { filename, error });
         }
     }
 
@@ -95,7 +98,8 @@ export async function preloadAudioDurations(): Promise<void> {
     let files: string[];
     try {
         files = readdirSync("public/audio");
-    } catch {
+    } catch (error) {
+        logger.debug("Audio directory not found, skipping preload", { error });
         return;
     }
 
@@ -112,30 +116,44 @@ export async function preloadAudioDurations(): Promise<void> {
 
             const duration = (await input.computeDuration()) ?? 0;
             audioDurationCache.set(file, duration);
-        } catch {
-            // Skip files that can't be parsed
+        } catch (error) {
+            logger.debug("Skipping unparseable audio file", { file, error });
         }
     }
 }
 
 /**
- * Extract image metadata (stub implementation)
- *
- * TODO: Implement actual metadata extraction using image file parsers
+ * Extract image metadata using image-size for dimensions.
  */
 async function extractImageMetadata(
     filename: string,
     size: number,
 ): Promise<ImageMetadata> {
+    const { readFileSync } = await import("node:fs");
+    const { imageSize } = await import("image-size");
+
     const extension = filename.split(".").pop()?.toLowerCase() || "unknown";
+    const filePath = `public/images/${filename}`;
+
+    let width = 0;
+    let height = 0;
+
+    try {
+        const buffer = readFileSync(filePath);
+        const dimensions = imageSize(buffer);
+        width = dimensions.width ?? 0;
+        height = dimensions.height ?? 0;
+    } catch (error) {
+        logger.debug("Could not read image dimensions", { filename, error });
+    }
 
     return {
         filename,
         url: `/public/images/${filename}`,
         size,
         format: extension,
-        width: 0,
-        height: 0,
+        width,
+        height,
     };
 }
 
@@ -156,7 +174,7 @@ export const getAudioMetadata: RouteHandler = async (_req, params) => {
         const metadata = await extractAudioMetadata(filename, file.size);
         return jsonResponse(metadata);
     } catch (error) {
-        console.error("Metadata extraction error:", error);
+        logger.error("Metadata extraction error", { error });
         return errorResponse("Failed to extract metadata", 500);
     }
 };
@@ -178,7 +196,7 @@ export const getImageMetadata: RouteHandler = async (_req, params) => {
         const metadata = await extractImageMetadata(filename, file.size);
         return jsonResponse(metadata);
     } catch (error) {
-        console.error("Metadata extraction error:", error);
+        logger.error("Metadata extraction error", { error });
         return errorResponse("Failed to extract metadata", 500);
     }
 };

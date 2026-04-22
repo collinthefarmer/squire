@@ -44,8 +44,9 @@ export function projectAudioState(events: Event[]): AudioState {
                 });
 
                 const ch = getOrCreateChannel(channels, channelId, p.volume);
-                ch.tracks.set(trackId, track);
-                channels.set(channelId, ch);
+                const tracks = new Map(ch.tracks);
+                tracks.set(trackId, track);
+                channels.set(channelId, { ...ch, tracks });
                 break;
             }
 

@@ -52,8 +52,8 @@ export const listImageAssets: RouteHandler = async () => {
                 const dimensions = imageSize(buffer);
                 width = dimensions.width ?? 0;
                 height = dimensions.height ?? 0;
-            } catch {
-                // If we can't read dimensions, return 0s
+            } catch (error) {
+                logger.debug("Could not read image dimensions", { file: f, error });
             }
 
             return {

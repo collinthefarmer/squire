@@ -1,3 +1,5 @@
+import type { ServerWebSocket } from "bun";
+
 // Core type definitions
 
 /**
@@ -92,13 +94,13 @@ export interface AudioTrackState {
 
 export interface AudioChannelState {
     id: string;
-    tracks: Map<string, AudioTrackState>;
+    tracks: ReadonlyMap<string, AudioTrackState>;
     volume: number;
     effects: AudioEffect[];
 }
 
 export interface AudioState {
-    channels: Map<string, AudioChannelState>;
+    channels: ReadonlyMap<string, AudioChannelState>;
     masterVolume: number;
 }
 
@@ -119,17 +121,25 @@ export interface SystemClientListPayload {
 }
 
 /**
+ * WebSocket data attached to each connection
+ */
+export interface WebSocketData {
+    clientId: string;
+    clientType: "master" | "display";
+}
+
+/**
  * Client registry
  */
 export interface ConnectedClient {
     id: string;
     type: "master" | "display";
-    ws: any; // ServerWebSocket type from Bun
+    ws: ServerWebSocket<WebSocketData>;
     connectedAt: number;
 }
 
 export interface ClientsState {
-    clients: Map<string, ConnectedClient>;
+    clients: ReadonlyMap<string, ConnectedClient>;
 }
 
 /**
@@ -238,7 +248,7 @@ export interface ImageLayerState {
 }
 
 export interface ImageState {
-    layers: Map<string, ImageLayerState>;
+    layers: ReadonlyMap<string, ImageLayerState>;
 }
 
 /**

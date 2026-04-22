@@ -38,32 +38,30 @@ export class ImageService {
     }
 
     private setupEventListeners(): void {
-        // Subscribe to all image events from EventStore
         this.eventStore
             .ofType<ImageEvent>("visual.image.*")
             .subscribe((event) => {
-                this.handleEvent(event);
+                try {
+                    this.handleEvent(event);
+                } catch (error) {
+                    logger.error("Failed to handle image event", { type: event.type, error: String(error) });
+                }
             });
     }
 
+    private readonly handlers: {
+        [K in ImageEvent["type"]]: (e: Extract<ImageEvent, { type: K }>) => void;
+    } = {
+        "visual.image.set": (e) => this.handleSet(e),
+        "visual.image.clear": (e) => this.handleClear(e),
+        "visual.image.transform": (e) => this.handleTransform(e),
+        "visual.image.effect": (e) => this.handleEffect(e),
+        "visual.image.layer_config": (e) => this.handleLayerConfig(e),
+    };
+
     private handleEvent(event: ImageEvent): void {
-        switch (event.type) {
-            case "visual.image.set":
-                this.handleSet(event);
-                break;
-            case "visual.image.clear":
-                this.handleClear(event);
-                break;
-            case "visual.image.transform":
-                this.handleTransform(event);
-                break;
-            case "visual.image.effect":
-                this.handleEffect(event);
-                break;
-            case "visual.image.layer_config":
-                this.handleLayerConfig(event);
-                break;
-        }
+        const handler = this.handlers[event.type];
+        (handler as (e: ImageEvent) => void)(event);
     }
 
     private handleSet(event: ImageSetEvent): void {

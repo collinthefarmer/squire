@@ -1,6 +1,38 @@
 import type { Event } from "@types";
 
 /**
+ * Safely extract a string field from an event's payload.
+ * Used for key extraction and payload access without unsafe casts.
+ */
+function getPayloadStringField(
+    event: Event,
+    field: string,
+): string | undefined {
+    const payload = event.payload;
+
+    if (typeof payload !== "object" || payload === null) {
+        return undefined;
+    }
+
+    const value = (payload as Record<string, unknown>)[field];
+    return typeof value === "string" ? value : undefined;
+}
+
+/**
+ * Get the payload of an event as a record for field-level access.
+ * Returns an empty object if the payload is not an object.
+ */
+function payloadAsRecord(event: Event): Record<string, unknown> {
+    const payload = event.payload;
+
+    if (typeof payload !== "object" || payload === null) {
+        return {};
+    }
+
+    return payload as Record<string, unknown>;
+}
+
+/**
  * Declarative replay rules for an event domain.
  *
  * Each creation event declares how mutation events affect it:
@@ -78,10 +110,7 @@ export class ReplayDomain {
     ) {
         this.keyExtractor =
             typeof keyField === "string"
-                ? (event) =>
-                      (event.payload as Record<string, unknown>)[keyField] as
-                          | string
-                          | undefined
+                ? (event) => getPayloadStringField(event, keyField)
                 : keyField;
         this.buildRoles(config);
     }
@@ -152,7 +181,7 @@ export class ReplayDomain {
         if (Array.isArray(rule)) {
             // Simple field merge into the creation event (first in sequence)
             const creation = events[0];
-            const triggerPayload = event.payload as Record<string, unknown>;
+            const triggerPayload = payloadAsRecord(event);
             const updates: Record<string, unknown> = {};
 
             for (const field of rule) {
@@ -164,7 +193,7 @@ export class ReplayDomain {
             events[0] = {
                 ...creation,
                 payload: {
-                    ...(creation.payload as Record<string, unknown>),
+                    ...payloadAsRecord(creation),
                     ...updates,
                 },
             };

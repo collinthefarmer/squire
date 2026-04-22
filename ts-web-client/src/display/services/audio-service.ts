@@ -1,6 +1,12 @@
 import { BehaviorSubject, type Observable } from "rxjs";
 import { Logger } from "@utils/logger";
 import { setInMap, updateInMap, removeFromMap } from "@utils/state-helpers";
+import {
+    applyAudioStop,
+    updateMatchingTracks,
+    applyAudioVolume,
+    applyAudioChannelEffects,
+} from "@services/audio-channel-state";
 import { generateTrackId } from "@utils/audio-helpers";
 import { ServiceRegistry } from "@services/service-registry";
 import { EffectChain } from "@services/effect-chain";
@@ -112,7 +118,11 @@ export class AudioService {
      */
     private onAudioEvent<T>(type: string, handler: (event: T) => void): void {
         this.eventBus.on(`server:${type}`, (event: unknown) => {
-            handler(event as T);
+            try {
+                handler(event as T);
+            } catch (error) {
+                this.logger.error("Failed to handle audio event", { type, error: String(error) });
+            }
         });
     }
 
@@ -319,11 +329,12 @@ export class AudioService {
             audio.pause();
         });
 
-        const updated = this.updateTracks(channel, trackId, (track) => ({
-            ...track,
-            playing: false,
-        }));
-        this.channels$.next(updated);
+        this.channels$.next(
+            updateMatchingTracks(this.channels$.value, channel, trackId, (track) => ({
+                ...track,
+                playing: false,
+            })),
+        );
     }
 
     private handleResume(event: AudioResumeEvent): void {
@@ -340,11 +351,12 @@ export class AudioService {
             });
         });
 
-        const updated = this.updateTracks(channel, trackId, (track) => ({
-            ...track,
-            playing: true,
-        }));
-        this.channels$.next(updated);
+        this.channels$.next(
+            updateMatchingTracks(this.channels$.value, channel, trackId, (track) => ({
+                ...track,
+                playing: true,
+            })),
+        );
     }
 
     private handleStop(event: AudioStopEvent): void {
@@ -352,35 +364,21 @@ export class AudioService {
 
         this.logger.info("Audio stop", { channel, trackId: trackId ?? "all" });
 
+        // Clean up audio elements
         if (trackId) {
             this.stopTrack(trackId);
-
-            const ch = this.channels$.value.get(channel);
-            if (ch) {
-                const tracks = new Map(ch.tracks);
-                tracks.delete(trackId);
-
-                const updated =
-                    tracks.size === 0
-                        ? removeFromMap(this.channels$.value, channel)
-                        : updateInMap(this.channels$.value, channel, () => ({
-                              ...ch,
-                              tracks,
-                          }));
-                this.channels$.next(updated);
-            }
         } else {
-            // Stop all tracks on the channel
             const ch = this.channels$.value.get(channel);
             if (ch) {
                 for (const tid of ch.tracks.keys()) {
                     this.stopTrack(tid);
                 }
             }
-
-            const updated = removeFromMap(this.channels$.value, channel);
-            this.channels$.next(updated);
         }
+
+        this.channels$.next(
+            applyAudioStop(this.channels$.value, channel, trackId),
+        );
     }
 
     private handleChannelEffects(event: {
@@ -429,11 +427,12 @@ export class AudioService {
             audio.loop = loop;
         }
 
-        const updated = this.updateTracks(channel, trackId, (track) => ({
-            ...track,
-            loop,
-        }));
-        this.channels$.next(updated);
+        this.channels$.next(
+            updateMatchingTracks(this.channels$.value, channel, trackId, (track) => ({
+                ...track,
+                loop,
+            })),
+        );
     }
 
     private handleVolume(event: AudioVolumeEvent): void {
@@ -445,37 +444,26 @@ export class AudioService {
             volume,
         });
 
-        // Update state first, then apply computed volumes from the updated state
-        if (trackId) {
-            const updated = updateInMap(this.channels$.value, channel, (c) => {
-                const tracks = new Map(c.tracks);
-                const track = tracks.get(trackId);
-                if (track) {
-                    tracks.set(trackId, { ...track, volume });
-                }
-                return { ...c, tracks };
-            });
-            this.channels$.next(updated);
+        // Update state first, then apply computed volumes to audio elements
+        const updated = applyAudioVolume(this.channels$.value, channel, volume, trackId);
+        this.channels$.next(updated);
 
-            const ch = updated.get(channel);
+        // Apply computed volumes to DOM audio elements
+        const ch = updated.get(channel);
+        if (!ch) {
+            return;
+        }
+
+        if (trackId) {
             const audio = this.audioElements.get(trackId);
-            if (audio && ch) {
+            if (audio) {
                 audio.volume = volume * ch.volume;
             }
         } else {
-            const updated = updateInMap(this.channels$.value, channel, (c) => ({
-                ...c,
-                volume,
-            }));
-            this.channels$.next(updated);
-
-            const ch = updated.get(channel);
-            if (ch) {
-                for (const [tid, track] of ch.tracks) {
-                    const audio = this.audioElements.get(tid);
-                    if (audio) {
-                        audio.volume = track.volume * volume;
-                    }
+            for (const [tid, track] of ch.tracks) {
+                const audio = this.audioElements.get(tid);
+                if (audio) {
+                    audio.volume = track.volume * volume;
                 }
             }
         }
@@ -510,29 +498,6 @@ export class AudioService {
                 callback(audio);
             }
         }
-    }
-
-    /**
-     * Update track states within a channel, returning the new channels map.
-     */
-    private updateTracks(
-        channel: string,
-        trackId: string | undefined,
-        updater: (
-            track: import("@types").AudioTrackState,
-        ) => import("@types").AudioTrackState,
-    ): Map<string, AudioChannelState> {
-        return updateInMap(this.channels$.value, channel, (ch) => {
-            const tracks = new Map(ch.tracks);
-
-            for (const [id, track] of tracks) {
-                if (!trackId || id === trackId) {
-                    tracks.set(id, updater(track));
-                }
-            }
-
-            return { ...ch, tracks };
-        });
     }
 
     /**

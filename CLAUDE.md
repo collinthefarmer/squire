@@ -243,6 +243,9 @@ scripts/
 - Event handling (WebSocket → EventBus → Services → Components)
 - State management (immutable updates, helper functions)
 - Component communication (props, events, services, slots)
+- Connection resilience (EventBus independence, reconnection guarantees)
+- Observable lifecycle (BehaviorSubject vs Subject, derived state patterns)
+- CSS architecture (external `.css` files vs `getStyles()`)
 - Testing, performance, and accessibility standards
 
 The client architecture emphasizes **web standard APIs** (no frameworks), **service-driven logic**, and **composable single-responsibility components**.
@@ -303,6 +306,8 @@ Control interface for DM to trigger events.
 - Use Zod for all runtime validation (server-side)
 - State updates happen in services, not in main.ts or components
 - Broadcast to clients via `clientRegistry.broadcast()`, not direct WebSocket access
+- EventBus is local and WebSocket-independent — subscriptions survive disconnections
+- Shared reducer functions (`apply{Domain}{Action}`) in `shared/services/` keep event-to-state logic DRY across display and master clients
 
 ## Code Style
 

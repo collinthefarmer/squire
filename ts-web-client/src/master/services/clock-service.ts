@@ -23,6 +23,7 @@ import type { CanvasObjectProvider } from "./canvas-object-provider";
 import type { CanvasObject, DisplayBounds } from "./visual-service";
 import type {
     ImagePosition,
+    ClockEvent,
     ClockCreateEvent,
     ClockStartEvent,
     ClockPauseEvent,
@@ -44,6 +45,10 @@ export class MasterClockService implements CanvasObjectProvider {
     private timeScaleService: TimeScaleService;
     private clocks$ = new BehaviorSubject<Map<string, ClockState>>(new Map());
 
+    private readonly canvasObjects$ = this.clocks$.pipe(
+        map((clocks) => this.computeCanvasObjects(clocks)),
+    );
+
     constructor(connectionService: ConnectionService, eventBus: EventBus) {
         this.connectionService = connectionService;
         this.timeScaleService =
@@ -58,9 +63,13 @@ export class MasterClockService implements CanvasObjectProvider {
 
     private setupTimeScaleListener(eventBus: EventBus): void {
         eventBus.on("server:time.scale_changed", (event: unknown) => {
-            const { scale } = (event as { payload: { scale: number } }).payload;
-            const updated = applyTimeScaleChange(this.clocks$.value, scale);
-            this.clocks$.next(updated);
+            try {
+                const { scale } = (event as { payload: { scale: number } }).payload;
+                const updated = applyTimeScaleChange(this.clocks$.value, scale);
+                this.clocks$.next(updated);
+            } catch (error) {
+                this.logger.error("Failed to handle time scale change", { error: String(error) });
+            }
         });
     }
 
@@ -77,9 +86,7 @@ export class MasterClockService implements CanvasObjectProvider {
     // -- Canvas overlay integration --
 
     getCanvasObjects$(): Observable<CanvasObject[]> {
-        return this.clocks$.pipe(
-            map((clocks) => this.computeCanvasObjects(clocks)),
-        );
+        return this.canvasObjects$;
     }
 
     private computeCanvasObjects(
@@ -183,48 +190,31 @@ export class MasterClockService implements CanvasObjectProvider {
 
     private setupEventListeners(eventBus: EventBus): void {
         eventBus.on("server:ui.clock.*", (event: unknown) => {
-            this.handleEvent(event as { type: string });
+            try {
+                this.handleEvent(event as ClockEvent);
+            } catch (error) {
+                this.logger.error("Failed to handle clock event", { error: String(error) });
+            }
         });
     }
 
-    private handleEvent(event: { type: string }): void {
+    private handleEvent(event: ClockEvent): void {
         const current = this.clocks$.value;
         const scale = this.getTimeScale();
-        let updated: Map<string, ClockState>;
 
-        switch (event.type) {
-            case "ui.clock.create":
-                updated = applyClockCreate(
-                    current,
-                    event as ClockCreateEvent,
-                    scale,
-                );
-                break;
-            case "ui.clock.start":
-                updated = applyClockStart(
-                    current,
-                    event as ClockStartEvent,
-                    scale,
-                );
-                break;
-            case "ui.clock.pause":
-                updated = applyClockPause(current, event as ClockPauseEvent);
-                break;
-            case "ui.clock.adjust":
-                updated = applyClockAdjust(current, event as ClockAdjustEvent);
-                break;
-            case "ui.clock.destroy":
-                updated = applyClockDestroy(
-                    current,
-                    event as ClockDestroyEvent,
-                );
-                break;
-            case "ui.clock.update":
-                updated = applyClockUpdate(current, event as ClockUpdateEvent);
-                break;
-            default:
-                return;
-        }
+        const handlers: {
+            [K in ClockEvent["type"]]: (e: Extract<ClockEvent, { type: K }>) => Map<string, ClockState>;
+        } = {
+            "ui.clock.create": (e) => applyClockCreate(current, e, scale),
+            "ui.clock.start": (e) => applyClockStart(current, e, scale),
+            "ui.clock.pause": (e) => applyClockPause(current, e),
+            "ui.clock.adjust": (e) => applyClockAdjust(current, e),
+            "ui.clock.destroy": (e) => applyClockDestroy(current, e),
+            "ui.clock.update": (e) => applyClockUpdate(current, e),
+        };
+
+        const handler = handlers[event.type];
+        const updated = (handler as (e: ClockEvent) => Map<string, ClockState>)(event);
 
         this.clocks$.next(updated);
     }

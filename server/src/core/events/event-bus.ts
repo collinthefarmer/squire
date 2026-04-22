@@ -1,4 +1,5 @@
 import { Subject, Observable, filter } from "rxjs";
+import { matchesPattern } from "@utils/event-pattern";
 import type { Event } from "@types";
 
 /**
@@ -14,7 +15,7 @@ export class EventBus {
      */
     ofType$<T extends Event = Event>(pattern: string): Observable<T> {
         return this.events$.pipe(
-            filter((e) => this.matchesPattern(e.type, pattern)),
+            filter((e) => matchesPattern(e.type, pattern)),
         ) as Observable<T>;
     }
 
@@ -28,27 +29,15 @@ export class EventBus {
     /**
      * Emit event (legacy API)
      */
-    async emit<T = any>(_eventType: string, event: T): Promise<void> {
-        this.events$.next(event as Event);
+    async emit<T extends Event = Event>(_eventType: string, event: T): Promise<void> {
+        this.events$.next(event);
     }
 
     /**
      * Emit event synchronously (legacy API - same behavior with RxJS)
      */
-    emitSync<T = any>(_eventType: string, event: T): void {
-        this.events$.next(event as Event);
+    emitSync<T extends Event = Event>(_eventType: string, event: T): void {
+        this.events$.next(event);
     }
 
-    private matchesPattern(type: string, pattern: string): boolean {
-        if (pattern === "*") {
-            return true;
-        }
-
-        if (pattern.endsWith(".*")) {
-            const prefix = pattern.slice(0, -1);
-            return type.startsWith(prefix);
-        }
-
-        return type === pattern;
-    }
 }

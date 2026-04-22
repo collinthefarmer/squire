@@ -6,7 +6,10 @@ import {
     MAX_AUDIO_SIZE,
     MAX_IMAGE_SIZE,
 } from "@core/http/validation";
+import { Logger } from "@utils/logger";
 import type { RouteHandler } from "@core/http/router";
+
+const logger = new Logger("AssetsUpload");
 
 /**
  * Upload audio file
@@ -51,7 +54,7 @@ export const uploadAudioAsset: RouteHandler = async (req) => {
             201,
         );
     } catch (error) {
-        console.error("Audio upload error:", error);
+        logger.error("Audio upload error", { error });
         return errorResponse("Upload failed", 500);
     }
 };
@@ -99,7 +102,7 @@ export const uploadImageAsset: RouteHandler = async (req) => {
             201,
         );
     } catch (error) {
-        console.error("Image upload error:", error);
+        logger.error("Image upload error", { error });
         return errorResponse("Upload failed", 500);
     }
 };

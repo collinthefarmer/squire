@@ -24,6 +24,7 @@ import type {
     ImagePosition,
     ImageTransition,
     ImageLayerState,
+    ImageEvent,
     ImageSetEvent,
     ImageClearEvent,
     ImageTransformEvent,
@@ -81,6 +82,10 @@ export class MasterVisualService implements CanvasObjectProvider {
         new Map(),
     );
 
+    private readonly canvasObjects$ = this.layers$.pipe(
+        map((layers) => this.computeCanvasObjects(layers)),
+    );
+
     constructor(connectionService: ConnectionService, eventBus: EventBus) {
         this.connectionService = connectionService;
         this.assetService = ServiceRegistry.get<AssetService>("AssetService");
@@ -93,9 +98,7 @@ export class MasterVisualService implements CanvasObjectProvider {
     // -- Canvas object derivation --
 
     getCanvasObjects$(): Observable<CanvasObject[]> {
-        return this.layers$.pipe(
-            map((layers) => this.computeCanvasObjects(layers)),
-        );
+        return this.canvasObjects$;
     }
 
     private computeCanvasObjects(
@@ -364,51 +367,35 @@ export class MasterVisualService implements CanvasObjectProvider {
 
     // -- Server event handling --
 
+    private readonly imageHandlers: {
+        [K in ImageEvent["type"]]: (
+            current: Map<string, ImageLayerState>,
+            event: Extract<ImageEvent, { type: K }>,
+        ) => Map<string, ImageLayerState>;
+    } = {
+        "visual.image.set": (c, e) => applyImageSet(c, e),
+        "visual.image.clear": (c, e) => applyImageClear(c, e),
+        "visual.image.transform": (c, e) => applyImageTransform(c, e),
+        "visual.image.effect": (c, e) => applyImageEffect(c, e),
+        "visual.image.layer_config": (c, e) => applyImageLayerConfig(c, e),
+    };
+
     private setupEventListeners(eventBus: EventBus): void {
         eventBus.on("server:visual.image.*", (event: unknown) => {
-            this.handleImageEvent(event as { type: string });
+            try {
+                this.handleImageEvent(event as ImageEvent);
+            } catch (error) {
+                this.logger.error("Failed to handle image event", { error: String(error) });
+            }
         });
     }
 
-    private handleImageEvent(event: { type: string }): void {
+    private handleImageEvent(event: ImageEvent): void {
         const current = this.layers$.value;
-        let updated: Map<string, ImageLayerState>;
+        const handler = this.imageHandlers[event.type];
+        const updated = (handler as (c: Map<string, ImageLayerState>, e: ImageEvent) => Map<string, ImageLayerState>)(current, event);
 
-        switch (event.type) {
-            case "visual.image.set":
-                updated = applyImageSet(current, event as ImageSetEvent);
-                this.logger.info("Image set (server)", {
-                    layer: (event as ImageSetEvent).payload.layer,
-                });
-                break;
-            case "visual.image.clear":
-                updated = applyImageClear(current, event as ImageClearEvent);
-                this.logger.info("Image clear (server)", {
-                    layer: (event as ImageClearEvent).payload.layer,
-                });
-                break;
-            case "visual.image.transform":
-                updated = applyImageTransform(
-                    current,
-                    event as ImageTransformEvent,
-                );
-                this.logger.info("Image transform (server)", {
-                    layer: (event as ImageTransformEvent).payload.layer,
-                });
-                break;
-            case "visual.image.effect":
-                updated = applyImageEffect(current, event as ImageEffectEvent);
-                break;
-            case "visual.image.layer_config":
-                updated = applyImageLayerConfig(
-                    current,
-                    event as ImageLayerConfigEvent,
-                );
-                break;
-            default:
-                return;
-        }
-
+        this.logger.info(event.type, { layer: event.payload.layer });
         this.layers$.next(updated);
     }
 }

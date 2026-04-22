@@ -1,4 +1,5 @@
 import { Subject, Observable, filter } from "rxjs";
+import { matchesPattern } from "@utils/event-pattern";
 import type { Event } from "@types";
 import { Logger } from "@utils/logger";
 import { imageReplay } from "./replay-configs";
@@ -70,7 +71,7 @@ export class EventStore {
      */
     ofType<T extends Event = Event>(pattern: string): Observable<T> {
         return this.events$.pipe(
-            filter((e) => this.matchesPattern(e.type, pattern)),
+            filter((e) => matchesPattern(e.type, pattern)),
         ) as Observable<T>;
     }
 
@@ -114,16 +115,4 @@ export class EventStore {
         }
     }
 
-    private matchesPattern(type: string, pattern: string): boolean {
-        if (pattern === "*") {
-            return true;
-        }
-
-        if (pattern.endsWith(".*")) {
-            const prefix = pattern.slice(0, -1);
-            return type.startsWith(prefix);
-        }
-
-        return type === pattern;
-    }
 }

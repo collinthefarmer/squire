@@ -26,7 +26,11 @@ export class CountdownService {
 
     private setupEventListeners(): void {
         this.eventStore.ofType<ClockEvent>("ui.clock.*").subscribe((event) => {
-            this.handleEvent(event);
+            try {
+                this.handleEvent(event);
+            } catch (error) {
+                logger.error("Failed to handle clock event", { type: event.type, error: String(error) });
+            }
         });
     }
 

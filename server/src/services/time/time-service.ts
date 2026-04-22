@@ -48,7 +48,11 @@ export class TimeService {
 
     private setupEventListeners(): void {
         this.eventStore.ofType<TimeEvent>("time.*").subscribe((event) => {
-            this.handleEvent(event);
+            try {
+                this.handleEvent(event);
+            } catch (error) {
+                logger.error("Failed to handle time event", { type: event.type, error: String(error) });
+            }
         });
     }
 
