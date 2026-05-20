@@ -1,12 +1,9 @@
 import { BaseComponent } from "@components/base/base-component";
 import { cssSheet } from "@styles/adopt-styles";
+import { bindAllRangeFills, updateRangeFill } from "@utils/range-fill";
 import { ServiceRegistry } from "@services/service-registry";
+import { TOKENS } from "@services/service-tokens";
 import type { TimeScaleService } from "@services/time-scale-service";
-import {
-    containerStyles,
-    sectionHeaderStyles,
-    segmentedButtonStyles,
-} from "@styles/common-styles";
 // @ts-expect-error — Bun imports CSS as text
 import timeScaleControlsCss from "./time-scale-controls.css" with { type: "text" };
 // @ts-expect-error — Bun imports CSS as text
@@ -15,13 +12,8 @@ import commonCss from "@styles/common.css" with { type: "text" };
 /**
  * Time-scale controls for master client
  *
- * Provides preset buttons for adjusting the global time scale
- * and displays the current scale value.
- *
- * @example
- * ```html
- * <time-scale-controls></time-scale-controls>
- * ```
+ * Provides a slider for adjusting the global time scale (0–8x)
+ * and displays the current value.
  */
 export class TimeScaleControls extends BaseComponent {
     private timeScaleService!: TimeScaleService;
@@ -30,14 +22,16 @@ export class TimeScaleControls extends BaseComponent {
         super.connectedCallback();
 
         this.timeScaleService =
-            ServiceRegistry.get<TimeScaleService>("TimeScaleService");
+            ServiceRegistry.get(TOKENS.TimeScaleService);
 
         this.adoptStyles(cssSheet(commonCss), cssSheet(timeScaleControlsCss));
 
         this.render();
         this.setupEventListeners();
         this.setupSubscriptions();
+        this.cleanup.push(bindAllRangeFills(this.shadowRoot!));
     }
+
     protected override render(): void {
         if (!this.shadowRoot) {
             return;
@@ -46,57 +40,51 @@ export class TimeScaleControls extends BaseComponent {
         this.shadowRoot.innerHTML = `
             <div class="container">
                 <div class="section-header">Time Scale</div>
-                <div class="button-group" role="radiogroup" aria-label="Time scale">
-                    <button type="button" class="option" data-scale="0">0x</button>
-                    <button type="button" class="option" data-scale="0.5">0.5x</button>
-                    <button type="button" class="option selected" data-scale="1">1x</button>
-                    <button type="button" class="option" data-scale="2">2x</button>
+                <div class="slider-row">
+                    <input type="range" id="scale-slider" min="0" max="8" step="0.1" value="1" />
+                    <span class="scale-value" id="scale-value">1.0x</span>
+                    <button class="reset-btn" id="reset-btn" title="Reset to 1x">↺</button>
                 </div>
-                <div class="scale-display">Current: 1.0x</div>
             </div>
         `;
     }
 
     private setupEventListeners(): void {
-        if (!this.shadowRoot) {
+        const slider = this.shadowRoot?.querySelector("#scale-slider") as HTMLInputElement;
+        if (!slider) {
             return;
         }
 
-        this.shadowRoot.addEventListener("click", (e) => {
-            const button = (e.target as HTMLElement).closest(
-                ".option",
-            ) as HTMLElement | null;
-            if (!button) {
-                return;
-            }
-
-            const scale = parseFloat(button.dataset.scale ?? "1");
+        slider.addEventListener("input", () => {
+            const scale = parseFloat(slider.value);
             this.timeScaleService.setScale(scale);
         });
+
+        const resetBtn = this.shadowRoot?.querySelector("#reset-btn") as HTMLButtonElement;
+        if (resetBtn) {
+            resetBtn.addEventListener("click", () => {
+                this.timeScaleService.setScale(1);
+            });
+        }
     }
 
     private setupSubscriptions(): void {
         this.subscribe(this.timeScaleService.getScale$(), (scale) => {
-            this.updateSelection(scale);
+            this.updateDisplay(scale);
         });
     }
 
-    private updateSelection(scale: number): void {
-        if (!this.shadowRoot) {
-            return;
+    private updateDisplay(scale: number): void {
+        const slider = this.shadowRoot?.querySelector("#scale-slider") as HTMLInputElement;
+        const display = this.shadowRoot?.querySelector("#scale-value");
+
+        if (slider && this.shadowRoot?.activeElement !== slider) {
+            slider.value = String(scale);
+            updateRangeFill(slider);
         }
 
-        const buttons = this.shadowRoot.querySelectorAll(".option");
-        for (const btn of Array.from(buttons)) {
-            const btnScale = parseFloat(
-                (btn as HTMLElement).dataset.scale ?? "1",
-            );
-            btn.classList.toggle("selected", btnScale === scale);
-        }
-
-        const display = this.shadowRoot.querySelector(".scale-display");
         if (display) {
-            display.textContent = `Current: ${scale}x`;
+            display.textContent = `${scale.toFixed(1)}x`;
         }
     }
 }

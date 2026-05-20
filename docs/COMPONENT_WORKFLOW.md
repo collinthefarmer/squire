@@ -86,8 +86,9 @@ Create the component file following this structure:
 
 import { BaseComponent } from "@components/base/base-component";
 import { ServiceRegistry } from "@services/service-registry";
-import { labelStyles, selectStyles } from "@styles/common-styles";
-import { colors, spacing } from "@styles/theme";
+import { TOKENS } from "@services/service-tokens";
+import { cssSheet } from "@utils/adopt-styles";
+import commonCss from "@styles/common.css" with { type: "text" };
 
 // Import types with type-only import
 import type { ConnectionService } from "@services/connection-service";
@@ -255,46 +256,27 @@ customElements.define("my-component", MyComponent);
 
 ### 2.4 Style Integration
 
-Use shared style utilities from `@styles/common-styles`:
+Adopt `common.css` for shared form and button styles, then layer component-specific CSS on top:
 
 ```typescript
-import {
-    containerStyles,
-    labelStyles,
-    selectStyles,
-    inputStyles,
-    rangeInputStyles,
-    primaryButtonStyles,
-    secondaryButtonStyles,
-    flexRow,
-    flexColumn,
-    sectionHeaderStyles,
-} from "@styles/common-styles";
+import { cssSheet } from "@utils/adopt-styles";
+import commonCss from "@styles/common.css" with { type: "text" };
+import componentCss from "./my-component.css" with { type: "text" };
 
-import { colors, spacing, borderRadius, transitions } from "@styles/theme";
+// In connectedCallback:
+this.adoptStyles(cssSheet(commonCss), cssSheet(componentCss));
 ```
 
-Compose styles in `getStyles()`:
+`common.css` provides buttons (`.primary`, `.secondary`, `.success`, `.danger`, `.outline-button`, `.strip-btn`), form elements (`select`, `input[type="range"]`, `input[type="checkbox"]`, `input[type="text"]`), layout helpers (`.slider-row`, `.header-row`, `.container`, `.card`), and typography (`.section-header`, `.section-title`, `label`, `.value-display`).
 
-```typescript
-protected override getStyles(): string {
-    return `
-        :host {
-            display: block;
-        }
+For component-specific styles, create an adjacent `.css` file using CSS custom properties from `theme.css`:
 
-        ${containerStyles()}
-        ${sectionHeaderStyles()}
-        ${labelStyles()}
-        ${selectStyles()}
-        ${primaryButtonStyles()}
-
-        .custom-class {
-            background: ${colors.gray[800]};
-            padding: ${spacing.md};
-            border-radius: ${borderRadius.md};
-        }
-    `;
+```css
+/* my-component.css */
+.custom-class {
+    background: var(--color-gray-800);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
 }
 ```
 
@@ -308,7 +290,7 @@ After initial implementation, perform these refactoring checks:
 
 1. **Identify repeated patterns** - If the same HTML/CSS pattern appears in multiple components, consider:
    - Creating a shared component
-   - Adding a style utility function to `common-styles.ts`
+   - Adding shared rules to `common.css`
    - Creating a factory function (like `createAssetPickerClass`)
 
 2. **Check for duplicated event logic** - If multiple containers handle similar events:
@@ -546,7 +528,7 @@ export class EventBuilder {
 | Service registry | `ts-web-client/src/shared/services/service-registry.ts` |
 | Connection service | `ts-web-client/src/shared/services/connection-service.ts` |
 | Event builder | `ts-web-client/src/master/services/event-builder.ts` |
-| Common styles | `ts-web-client/src/shared/styles/common-styles.ts` |
+| Common styles | `ts-web-client/src/shared/styles/common.css` |
 | Theme tokens | `ts-web-client/src/shared/styles/theme.ts` |
 | Master main.ts | `ts-web-client/src/master/main.ts` |
 | Example container | `ts-web-client/src/master/components/audio/audio-controls.ts` |
@@ -580,7 +562,7 @@ export class EventBuilder {
 - [ ] Called `super.connectedCallback()`
 - [ ] Used Shadow DOM via `this.shadowRoot`
 - [ ] Used `styleTag()` helper for CSS
-- [ ] Composed styles from common-styles utilities
+- [ ] Adopts `common.css` for shared form/button styles
 - [ ] Used theme tokens for colors/spacing
 - [ ] Emitted CustomEvents with `bubbles: true, composed: true`
 - [ ] Used guard clauses for early returns

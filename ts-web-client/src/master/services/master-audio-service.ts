@@ -181,6 +181,21 @@ export class MasterAudioService {
         return (prog.accumulatedMs + sinceLastResume) / 1000;
     }
 
+    /**
+     * Reset all audio state on reconnection.
+     *
+     * Called when system.connected arrives, before replay events
+     * rebuild the current server state. Without this, tracks stopped
+     * during disconnection would linger as ghost entries.
+     */
+    private resetState(): void {
+        this.logger.info("Resetting audio state for reconnection sync");
+        this.channels$.next(new Map());
+        this.progress.clear();
+        this.intendedVolumes.clear();
+        this.currentTimeScale = 1.0;
+    }
+
     // -- Commands --
 
     playAudio(
@@ -365,6 +380,8 @@ export class MasterAudioService {
                 }
             });
         };
+
+        eventBus.on("server:system.connected", () => this.resetState());
 
         on<AudioPlayEvent>("audio.play", (e) => this.handlePlay(e));
         on<AudioStopEvent>("audio.stop", (e) => this.handleStop(e));

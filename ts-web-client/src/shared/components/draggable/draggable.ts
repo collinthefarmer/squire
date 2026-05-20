@@ -52,8 +52,13 @@ function distance(a: Point, b: Point): number {
  * @attr data-drag-data - Data to include in drag events
  * @attr data-drag-source - Source tag for filtering
  */
+function preventTouchScroll(e: TouchEvent): void {
+    e.preventDefault();
+}
+
 export class Draggable extends HTMLElement {
     private destroy$ = new Subject<void>();
+    private lastTouchEnd = 0;
 
     protected scaleGesture = new ScaleGesture({
         min: DRAG.SCALE_MIN,
@@ -66,6 +71,7 @@ export class Draggable extends HTMLElement {
 
         const mouseDown$ = fromEvent<MouseEvent>(this, "mousedown").pipe(
             filter((e) => e.button === 0),
+            filter(() => Date.now() - this.lastTouchEnd > 500),
             tap((e) => e.preventDefault()),
             map(
                 (e): PointerStart => ({
@@ -77,10 +83,9 @@ export class Draggable extends HTMLElement {
         );
 
         const touchDown$ = fromEvent<TouchEvent>(this, "touchstart", {
-            passive: false,
+            passive: true,
         }).pipe(
             filter((e) => e.touches.length === 1 && !!e.touches[0]),
-            tap((e) => e.preventDefault()),
             map(
                 (e): PointerStart => ({
                     x: e.touches[0]!.clientX,
@@ -118,15 +123,47 @@ export class Draggable extends HTMLElement {
 
     private gesture(start: PointerStart) {
         const { move$, up$ } = this.pointerStreams(start.source);
+        const cancel$ = new Subject<void>();
         let pos: Point = start;
         let dragging = false;
+        let cancelled = false;
+        let touchResolved = start.source !== "touch";
+
+        if (start.source === "touch") {
+            fromEvent<TouchEvent>(document, "touchstart", { passive: true })
+                .pipe(
+                    filter((e) => e.touches.length > 1),
+                    take(1),
+                    takeUntil(merge(up$, cancel$)),
+                )
+                .subscribe(() => {
+                    cancelled = true;
+                    cancel$.next();
+                });
+        }
 
         const moves$ = move$.pipe(
             tap((p) => {
                 pos = p;
 
+                if (!touchResolved) {
+                    const dx = Math.abs(p.x - start.x);
+                    const dy = Math.abs(p.y - start.y);
+
+                    if (dy > DRAG.CLICK_THRESHOLD && dy > dx) {
+                        cancelled = true;
+                        cancel$.next();
+                        return;
+                    }
+
+                    if (dx >= DRAG.CLICK_THRESHOLD) {
+                        touchResolved = true;
+                    }
+                }
+
                 if (!dragging && distance(p, start) >= DRAG.CLICK_THRESHOLD) {
                     dragging = true;
+                    touchResolved = true;
                     this.beginDrag(start);
                 }
 
@@ -139,8 +176,24 @@ export class Draggable extends HTMLElement {
         );
 
         return merge(moves$, scales$).pipe(
-            takeUntil(up$),
-            finalize(() => (dragging ? this.endDrag(pos) : this.emitClick(start))),
+            takeUntil(merge(up$, cancel$)),
+            finalize(() => {
+                if (dragging) {
+                    this.cleanupDrag();
+                }
+
+                if (cancelled) {
+                    if (dragging) {
+                        this.emitCancel();
+                    }
+                    return;
+                }
+
+                if (start.source === "touch") {
+                    this.lastTouchEnd = Date.now();
+                }
+                dragging ? this.emitDragEnd(pos) : this.emitClick(start);
+            }),
         );
     }
 
@@ -162,7 +215,6 @@ export class Draggable extends HTMLElement {
                 passive: false,
             }).pipe(
                 filter((e) => e.touches.length === 1 && !!e.touches[0]),
-                tap((e) => e.preventDefault()),
                 map(
                     (e): Point => ({
                         x: e.touches[0]!.clientX,
@@ -198,6 +250,9 @@ export class Draggable extends HTMLElement {
         this.scaleGesture.attach();
         this.onDragStart(pos.x, pos.y);
 
+        document.addEventListener("touchmove", preventTouchScroll, {
+            passive: false,
+        });
         document.body.style.userSelect = "none";
         document.body.style.cursor = "grabbing";
 
@@ -232,12 +287,15 @@ export class Draggable extends HTMLElement {
         });
     }
 
-    private endDrag(pos: Point): void {
+    private cleanupDrag(): void {
         this.scaleGesture.detach();
+        document.removeEventListener("touchmove", preventTouchScroll);
 
         document.body.style.userSelect = "";
         document.body.style.cursor = "";
+    }
 
+    private emitDragEnd(pos: Point): void {
         this.onDragEnd(pos.x, pos.y);
 
         emitDomEvent(this, "drag-end", {
@@ -245,6 +303,15 @@ export class Draggable extends HTMLElement {
             source: this.dataset.dragSource,
             x: pos.x,
             y: pos.y,
+        });
+    }
+
+    private emitCancel(): void {
+        this.onDragEnd(0, 0);
+
+        emitDomEvent(this, "drag-cancel", {
+            data: this.dragData(),
+            source: this.dataset.dragSource,
         });
     }
 }

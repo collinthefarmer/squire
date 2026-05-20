@@ -18,7 +18,7 @@ const STORE_NAME = "data";
  *
  * @example
  * ```typescript
- * const store = ServiceRegistry.get<LocalStore>("LocalStore");
+ * const store = ServiceRegistry.get(TOKENS.LocalStore);
  *
  * // Write
  * await store.set("settings.micDeviceId", "abc123");

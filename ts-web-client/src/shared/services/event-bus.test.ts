@@ -74,7 +74,7 @@ describe("EventBus pattern matching", () => {
         const eventBus = new EventBus();
         let received = false;
 
-        eventBus.on("server:*.*", (event: any) => {
+        eventBus.on("server:*.*", (_event: any) => {
             received = true;
         });
 

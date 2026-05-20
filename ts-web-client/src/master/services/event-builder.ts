@@ -312,6 +312,7 @@ export class EventBuilder {
         autoStart?: boolean;
         position?: ImagePosition;
         zIndex?: number;
+        font?: string;
         respectTimeScale?: boolean;
         visibility?: "always" | "hidden" | "dm-only";
         onComplete?: "persist" | "auto-hide" | "auto-destroy";
@@ -324,6 +325,7 @@ export class EventBuilder {
                 autoStart: params.autoStart,
                 position: params.position,
                 zIndex: params.zIndex,
+                font: params.font,
                 respectTimeScale: params.respectTimeScale,
                 visibility: params.visibility,
                 onComplete: params.onComplete,
@@ -387,6 +389,7 @@ export class EventBuilder {
         position?: ImagePosition;
         zIndex?: number;
         visible?: boolean;
+        scale?: number;
     }): ClockUpdateEvent {
         return {
             type: "ui.clock.update",
@@ -395,6 +398,7 @@ export class EventBuilder {
                 position: params.position,
                 zIndex: params.zIndex,
                 visible: params.visible,
+                scale: params.scale,
             },
             metadata: {
                 timestamp: Date.now(),

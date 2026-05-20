@@ -35,11 +35,8 @@ export function applyAudioPlay(
     const { channel, trackId, source, volume, loop, effects, respectTimeScale } = params;
     const existing = channels.get(channel);
 
-    const ch: AudioChannelState = existing
-        ? { ...existing, tracks: new Map(existing.tracks) }
-        : { id: channel, tracks: new Map(), volume, effects: [] };
-
-    ch.tracks.set(trackId, {
+    const tracks = new Map(existing?.tracks ?? []);
+    tracks.set(trackId, {
         id: trackId,
         source,
         playing: true,
@@ -49,6 +46,10 @@ export function applyAudioPlay(
         effects: effects ?? [],
         respectTimeScale,
     });
+
+    const ch: AudioChannelState = existing
+        ? { ...existing, tracks }
+        : { id: channel, tracks, volume, effects: [] };
 
     return setInMap(channels, channel, ch);
 }

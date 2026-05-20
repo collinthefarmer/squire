@@ -1,5 +1,5 @@
 import type { Router } from "@core/http/router";
-import { listAudioAssets, listImageAssets } from "@api/handlers/assets-list";
+import { listAudioAssets, listImageAssets, listFontAssets } from "@api/handlers/assets-list";
 import {
     uploadAudioAsset,
     uploadImageAsset,
@@ -16,6 +16,7 @@ export function registerRoutes(router: Router): void {
     // Asset listing
     router.get("/api/assets/audio", listAudioAssets);
     router.get("/api/assets/images", listImageAssets);
+    router.get("/api/assets/fonts", listFontAssets);
 
     // Asset upload
     router.post("/api/assets/audio", uploadAudioAsset);

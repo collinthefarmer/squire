@@ -3,11 +3,11 @@ import { cssSheet } from "@styles/adopt-styles";
 import { BaseComponent } from "@components/base/base-component";
 import { onDomEvent } from "@utils/dom-events";
 import { ServiceRegistry } from "@services/service-registry";
+import { TOKENS } from "@services/service-tokens";
 import type { ImageToolbarService } from "@master/services/image-toolbar-service";
 import type { MasterVisualService } from "@master/services/visual-service";
 import type { LayerControlPanel, LayerEntry } from "./layer-control-panel";
 import type { ImageLayerState } from "@types";
-import { containerStyles, sectionHeaderStyles } from "@styles/common-styles";
 // @ts-expect-error — Bun imports CSS as text
 import imageToolbarCss from "./image-toolbar.css" with { type: "text" };
 // @ts-expect-error — Bun imports CSS as text
@@ -30,11 +30,11 @@ export class ImageToolbar extends BaseComponent {
     override connectedCallback(): void {
         super.connectedCallback();
 
-        this.imageToolbarService = ServiceRegistry.get<ImageToolbarService>(
-            "ImageToolbarService",
+        this.imageToolbarService = ServiceRegistry.get(
+            TOKENS.ImageToolbarService,
         );
-        this.visualService = ServiceRegistry.get<MasterVisualService>(
-            "MasterVisualService",
+        this.visualService = ServiceRegistry.get(
+            TOKENS.MasterVisualService,
         );
 
         this.adoptStyles(cssSheet(commonCss), cssSheet(imageToolbarCss));

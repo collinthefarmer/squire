@@ -1,6 +1,7 @@
 import { BaseComponent } from "@components/base/base-component";
 import { cssSheet } from "@styles/adopt-styles";
 import { ServiceRegistry } from "@services/service-registry";
+import { TOKENS } from "@services/service-tokens";
 import { observeResize } from "@utils/observe-resize";
 import type { ConfigService } from "@services/config-service";
 // @ts-expect-error — Bun imports CSS as text
@@ -22,12 +23,11 @@ export class IframePreview extends BaseComponent {
     private config!: ConfigService;
 
     private readonly PREVIEW_WIDTH = 1920;
-    private readonly PREVIEW_HEIGHT = 1080;
 
     override connectedCallback(): void {
         super.connectedCallback();
 
-        this.config = ServiceRegistry.get<ConfigService>("ConfigService");
+        this.config = ServiceRegistry.get(TOKENS.ConfigService);
         this.adoptStyles(cssSheet(commonCss), cssSheet(iframePreviewCss));
 
         this.render();

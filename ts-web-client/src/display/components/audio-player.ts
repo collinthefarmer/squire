@@ -2,22 +2,14 @@ import { of, concat, timer, switchMap, tap, map } from "rxjs";
 import { cssSheet } from "@styles/adopt-styles";
 import { BaseComponent } from "@components/base/base-component";
 import { ServiceRegistry } from "@services/service-registry";
-import type { AudioService } from "@display/services/audio-service";
+import { TOKENS } from "@services/service-tokens";
 import type { AudioChannelState } from "@types";
 import { AudioChannelCard } from "./audio-channel-card";
-import { flexColumn } from "@styles/common-styles";
 
 // @ts-expect-error — Bun imports CSS as text
 import audioPlayerCss from "./audio-player.css" with { type: "text" };
 // @ts-expect-error — Bun imports CSS as text
 import commonCss from "@styles/common.css" with { type: "text" };
-import {
-    colors,
-    spacing,
-    borderRadius,
-    alpha,
-    transitions,
-} from "@styles/theme";
 
 const COLLAPSE_DELAY = 3000;
 
@@ -38,7 +30,7 @@ export class AudioPlayer extends BaseComponent {
     override connectedCallback(): void {
         super.connectedCallback();
 
-        const audioService = ServiceRegistry.get<AudioService>("AudioService");
+        const audioService = ServiceRegistry.get(TOKENS.AudioService);
 
         this.subscribe(
             audioService.getChannels$().pipe(

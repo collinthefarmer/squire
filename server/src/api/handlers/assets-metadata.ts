@@ -1,5 +1,6 @@
 import { Input, FilePathSource, ALL_FORMATS } from "mediabunny";
 import { errorResponse, jsonResponse } from "@core/http/responses";
+import { isValidAudioFile } from "@core/http/validation";
 import { Logger } from "@utils/logger";
 import type { RouteHandler } from "@core/http/router";
 
@@ -104,7 +105,7 @@ export async function preloadAudioDurations(): Promise<void> {
     }
 
     for (const file of files) {
-        if (audioDurationCache.has(file)) {
+        if (audioDurationCache.has(file) || !isValidAudioFile(file)) {
             continue;
         }
 
@@ -116,8 +117,10 @@ export async function preloadAudioDurations(): Promise<void> {
 
             const duration = (await input.computeDuration()) ?? 0;
             audioDurationCache.set(file, duration);
-        } catch (error) {
-            logger.debug("Skipping unparseable audio file", { file, error });
+        } catch {
+            // mediabunny doesn't support all formats (e.g. WAV).
+            // Duration will be computed on first metadata request instead.
+            logger.debug("Could not preload duration", { file });
         }
     }
 }

@@ -136,7 +136,7 @@ const chorusDefinition: EffectDefinition = {
 
 // -- Distortion --
 
-function makeDistortionCurve(amount: number): Float32Array {
+function makeDistortionCurve(amount: number): Float32Array<ArrayBuffer> {
     const samples = 44100;
     const curve = new Float32Array(samples);
     const k = amount;

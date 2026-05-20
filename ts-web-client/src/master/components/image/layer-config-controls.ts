@@ -1,19 +1,8 @@
 import { BaseComponent } from "@components/base/base-component";
 import { cssSheet } from "@styles/adopt-styles";
 import { emitDomEvent } from "@utils/dom-events";
+import { bindAllRangeFills } from "@utils/range-fill";
 import type { BlendMode } from "@types";
-import {
-    flexColumn,
-    labelStyles,
-    selectStyles,
-    inputStyles,
-    rangeInputStyles,
-    checkboxStyles,
-    primaryButtonStyles,
-    sectionTitleStyles,
-    sliderRowStyles,
-    valueDisplayStyles,
-} from "@styles/common-styles";
 // @ts-expect-error — Bun imports CSS as text
 import layerConfigControlsCss from "./layer-config-controls.css" with { type: "text" };
 // @ts-expect-error — Bun imports CSS as text
@@ -36,6 +25,7 @@ export class LayerConfigControls extends BaseComponent {
 
         this.render();
         this.setupEventListeners();
+        this.cleanup.push(bindAllRangeFills(this.shadowRoot!));
     }
     protected override render(): void {
         if (!this.shadowRoot) {

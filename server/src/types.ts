@@ -268,6 +268,8 @@ export interface ClockCreatePayload {
     autoStart?: boolean; // start immediately on create
     position?: ImagePosition; // reuses image position format
     zIndex?: number;
+    scale?: number; // display scale multiplier (default 1.0)
+    font?: string; // font family name (default "Courier New")
     respectTimeScale?: boolean; // default true
     visibility?: ClockVisibility; // default "always"
     onComplete?: ClockCompletionBehavior; // default "persist"
@@ -295,6 +297,8 @@ export interface ClockUpdatePayload {
     position?: ImagePosition;
     zIndex?: number;
     visible?: boolean;
+    scale?: number;
+    font?: string;
 }
 
 export type ClockCreateEvent = Event<"ui.clock.create", ClockCreatePayload>;

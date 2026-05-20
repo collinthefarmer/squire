@@ -1,86 +1,32 @@
-import { BehaviorSubject, type Observable } from "rxjs";
-import { map } from "rxjs";
-import { Logger } from "@utils/logger";
-import { ServiceRegistry } from "@services/service-registry";
-import type { EventBus } from "@services/event-bus";
-import type { ConnectionService } from "@services/connection-service";
+import { type Observable, map } from "rxjs";
+import { ClockEventHandler } from "@services/clock-event-handler";
+import { CLOCK_DISPLAY } from "@services/clock-state";
 import type { ClockState } from "@services/clock-state";
-import type { TimeScaleService } from "@services/time-scale-service";
-import {
-    CLOCK_DISPLAY,
-    applyClockCreate,
-    applyClockStart,
-    applyClockPause,
-    applyClockAdjust,
-    applyClockDestroy,
-    applyClockUpdate,
-    applyTimeScaleChange,
-} from "@services/clock-state";
 import { calculatePosition } from "@utils/canvas-renderer";
 import { DISPLAY } from "@shared/constants/display";
 import { EventBuilder } from "./event-builder";
+import type { ConnectionService } from "@services/connection-service";
+import type { EventBus } from "@services/event-bus";
 import type { CanvasObjectProvider } from "./canvas-object-provider";
 import type { CanvasObject, DisplayBounds } from "./visual-service";
-import type {
-    ImagePosition,
-    ClockEvent,
-    ClockCreateEvent,
-    ClockStartEvent,
-    ClockPauseEvent,
-    ClockAdjustEvent,
-    ClockDestroyEvent,
-    ClockUpdateEvent,
-} from "@types";
+import type { ImagePosition } from "@types";
 
 /**
  * Clock service for master client
  *
- * Manages client-computed clock state and produces CanvasObject
- * entries for the canvas overlay system. Subscribes to server
- * events to receive its own events back for state confirmation.
+ * Extends ClockEventHandler for shared event/state logic.
+ * Adds canvas-object computation and command dispatch.
  */
-export class MasterClockService implements CanvasObjectProvider {
-    private logger = new Logger("MasterClockService");
+export class MasterClockService extends ClockEventHandler implements CanvasObjectProvider {
     private connectionService: ConnectionService;
-    private timeScaleService: TimeScaleService;
-    private clocks$ = new BehaviorSubject<Map<string, ClockState>>(new Map());
 
     private readonly canvasObjects$ = this.clocks$.pipe(
         map((clocks) => this.computeCanvasObjects(clocks)),
     );
 
     constructor(connectionService: ConnectionService, eventBus: EventBus) {
+        super("MasterClockService", eventBus);
         this.connectionService = connectionService;
-        this.timeScaleService =
-            ServiceRegistry.get<TimeScaleService>("TimeScaleService");
-        this.setupEventListeners(eventBus);
-        this.setupTimeScaleListener(eventBus);
-    }
-
-    private getTimeScale(): number {
-        return this.timeScaleService.getScale();
-    }
-
-    private setupTimeScaleListener(eventBus: EventBus): void {
-        eventBus.on("server:time.scale_changed", (event: unknown) => {
-            try {
-                const { scale } = (event as { payload: { scale: number } }).payload;
-                const updated = applyTimeScaleChange(this.clocks$.value, scale);
-                this.clocks$.next(updated);
-            } catch (error) {
-                this.logger.error("Failed to handle time scale change", { error: String(error) });
-            }
-        });
-    }
-
-    // -- State access --
-
-    getClocks$(): Observable<Map<string, ClockState>> {
-        return this.clocks$.asObservable();
-    }
-
-    getClocks(): Map<string, ClockState> {
-        return this.clocks$.value;
     }
 
     // -- Canvas overlay integration --
@@ -103,7 +49,7 @@ export class MasterClockService implements CanvasObjectProvider {
                 id,
                 type: "clock",
                 bounds: this.computeBounds(clock),
-                scale: 1,
+                scale: clock.scale,
                 zIndex: clock.zIndex,
             });
         }
@@ -112,22 +58,22 @@ export class MasterClockService implements CanvasObjectProvider {
     }
 
     private computeBounds(clock: ClockState): DisplayBounds {
-        const x = calculatePosition(
-            clock.position.x,
-            DISPLAY.WIDTH,
-            CLOCK_DISPLAY.width,
-        );
-        const y = calculatePosition(
-            clock.position.y,
-            DISPLAY.HEIGHT,
-            CLOCK_DISPLAY.height,
-        );
+        const baseW = CLOCK_DISPLAY.width;
+        const baseH = CLOCK_DISPLAY.height;
+
+        const x = calculatePosition(clock.position.x, DISPLAY.WIDTH, baseW);
+        const y = calculatePosition(clock.position.y, DISPLAY.HEIGHT, baseH);
+
+        const centerX = x + baseW / 2;
+        const centerY = y + baseH / 2;
+        const finalW = baseW * clock.scale;
+        const finalH = baseH * clock.scale;
 
         return {
-            x,
-            y,
-            width: CLOCK_DISPLAY.width,
-            height: CLOCK_DISPLAY.height,
+            x: centerX - finalW / 2,
+            y: centerY - finalH / 2,
+            width: finalW,
+            height: finalH,
         };
     }
 
@@ -139,6 +85,7 @@ export class MasterClockService implements CanvasObjectProvider {
         autoStart?: boolean;
         position?: ImagePosition;
         zIndex?: number;
+        font?: string;
         respectTimeScale?: boolean;
         visibility?: "always" | "hidden" | "dm-only";
         onComplete?: "persist" | "auto-hide" | "auto-destroy";
@@ -168,54 +115,29 @@ export class MasterClockService implements CanvasObjectProvider {
     }
 
     /**
-     * Reposition a clock on the display.
-     */
-    /**
      * CanvasObjectProvider implementation — delegates to transformClock.
      */
     transformObject(
         id: string,
         position: ImagePosition,
-        _scale?: number,
+        scale?: number,
     ): void {
-        this.transformClock(id, position);
+        this.transformClock(id, position, scale);
     }
 
-    transformClock(id: string, position: ImagePosition): void {
-        this.logger.info("Transforming clock", { id, position });
-        this.connectionService.send(EventBuilder.clockUpdate({ id, position }));
+    transformClock(id: string, position: ImagePosition, scale?: number): void {
+        this.logger.info("Transforming clock", { id, position, scale });
+        this.connectionService.send(EventBuilder.clockUpdate({ id, position, scale }));
     }
 
-    // -- Event handling --
+    scaleClockDisplay(id: string, delta: number): void {
+        const clock = this.getClocks().get(id);
+        if (!clock) {
+            return;
+        }
 
-    private setupEventListeners(eventBus: EventBus): void {
-        eventBus.on("server:ui.clock.*", (event: unknown) => {
-            try {
-                this.handleEvent(event as ClockEvent);
-            } catch (error) {
-                this.logger.error("Failed to handle clock event", { error: String(error) });
-            }
-        });
-    }
-
-    private handleEvent(event: ClockEvent): void {
-        const current = this.clocks$.value;
-        const scale = this.getTimeScale();
-
-        const handlers: {
-            [K in ClockEvent["type"]]: (e: Extract<ClockEvent, { type: K }>) => Map<string, ClockState>;
-        } = {
-            "ui.clock.create": (e) => applyClockCreate(current, e, scale),
-            "ui.clock.start": (e) => applyClockStart(current, e, scale),
-            "ui.clock.pause": (e) => applyClockPause(current, e),
-            "ui.clock.adjust": (e) => applyClockAdjust(current, e),
-            "ui.clock.destroy": (e) => applyClockDestroy(current, e),
-            "ui.clock.update": (e) => applyClockUpdate(current, e),
-        };
-
-        const handler = handlers[event.type];
-        const updated = (handler as (e: ClockEvent) => Map<string, ClockState>)(event);
-
-        this.clocks$.next(updated);
+        const newScale = Math.max(0.25, clock.scale + delta);
+        this.logger.info("Scaling clock display", { id, scale: newScale });
+        this.connectionService.send(EventBuilder.clockUpdate({ id, scale: newScale }));
     }
 }

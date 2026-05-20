@@ -134,22 +134,26 @@ When both display and master clients need the same state shape and computation l
 - **Computation helpers** (e.g., `getRemainingTime`, `formatTime`, `getUrgency`) — pure functions over state
 - **Display constants** (e.g., `CLOCK_DISPLAY`) — shared sizing values used by renderers and overlay systems
 
-### 3.3 CSS Style Utilities
+### 3.3 CSS Styles
 
-When two or more components define similar CSS, extract it into `shared/styles/common-styles.ts`.
+Shared form and button styles live in `shared/styles/common.css`. Components adopt this sheet via Shadow DOM:
 
-**Naming convention:** `{purpose}Styles()` — returns a CSS string. Examples: `outlineButtonStyles()`, `segmentedButtonStyles()`, `headerRowStyles()`.
+```typescript
+import commonCss from "@styles/common.css" with { type: "text" };
+this.adoptStyles(cssSheet(commonCss), cssSheet(componentCss));
+```
 
-**When to extract:**
+`common.css` covers selects, text inputs, range sliders, checkboxes, buttons (primary/secondary/success/danger/outline/strip), layout helpers (slider-row, header-row, container, card), and typography (labels, section headers, value displays).
+
+**When to add to `common.css`:**
 - The same CSS pattern appears in 2+ components
-- A button, input, or control variant isn't covered by existing utilities
-- Hardcoded color values duplicate theme tokens
+- A button, input, or control variant isn't covered by existing rules
 
-**When not to extract:**
+**When not to add:**
 - The CSS is domain-specific and unlikely to be reused (canvas drawing, fixed-position overlays)
 - Only one component uses the pattern — wait until a second consumer appears
 
-**Color values:** Never use raw `rgba()` in component styles. Use the `alpha()` helper from `theme.ts`:
+All values in `common.css` use CSS custom properties from `theme.css` — never hardcode colors or spacing. For computed alpha values in inline styles or `getStyles()`, use the `alpha()` helper from `theme.ts`:
 ```typescript
 background: ${alpha(colors.blue[500], 0.2)};
 ```
@@ -306,10 +310,10 @@ Use this when reviewing code for refactoring opportunities:
 - [ ] No duplicated event handler logic between display and master services
 - [ ] Pure reducer functions follow `apply{Domain}{Action}` naming
 - [ ] CSS uses theme tokens and `alpha()` — no raw `rgba()` values
-- [ ] Repeated CSS patterns are extracted to `common-styles.ts`
+- [ ] Repeated CSS patterns are extracted to `common.css`
 - [ ] Hardcoded transition values use `transitions.fast` or `transitions.normal`
 - [ ] Import order follows: external → aliased internal → relative
 - [ ] Type imports use `import type`
 - [ ] New event domains have EventStore replay support
 - [ ] Canvas objects from new services are merged into the overlay
-- [ ] `getStyles()` methods compose shared utilities rather than defining inline CSS
+- [ ] Components adopt `common.css` for shared form/button styles

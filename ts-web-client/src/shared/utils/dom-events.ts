@@ -173,10 +173,16 @@ export interface AssetDragEndDetail {
 
 // -- Event map --
 
+export interface DragCancelDetail {
+    data: string;
+    source?: string;
+}
+
 export interface AppEventMap {
     "drag-start": DragStartDetail;
     "drag-move": DragMoveDetail;
     "drag-end": DragEndDetail;
+    "drag-cancel": DragCancelDetail;
     "drag-click": DragClickDetail;
     "drag-scale": DragScaleDetail;
 

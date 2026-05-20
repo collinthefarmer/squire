@@ -16,7 +16,6 @@ const ICE_SERVERS: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
 export class WebRTCBroadcastService {
     private logger = new Logger("WebRTCBroadcastService");
     private peerConnections = new Map<string, RTCPeerConnection>();
-    private activeStream: MediaStream | null = null;
     private activeChannel = "";
 
     constructor(private signalingService: WebRTCSignalingService) {
@@ -36,7 +35,6 @@ export class WebRTCBroadcastService {
 
         const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
         this.peerConnections.set(displayClientId, pc);
-        this.activeStream = stream;
         this.activeChannel = channel;
 
         for (const track of stream.getTracks()) {
@@ -125,8 +123,6 @@ export class WebRTCBroadcastService {
             return;
         }
 
-        this.activeStream = newStream;
-
         for (const [clientId, pc] of this.peerConnections) {
             const sender = pc
                 .getSenders()
@@ -161,7 +157,6 @@ export class WebRTCBroadcastService {
             this.logger.info("Connection closed", { displayClientId: id });
         }
         this.peerConnections.clear();
-        this.activeStream = null;
         this.activeChannel = "";
     }
 

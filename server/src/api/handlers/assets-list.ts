@@ -1,7 +1,7 @@
 import { readdirSync, mkdirSync, readFileSync } from "node:fs";
 import { imageSize } from "image-size";
 import { jsonResponse, errorResponse } from "@core/http/responses";
-import { isValidAudioFile, isValidImageFile } from "@core/http/validation";
+import { isValidAudioFile, isValidImageFile, isValidFontFile } from "@core/http/validation";
 import { getAudioDuration } from "./assets-metadata";
 import type { RouteHandler } from "@core/http/router";
 import { Logger } from "@utils/logger";
@@ -68,5 +68,31 @@ export const listImageAssets: RouteHandler = async () => {
     } catch (error) {
         logger.error("Failed to list image files", { error });
         return errorResponse("Failed to list image files", 500);
+    }
+};
+
+/**
+ * List all font assets
+ */
+export const listFontAssets: RouteHandler = async () => {
+    const fontsDir = `${PUBLIC_DIR}/fonts`;
+
+    try {
+        mkdirSync(fontsDir, { recursive: true });
+        const files = readdirSync(fontsDir);
+
+        const fontFiles = files.filter(isValidFontFile).map((f) => {
+            const name = f.replace(/\.(ttf|otf|woff|woff2)$/i, "");
+            return {
+                name,
+                filename: f,
+                url: `/${PUBLIC_DIR}/fonts/${f}`,
+            };
+        });
+
+        return jsonResponse(fontFiles);
+    } catch (error) {
+        logger.error("Failed to list font files", { error });
+        return errorResponse("Failed to list font files", 500);
     }
 };

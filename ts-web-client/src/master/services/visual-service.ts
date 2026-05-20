@@ -2,9 +2,10 @@ import { BehaviorSubject, type Observable } from "rxjs";
 import { map } from "rxjs";
 import { Logger } from "@utils/logger";
 import { ServiceRegistry } from "@services/service-registry";
+import { TOKENS } from "@services/service-tokens";
 import type { EventBus } from "@services/event-bus";
 import type { ConnectionService } from "@services/connection-service";
-import type { AssetService, ImageAsset } from "./asset-service";
+import type { AssetService } from "./asset-service";
 import type { ImageToolbarService } from "./image-toolbar-service";
 import { EventBuilder } from "./event-builder";
 import {
@@ -25,11 +26,6 @@ import type {
     ImageTransition,
     ImageLayerState,
     ImageEvent,
-    ImageSetEvent,
-    ImageClearEvent,
-    ImageTransformEvent,
-    ImageEffectEvent,
-    ImageLayerConfigEvent,
 } from "@types";
 
 /**
@@ -88,10 +84,8 @@ export class MasterVisualService implements CanvasObjectProvider {
 
     constructor(connectionService: ConnectionService, eventBus: EventBus) {
         this.connectionService = connectionService;
-        this.assetService = ServiceRegistry.get<AssetService>("AssetService");
-        this.imageToolbarService = ServiceRegistry.get<ImageToolbarService>(
-            "ImageToolbarService",
-        );
+        this.assetService = ServiceRegistry.get(TOKENS.AssetService);
+        this.imageToolbarService = ServiceRegistry.get(TOKENS.ImageToolbarService);
         this.setupEventListeners(eventBus);
     }
 
@@ -381,6 +375,11 @@ export class MasterVisualService implements CanvasObjectProvider {
     };
 
     private setupEventListeners(eventBus: EventBus): void {
+        eventBus.on("server:system.connected", () => {
+            this.logger.info("Resetting layer state for reconnection sync");
+            this.layers$.next(new Map());
+        });
+
         eventBus.on("server:visual.image.*", (event: unknown) => {
             try {
                 this.handleImageEvent(event as ImageEvent);

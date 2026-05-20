@@ -1,18 +1,11 @@
-import { EMPTY, Observable, animationFrameScheduler, interval, switchMap } from "rxjs";
+import { EMPTY, animationFrameScheduler, interval, switchMap } from "rxjs";
 import { cssSheet } from "@styles/adopt-styles";
 import { BaseComponent } from "@components/base/base-component";
 import { emitDomEvent } from "@utils/dom-events";
+import { bindAllRangeFills } from "@utils/range-fill";
 import { ServiceRegistry } from "@services/service-registry";
+import { TOKENS } from "@services/service-tokens";
 import type { MicCaptureService } from "@master/services/mic-capture-service";
-import {
-    labelStyles,
-    selectStyles,
-    rangeInputStyles,
-    checkboxStyles,
-    flexColumn,
-    sliderRowStyles,
-    valueDisplayStyles,
-} from "@styles/common-styles";
 // @ts-expect-error — Bun imports CSS as text
 import micControlsCss from "./mic-controls.css" with { type: "text" };
 // @ts-expect-error — Bun imports CSS as text
@@ -35,7 +28,7 @@ export class MicControls extends BaseComponent {
         super.connectedCallback();
 
         this.micService =
-            ServiceRegistry.get<MicCaptureService>("MicCaptureService");
+            ServiceRegistry.get(TOKENS.MicCaptureService);
 
         this.adoptStyles(cssSheet(commonCss), cssSheet(micControlsCss));
 
@@ -43,6 +36,7 @@ export class MicControls extends BaseComponent {
         this.populateDevices();
         this.setupEventListeners();
         this.setupSubscriptions();
+        this.cleanup.push(bindAllRangeFills(this.shadowRoot!));
     }
     protected override render(): void {
         if (!this.shadowRoot) {

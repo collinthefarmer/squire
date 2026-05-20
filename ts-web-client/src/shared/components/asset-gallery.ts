@@ -5,12 +5,12 @@ import type { Draggable } from "@components/draggable/draggable";
 import type { ImageHandle } from "@components/image-handle";
 import { onDomEvent, emitDomEvent } from "@utils/dom-events";
 import { ServiceRegistry } from "@services/service-registry";
+import { TOKENS } from "@services/service-tokens";
 import type {
     AssetService,
     AudioAsset,
     ImageAsset,
 } from "@master/services/asset-service";
-import { labelStyles } from "@styles/common-styles";
 // @ts-expect-error — Bun imports CSS as text
 import assetGalleryCss from "./asset-gallery.css" with { type: "text" };
 // @ts-expect-error — Bun imports CSS as text
@@ -49,7 +49,7 @@ export class AssetGrid extends BaseComponent {
     override connectedCallback(): void {
         super.connectedCallback();
 
-        this.assetService = ServiceRegistry.get<AssetService>("AssetService");
+        this.assetService = ServiceRegistry.get(TOKENS.AssetService);
 
         this.adoptStyles(cssSheet(commonCss), cssSheet(assetGalleryCss));
 

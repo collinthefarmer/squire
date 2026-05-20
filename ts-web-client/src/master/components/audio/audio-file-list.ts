@@ -1,6 +1,7 @@
 import { BaseComponent } from "@components/base/base-component";
 import { cssSheet } from "@styles/adopt-styles";
 import { ServiceRegistry } from "@services/service-registry";
+import { TOKENS } from "@services/service-tokens";
 import type { AssetService, AudioAsset } from "@master/services/asset-service";
 import type { MasterAudioService } from "@master/services/master-audio-service";
 import type { LocalStore } from "@services/local-store";
@@ -57,12 +58,12 @@ export class AudioFileList extends BaseComponent {
     override connectedCallback(): void {
         super.connectedCallback();
 
-        this.assetService = ServiceRegistry.get<AssetService>("AssetService");
+        this.assetService = ServiceRegistry.get(TOKENS.AssetService);
         this.audioService =
-            ServiceRegistry.get<MasterAudioService>("MasterAudioService");
-        this.localStore = ServiceRegistry.get<LocalStore>("LocalStore");
+            ServiceRegistry.get(TOKENS.MasterAudioService);
+        this.localStore = ServiceRegistry.get(TOKENS.LocalStore);
         this.contextMenuService =
-            ServiceRegistry.get<ContextMenuService>("ContextMenuService");
+            ServiceRegistry.get(TOKENS.ContextMenuService);
 
         this.contextMenuService.registerProvider(this.menuProvider);
 

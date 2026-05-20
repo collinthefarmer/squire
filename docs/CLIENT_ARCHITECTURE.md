@@ -940,10 +940,10 @@ export class AudioPlayer extends BaseComponent {
 - External CSS files live adjacent to their component: `my-component.css` next to `my-component.ts`
 
 **SHOULD:**
-- Import shared style utilities from `shared/styles/common-styles.ts` into `getStyles()` methods
+- Adopt `common.css` via `cssSheet(commonCss)` for shared form and button styles (selects, range sliders, buttons, labels)
 - Use CSS custom properties (theme tokens) in both approaches — never hardcode colors or spacing
 - Prefer external `.css` files for layout-heavy components (grids, toolbars, panels)
-- Prefer `getStyles()` for components where styles are mostly dynamic or composed from shared utilities
+- Prefer `getStyles()` for components where styles are mostly dynamic or few in number
 
 **AVOID:**
 - Large inline style blocks (>20 lines) inside `render()` template literals — extract to a `.css` file

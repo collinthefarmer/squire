@@ -11,6 +11,7 @@ import { preloadAudioDurations } from "@api/handlers/assets-metadata";
 import {
     createAudioReplay,
     createClockReplay,
+    imageReplay,
 } from "@core/events/replay-configs";
 import { Router } from "@core/http/router";
 import { registerRoutes } from "@api/routes";
@@ -43,7 +44,8 @@ async function main() {
     const clientRegistry = container.resolve<ClientRegistry>(TOKENS.ClientRegistry);
     const eventStore = container.resolve<EventStore>(TOKENS.EventStore);
 
-    // Register time-scale-aware replay domains
+    // Register all replay domains before accepting connections
+    eventStore.registerDomain("visual.image.", imageReplay);
     eventStore.registerDomain("audio.", createAudioReplay(timeService));
     eventStore.registerDomain("ui.clock.", createClockReplay(timeService));
 
@@ -80,23 +82,30 @@ async function main() {
         async fetch(req, server) {
             const url = new URL(req.url);
 
-            // Upgrade HTTP to WebSocket
-            const clientType =
-                url.searchParams.get("type") === "master"
-                    ? ("master" as const)
-                    : ("display" as const);
-            const upgraded = server.upgrade(req, {
-                data: getUpgradeData(clientType),
-            });
+            // Upgrade HTTP to WebSocket (only when client requests it)
+            if (req.headers.get("upgrade") === "websocket") {
+                const clientType =
+                    url.searchParams.get("type") === "master"
+                        ? ("master" as const)
+                        : ("display" as const);
+                const upgraded = server.upgrade(req, {
+                    data: getUpgradeData(clientType),
+                });
 
-            if (upgraded) {
-                return undefined;
+                if (upgraded) {
+                    return undefined;
+                }
             }
 
             // Try router match first
             const match = router.match(req.method, url.pathname);
             if (match) {
-                return match.handler(req, match.params);
+                try {
+                    return await match.handler(req, match.params);
+                } catch (error) {
+                    logger.error("Route handler error", { path: url.pathname, error: String(error) });
+                    return new Response("Internal Server Error", { status: 500 });
+                }
             }
 
             // Health check

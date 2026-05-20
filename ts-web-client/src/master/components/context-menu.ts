@@ -1,6 +1,7 @@
 import { BaseComponent } from "@components/base/base-component";
 import { cssSheet } from "@styles/adopt-styles";
 import { ServiceRegistry } from "@services/service-registry";
+import { TOKENS } from "@services/service-tokens";
 import type {
     ContextMenuService,
     MenuState,
@@ -24,7 +25,7 @@ export class ContextMenu extends BaseComponent {
         super.connectedCallback();
 
         this.contextMenuService =
-            ServiceRegistry.get<ContextMenuService>("ContextMenuService");
+            ServiceRegistry.get(TOKENS.ContextMenuService);
 
         this.adoptStyles(cssSheet(commonCss), cssSheet(contextMenuCss));
         this.render();

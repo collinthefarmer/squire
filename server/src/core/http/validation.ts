@@ -14,6 +14,11 @@ export const IMAGE_EXTENSIONS = /\.(png|jpg|jpeg|gif|webp|svg)$/i;
 export const MAX_AUDIO_SIZE = 100 * 1024 * 1024;
 
 /**
+ * Font file extension validation
+ */
+export const FONT_EXTENSIONS = /\.(ttf|otf|woff|woff2)$/i;
+
+/**
  * Maximum image file size (50MB)
  */
 export const MAX_IMAGE_SIZE = 50 * 1024 * 1024;
@@ -30,6 +35,13 @@ export function isValidAudioFile(filename: string): boolean {
  */
 export function isValidImageFile(filename: string): boolean {
     return IMAGE_EXTENSIONS.test(filename);
+}
+
+/**
+ * Check if filename is a valid font file
+ */
+export function isValidFontFile(filename: string): boolean {
+    return FONT_EXTENSIONS.test(filename);
 }
 
 /**

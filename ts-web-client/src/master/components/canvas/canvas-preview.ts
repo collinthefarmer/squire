@@ -4,6 +4,7 @@ import { BaseComponent } from "@components/base/base-component";
 import { observeResize } from "@utils/observe-resize";
 import "@utils/dom-events";
 import { ServiceRegistry } from "@services/service-registry";
+import { TOKENS } from "@services/service-tokens";
 import type { MasterVisualService } from "@master/services/visual-service";
 import type { ImageToolbarService } from "@master/services/image-toolbar-service";
 import type { IframePreview } from "./iframe-preview";
@@ -13,7 +14,6 @@ import {
     screenToDisplayPixels,
     wouldOverlapDisplay,
 } from "./display-coordinates";
-import { containerStyles, sectionHeaderStyles } from "@styles/common-styles";
 import { DISPLAY } from "@shared/constants/display";
 
 // @ts-expect-error — Bun imports CSS as text
@@ -42,11 +42,9 @@ export class CanvasPreview extends BaseComponent {
     override connectedCallback(): void {
         super.connectedCallback();
 
-        this.visualService = ServiceRegistry.get<MasterVisualService>(
-            "MasterVisualService",
-        );
-        this.imageToolbarService = ServiceRegistry.get<ImageToolbarService>(
-            "ImageToolbarService",
+        this.visualService = ServiceRegistry.get(TOKENS.MasterVisualService);
+        this.imageToolbarService = ServiceRegistry.get(
+            TOKENS.ImageToolbarService,
         );
 
         this.adoptStyles(cssSheet(commonCss), cssSheet(canvasPreviewCss));
@@ -63,7 +61,6 @@ export class CanvasPreview extends BaseComponent {
 
         this.shadowRoot.innerHTML = `
             <div class="container preview-container">
-                <div class="section-header header">Display Preview</div>
                 <iframe-preview></iframe-preview>
             </div>
         `;

@@ -2,22 +2,11 @@ import { interval, animationFrameScheduler, type Subscription, takeUntil } from 
 import { cssSheet } from "@styles/adopt-styles";
 import { BaseComponent } from "@components/base/base-component";
 import { ServiceRegistry } from "@services/service-registry";
+import { TOKENS } from "@services/service-tokens";
 import type { MasterClockService } from "@master/services/clock-service";
+import type { AssetService } from "@master/services/asset-service";
 import type { ClockState } from "@services/clock-state";
 import { getRemainingTime, formatTime } from "@services/clock-state";
-import {
-    containerStyles,
-    sectionHeaderStyles,
-    headerRowStyles,
-    outlineButtonStyles,
-    primaryButtonStyles,
-    secondaryButtonStyles,
-    dangerButtonStyles,
-    inputStyles,
-    selectStyles,
-    checkboxStyles,
-    flexColumn,
-} from "@styles/common-styles";
 // @ts-expect-error — Bun imports CSS as text
 import clockControlsCss from "./clock-controls.css" with { type: "text" };
 // @ts-expect-error — Bun imports CSS as text
@@ -27,23 +16,21 @@ import commonCss from "@styles/common.css" with { type: "text" };
  * Clock controls panel for master client
  *
  * Provides UI to create, start, pause, adjust, and destroy
- * countdown clocks. Shows a list of active clocks with
- * per-clock controls.
- *
- * @example
- * ```html
- * <clock-controls></clock-controls>
- * ```
+ * countdown clocks. Includes a font picker populated from
+ * the server's public/fonts/ directory.
  */
 export class ClockControls extends BaseComponent {
     private clockService!: MasterClockService;
+    private assetService!: AssetService;
     private animationSub: Subscription | null = null;
 
     override connectedCallback(): void {
         super.connectedCallback();
 
         this.clockService =
-            ServiceRegistry.get<MasterClockService>("MasterClockService");
+            ServiceRegistry.get(TOKENS.MasterClockService);
+        this.assetService =
+            ServiceRegistry.get(TOKENS.AssetService);
 
         this.adoptStyles(cssSheet(commonCss), cssSheet(clockControlsCss));
 
@@ -56,6 +43,7 @@ export class ClockControls extends BaseComponent {
         super.disconnectedCallback();
         this.animationSub?.unsubscribe();
     }
+
     protected override render(): void {
         if (!this.shadowRoot) {
             return;
@@ -68,38 +56,29 @@ export class ClockControls extends BaseComponent {
                 <div class="flex-col">
                     <div class="create-form">
                         <div class="field">
-                            <label for="clock-id">Name</label>
-                            <input type="text" id="clock-id" placeholder="timer-1" />
+                            <label for="clock-days">Days</label>
+                            <input type="number" id="clock-days" value="0" min="0" />
                         </div>
                         <div class="field">
-                            <label for="clock-duration">Seconds</label>
-                            <input type="number" id="clock-duration" value="30" min="1" />
+                            <label for="clock-hours">Hrs</label>
+                            <input type="number" id="clock-hours" value="0" min="0" max="23" />
+                        </div>
+                        <div class="field">
+                            <label for="clock-minutes">Min</label>
+                            <input type="number" id="clock-minutes" value="0" min="0" max="59" />
+                        </div>
+                        <div class="field">
+                            <label for="clock-seconds">Sec</label>
+                            <input type="number" id="clock-seconds" value="30" min="0" max="59" />
                         </div>
                         <button class="primary" id="create-btn" type="button">Create</button>
                     </div>
-                    <div class="create-form">
-                        <div class="field">
-                            <label>
-                                <input type="checkbox" id="clock-respect-ts" checked />
-                                Time Scale
-                            </label>
-                        </div>
-                        <div class="field">
-                            <label for="clock-visibility">Visibility</label>
-                            <select id="clock-visibility">
-                                <option value="always">Always</option>
-                                <option value="hidden">Hidden</option>
-                                <option value="dm-only">DM Only</option>
-                            </select>
-                        </div>
-                        <div class="field">
-                            <label for="clock-on-complete">On Complete</label>
-                            <select id="clock-on-complete">
-                                <option value="persist">Persist</option>
-                                <option value="auto-hide">Auto Hide</option>
-                                <option value="auto-destroy">Auto Destroy</option>
-                            </select>
-                        </div>
+
+                    <div class="font-row">
+                        <label for="clock-font">Font</label>
+                        <select id="clock-font">
+                            <option value="Courier New">Courier New</option>
+                        </select>
                     </div>
 
                     <div class="clock-list" id="clock-list">
@@ -125,52 +104,64 @@ export class ClockControls extends BaseComponent {
                 this.stopUpdateLoop();
             }
         });
+
+        this.subscribe(this.assetService.getFontAssets$(), (fonts) => {
+            this.populateFontDropdown(fonts);
+        });
     }
 
-    private handleCreate(): void {
-        const idInput = this.shadowRoot?.querySelector(
-            "#clock-id",
-        ) as HTMLInputElement;
-        const durationInput = this.shadowRoot?.querySelector(
-            "#clock-duration",
-        ) as HTMLInputElement;
-        const respectTsInput = this.shadowRoot?.querySelector(
-            "#clock-respect-ts",
-        ) as HTMLInputElement;
-        const visibilityInput = this.shadowRoot?.querySelector(
-            "#clock-visibility",
-        ) as HTMLSelectElement;
-        const onCompleteInput = this.shadowRoot?.querySelector(
-            "#clock-on-complete",
-        ) as HTMLSelectElement;
-
-        if (!idInput || !durationInput) {
+    private populateFontDropdown(fonts: { name: string }[]): void {
+        const select = this.shadowRoot?.querySelector("#clock-font") as HTMLSelectElement;
+        if (!select) {
             return;
         }
 
-        const id = idInput.value.trim() || `clock-${Date.now()}`;
-        const seconds = parseInt(durationInput.value, 10);
+        const currentValue = select.value;
 
-        if (isNaN(seconds) || seconds < 1) {
+        select.innerHTML = '<option value="Courier New">Courier New</option>';
+
+        for (const font of fonts) {
+            const option = document.createElement("option");
+            option.value = font.name;
+            option.textContent = font.name;
+            option.style.fontFamily = font.name;
+            select.appendChild(option);
+        }
+
+        // Restore selection if it still exists
+        if (currentValue) {
+            select.value = currentValue;
+        }
+    }
+
+    private handleCreate(): void {
+        const days = this.readNumericInput("#clock-days");
+        const hours = this.readNumericInput("#clock-hours");
+        const minutes = this.readNumericInput("#clock-minutes");
+        const seconds = this.readNumericInput("#clock-seconds");
+
+        const fontSelect = this.shadowRoot?.querySelector("#clock-font") as HTMLSelectElement;
+        const font = fontSelect?.value || "Courier New";
+
+        const totalMs =
+            ((days * 86400) + (hours * 3600) + (minutes * 60) + seconds) * 1000;
+
+        if (totalMs <= 0) {
             return;
         }
 
         this.clockService.createClock({
-            id,
-            duration: seconds * 1000,
+            id: `clock-${Date.now()}`,
+            duration: totalMs,
             autoStart: true,
-            respectTimeScale: respectTsInput?.checked ?? true,
-            visibility:
-                (visibilityInput?.value as "always" | "hidden" | "dm-only") ??
-                "always",
-            onComplete:
-                (onCompleteInput?.value as
-                    | "persist"
-                    | "auto-hide"
-                    | "auto-destroy") ?? "persist",
+            font,
         });
+    }
 
-        idInput.value = "";
+    private readNumericInput(selector: string): number {
+        const input = this.shadowRoot?.querySelector(selector) as HTMLInputElement;
+        const value = parseInt(input?.value ?? "0", 10);
+        return isNaN(value) ? 0 : Math.max(0, value);
     }
 
     private renderClockList(clocks: Map<string, ClockState>): void {
@@ -194,11 +185,10 @@ export class ClockControls extends BaseComponent {
             const remaining = getRemainingTime(clock);
 
             item.innerHTML = `
-                <div class="clock-info">
-                    <span class="clock-id">${id}</span>
-                    <span class="clock-time">${formatTime(remaining)}</span>
-                </div>
+                <span class="clock-time">${formatTime(remaining)}</span>
                 <div class="clock-actions">
+                    <button class="outline-button size-btn" data-size-delta="-0.25" type="button" title="Decrease size">−</button>
+                    <button class="outline-button size-btn" data-size-delta="0.25" type="button" title="Increase size">+</button>
                     <button class="secondary toggle-btn" type="button">
                         ${clock.running ? "Pause" : "Start"}
                     </button>
@@ -219,6 +209,16 @@ export class ClockControls extends BaseComponent {
                     this.clockService.startClock(id);
                 }
             });
+
+            const sizeBtns = item.querySelectorAll(".size-btn");
+            for (const btn of Array.from(sizeBtns)) {
+                btn.addEventListener("click", () => {
+                    const delta = parseFloat(
+                        (btn as HTMLElement).dataset.sizeDelta ?? "0",
+                    );
+                    this.clockService.scaleClockDisplay(id, delta);
+                });
+            }
 
             const adjustBtns = item.querySelectorAll(".adjust-btn");
             for (const btn of Array.from(adjustBtns)) {

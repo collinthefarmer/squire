@@ -2,6 +2,7 @@ import { BaseComponent } from "@components/base/base-component";
 import { cssSheet } from "@styles/adopt-styles";
 import { emitDomEvent } from "@utils/dom-events";
 import { ServiceRegistry } from "@services/service-registry";
+import { TOKENS } from "@services/service-tokens";
 import type { MasterAudioService } from "@master/services/master-audio-service";
 import type {
     EffectChainLibrary,
@@ -36,9 +37,9 @@ export class TimelineChannelLane extends BaseComponent {
         super.connectedCallback();
 
         this.audioService =
-            ServiceRegistry.get<MasterAudioService>("MasterAudioService");
+            ServiceRegistry.get(TOKENS.MasterAudioService);
         this.library =
-            ServiceRegistry.get<EffectChainLibrary>("EffectChainLibrary");
+            ServiceRegistry.get(TOKENS.EffectChainLibrary);
         this.channelId = this.getAttribute("channel") ?? "";
 
         this.adoptStyles(cssSheet(commonCss), cssSheet(timelineChannelLaneCss));

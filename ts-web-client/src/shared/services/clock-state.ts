@@ -33,6 +33,8 @@ export interface ClockState {
     position: ImagePosition;
     zIndex: number;
     visible: boolean;
+    scale: number;
+    font: string;
 
     // V2 fields
     respectTimeScale: boolean;
@@ -78,12 +80,17 @@ export function getRemainingTime(
 }
 
 /**
- * Format remaining milliseconds as MM:SS or SS
+ * Format remaining milliseconds as H:MM:SS, M:SS, or SS
  */
 export function formatTime(remainingMs: number): string {
     const totalSeconds = Math.ceil(remainingMs / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
     const seconds = totalSeconds % 60;
+
+    if (hours > 0) {
+        return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    }
 
     if (minutes > 0) {
         return `${minutes}:${String(seconds).padStart(2, "0")}`;
@@ -173,6 +180,7 @@ export function applyClockCreate(
         visibility,
         onComplete,
     } = event.payload;
+    const payload = event.payload as { scale?: number; font?: string };
     const timestamp = event.metadata.timestamp;
 
     const clock: ClockState = {
@@ -184,6 +192,8 @@ export function applyClockCreate(
         position: position ?? { x: "center", y: "top" },
         zIndex: zIndex ?? 100,
         visible: true,
+        scale: payload.scale ?? 1.0,
+        font: payload.font ?? "Courier New",
         respectTimeScale: respectTimeScale ?? true,
         scaleAtStart: autoStart ? currentScale : 1.0,
         visibility: visibility ?? "always",
@@ -278,6 +288,7 @@ export function applyClockUpdate(
     event: ClockUpdateEvent,
 ): Map<string, ClockState> {
     const { id, position, zIndex, visible } = event.payload;
+    const { scale, font } = event.payload as { scale?: number; font?: string };
 
     return updateInMap(clocks, id, (clock) => {
         const updates: Partial<ClockState> = {};
@@ -290,6 +301,12 @@ export function applyClockUpdate(
         }
         if (visible !== undefined) {
             updates.visible = visible;
+        }
+        if (scale !== undefined) {
+            updates.scale = scale;
+        }
+        if (font !== undefined) {
+            updates.font = font;
         }
 
         return { ...clock, ...updates };

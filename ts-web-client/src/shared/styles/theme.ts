@@ -97,8 +97,8 @@ export const sizing = {
     statusDot: gu(2), // 8px
     checkboxSm: gu(4), // 16px
     checkboxLg: gu(5), // 20px
-    sliderThumb: gu(4), // 16px
-    sliderTrack: gu(2), // 8px
+    sliderThumb: gu(7), // 28px — matches strip button height
+    sliderTrack: gu(7), // 28px
     stripBtn: gu(7), // 28px — timeline strip buttons
     trackBlock: gu(6), // 24px — track block height
     trackVolume: gu(12), // 48px — inline volume slider width

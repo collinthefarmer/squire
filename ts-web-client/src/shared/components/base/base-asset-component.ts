@@ -1,3 +1,3 @@
-export abstract class BaseAssetComponent<TState = unknown> extends HTMLElement {
+export abstract class BaseAssetComponent<_TState = unknown> extends HTMLElement {
     public abstract asset: string;
 }

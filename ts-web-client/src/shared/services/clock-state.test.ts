@@ -29,6 +29,8 @@ function makeClocks(
             position: { x: "center", y: "top" },
             zIndex: 100,
             visible: true,
+            scale: 1,
+            font: "Courier New",
             respectTimeScale: true,
             scaleAtStart: 1.0,
             visibility: "always",
@@ -103,6 +105,14 @@ describe("clock-state computation helpers", () => {
 
         test("should ceil to nearest second", () => {
             expect(formatTime(1500)).toBe("2");
+        });
+
+        test("should format hours, minutes, and seconds", () => {
+            expect(formatTime(3661000)).toBe("1:01:01");
+        });
+
+        test("should pad minutes when hours are present", () => {
+            expect(formatTime(3601000)).toBe("1:00:01");
         });
     });
 

@@ -1,29 +1,17 @@
 :host {
     display: block;
-    min-height: 100vh;
+    height: 100vh;
     background: var(--color-slate-900);
 }
 
 .master-client {
+    display: flex;
+    flex-direction: column;
     max-width: var(--sizing-max-width);
+    height: 100%;
     margin: 0 auto;
     padding: var(--spacing-2xl) var(--spacing-2xl) calc(2 * var(--spacing-2xl)) var(--spacing-2xl);
-}
-
-.header {
-    margin-bottom: var(--spacing-2xl);
-}
-
-.title {
-    font-size: var(--font-3xl);
-    font-weight: 700;
-    color: var(--color-gray-50);
-    margin-bottom: var(--spacing-sm);
-}
-
-.subtitle {
-    font-size: var(--font-md);
-    color: var(--color-gray-500);
+    box-sizing: border-box;
 }
 
 .preview-section {
@@ -32,6 +20,8 @@
     gap: var(--spacing-xl);
     margin-bottom: var(--spacing-xl);
     transition: grid-template-columns 0.3s ease;
+    flex: 1;
+    min-height: 0;
 }
 
 .preview-main {
@@ -40,6 +30,7 @@
 
 .bottom-section {
     display: block;
+    flex-shrink: 0;
 }
 
 .tab-panel {

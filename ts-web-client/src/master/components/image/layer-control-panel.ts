@@ -9,12 +9,6 @@ import { LAYER } from "@shared/constants/layer";
 import layerControlPanelCss from "./layer-control-panel.css" with { type: "text" };
 // @ts-expect-error — Bun imports CSS as text
 import commonCss from "@styles/common.css" with { type: "text" };
-import {
-    headerRowStyles,
-    sectionHeaderStyles,
-    outlineButtonStyles,
-    inputStyles,
-} from "@styles/common-styles";
 
 /**
  * A single layer's display state, computed by the parent toolbar

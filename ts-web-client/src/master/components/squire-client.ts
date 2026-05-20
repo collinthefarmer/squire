@@ -28,11 +28,6 @@ export class SquireMasterClient extends BaseComponent {
 
         this.shadowRoot.innerHTML = `
             <div class="master-client">
-                <div class="header">
-                    <div class="title">Squire Master Client</div>
-                    <div class="subtitle">DM Control Interface</div>
-                </div>
-
                 <div class="preview-section">
                     <div class="preview-main">
                         <canvas-preview></canvas-preview>
@@ -57,6 +52,7 @@ export class SquireMasterClient extends BaseComponent {
 
                 <div class="bottom-section">
                     <audio-timeline></audio-timeline>
+                    <scene-panel></scene-panel>
                 </div>
             </div>
 

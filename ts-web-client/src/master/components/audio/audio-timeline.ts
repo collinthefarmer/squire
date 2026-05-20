@@ -1,9 +1,10 @@
 import { fromEvent } from "rxjs";
 import { cssSheet } from "@styles/adopt-styles";
 import { BaseComponent } from "@components/base/base-component";
-import { stripButtonStyles } from "@styles/common-styles";
 import { onDomEvent } from "@utils/dom-events";
+import { bindAllRangeFills } from "@utils/range-fill";
 import { ServiceRegistry } from "@services/service-registry";
+import { TOKENS } from "@services/service-tokens";
 import type { MasterAudioService } from "@master/services/master-audio-service";
 import type { LiveAudioService } from "@master/services/live-audio-service";
 import { Logger } from "@utils/logger";
@@ -13,14 +14,6 @@ import { generateTrackId } from "@utils/audio-helpers";
 import audioTimelineCss from "./audio-timeline.css" with { type: "text" };
 // @ts-expect-error — Bun imports CSS as text
 import commonCss from "@styles/common.css" with { type: "text" };
-import {
-    colors,
-    spacing,
-    borderRadius,
-    fontSize,
-    sizing,
-    transitions,
-} from "@styles/theme";
 
 const DEFAULT_CHANNELS = ["ambient", "music", "sfx", "voice"];
 
@@ -42,15 +35,16 @@ export class AudioTimeline extends BaseComponent {
         super.connectedCallback();
 
         this.audioService =
-            ServiceRegistry.get<MasterAudioService>("MasterAudioService");
+            ServiceRegistry.get(TOKENS.MasterAudioService);
         this.liveAudioService =
-            ServiceRegistry.get<LiveAudioService>("LiveAudioService");
+            ServiceRegistry.get(TOKENS.LiveAudioService);
 
         this.adoptStyles(cssSheet(commonCss), cssSheet(audioTimelineCss));
 
         this.render();
         this.setupSubscriptions();
         this.setupEventListeners();
+        this.cleanup.push(bindAllRangeFills(this.shadowRoot!));
     }
     protected override render(): void {
         if (!this.shadowRoot) {

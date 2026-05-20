@@ -10,7 +10,7 @@ describe("EventBus", () => {
             const received: Event[] = [];
 
             bus.ofType$("audio.play").subscribe((e) => received.push(e));
-            bus.emitSync("audio.play", makeEvent("audio.play"));
+            bus.emit(makeEvent("audio.play"));
 
             expect(received).toHaveLength(1);
             expect(received[0].type).toBe("audio.play");
@@ -21,7 +21,7 @@ describe("EventBus", () => {
             const received: Event[] = [];
 
             bus.ofType$("audio.play").subscribe((e) => received.push(e));
-            bus.emitSync("audio.pause", makeEvent("audio.pause"));
+            bus.emit(makeEvent("audio.pause"));
 
             expect(received).toHaveLength(0);
         });
@@ -32,9 +32,9 @@ describe("EventBus", () => {
 
             bus.ofType$("audio.*").subscribe((e) => received.push(e));
 
-            bus.emitSync("audio.play", makeEvent("audio.play"));
-            bus.emitSync("audio.pause", makeEvent("audio.pause"));
-            bus.emitSync("visual.image.set", makeEvent("visual.image.set"));
+            bus.emit(makeEvent("audio.play"));
+            bus.emit(makeEvent("audio.pause"));
+            bus.emit(makeEvent("visual.image.set"));
 
             expect(received).toHaveLength(2);
             expect(received[0].type).toBe("audio.play");
@@ -47,8 +47,8 @@ describe("EventBus", () => {
 
             bus.ofType$("*").subscribe((e) => received.push(e));
 
-            bus.emitSync("audio.play", makeEvent("audio.play"));
-            bus.emitSync("visual.image.set", makeEvent("visual.image.set"));
+            bus.emit(makeEvent("audio.play"));
+            bus.emit(makeEvent("visual.image.set"));
 
             expect(received).toHaveLength(2);
         });
@@ -59,9 +59,9 @@ describe("EventBus", () => {
 
             bus.ofType$("visual.image.*").subscribe((e) => received.push(e));
 
-            bus.emitSync("visual.image.set", makeEvent("visual.image.set"));
-            bus.emitSync("visual.image.clear", makeEvent("visual.image.clear"));
-            bus.emitSync("visual.other", makeEvent("visual.other"));
+            bus.emit(makeEvent("visual.image.set"));
+            bus.emit(makeEvent("visual.image.clear"));
+            bus.emit(makeEvent("visual.other"));
 
             expect(received).toHaveLength(2);
         });
@@ -74,32 +74,20 @@ describe("EventBus", () => {
 
             bus.all$().subscribe((e) => received.push(e));
 
-            bus.emitSync("a", makeEvent("a"));
-            bus.emitSync("b", makeEvent("b"));
+            bus.emit(makeEvent("a"));
+            bus.emit(makeEvent("b"));
 
             expect(received).toHaveLength(2);
         });
     });
 
     describe("emit", () => {
-        test("should emit asynchronously", async () => {
+        test("should deliver to subscribers synchronously", () => {
             const bus = new EventBus();
             const received: Event[] = [];
 
             bus.ofType$("test").subscribe((e) => received.push(e));
-            await bus.emit("test", makeEvent("test"));
-
-            expect(received).toHaveLength(1);
-        });
-    });
-
-    describe("emitSync", () => {
-        test("should emit synchronously", () => {
-            const bus = new EventBus();
-            const received: Event[] = [];
-
-            bus.ofType$("test").subscribe((e) => received.push(e));
-            bus.emitSync("test", makeEvent("test"));
+            bus.emit(makeEvent("test"));
 
             expect(received).toHaveLength(1);
         });
@@ -114,7 +102,7 @@ describe("EventBus", () => {
             bus.ofType$("audio.play").subscribe((e) => sub1.push(e));
             bus.ofType$("audio.*").subscribe((e) => sub2.push(e));
 
-            bus.emitSync("audio.play", makeEvent("audio.play"));
+            bus.emit(makeEvent("audio.play"));
 
             expect(sub1).toHaveLength(1);
             expect(sub2).toHaveLength(1);

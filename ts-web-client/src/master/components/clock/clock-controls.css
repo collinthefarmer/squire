@@ -16,6 +16,7 @@
     display: flex;
     flex-direction: column;
     gap: var(--spacing-xs);
+    flex: 1;
 }
 
 .create-form label {
@@ -25,8 +26,39 @@
     letter-spacing: 0.05em;
 }
 
-.create-form input {
-    width: var(--sizing-input-min);
+.create-form input[type="number"] {
+    width: 100%;
+    text-align: center;
+}
+
+/* Hide number input spinners for cleaner look */
+.create-form input[type="number"]::-webkit-inner-spin-button,
+.create-form input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.create-form input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+.font-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.font-row label {
+    font-size: var(--font-xs);
+    color: var(--color-gray-500);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+}
+
+.font-row select {
+    flex: 1;
+    font-size: var(--font-sm);
 }
 
 .clock-list {
@@ -45,24 +77,12 @@
     border-radius: var(--radius-sm);
 }
 
-.clock-info {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    min-width: 0;
-}
-
-.clock-id {
-    font-size: var(--font-sm);
-    color: var(--color-gray-200);
-    font-weight: 500;
-}
-
 .clock-time {
     font-family: "Courier New", monospace;
     font-size: var(--font-base);
     font-weight: 600;
     color: var(--color-white);
+    flex-shrink: 0;
 }
 
 .clock-actions {

@@ -27,16 +27,9 @@ export class EventBus {
     }
 
     /**
-     * Emit event (legacy API)
+     * Emit an event to all subscribers
      */
-    async emit<T extends Event = Event>(_eventType: string, event: T): Promise<void> {
-        this.events$.next(event);
-    }
-
-    /**
-     * Emit event synchronously (legacy API - same behavior with RxJS)
-     */
-    emitSync<T extends Event = Event>(_eventType: string, event: T): void {
+    emit<T extends Event = Event>(event: T): void {
         this.events$.next(event);
     }
 

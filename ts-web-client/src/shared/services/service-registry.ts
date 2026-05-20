@@ -1,40 +1,46 @@
+import type { ServiceToken } from "./service-tokens";
+
 /**
  * Service registry for dependency injection
  *
  * Provides type-safe singleton service registration and resolution
+ * via ServiceToken<T> (see service-tokens.ts).
  */
 export class ServiceRegistry {
-    private static instances = new Map<string, any>();
+    private static instances = new Map<symbol, unknown>();
 
     /**
-     * Register a service singleton
+     * Register a service singleton by typed token.
      *
-     * Throws if service with same key already registered
+     * Throws if a service with the same token is already registered.
      */
-    static register<T>(key: string, instance: T): void {
-        if (this.instances.has(key)) {
-            throw new Error(`Service ${key} already registered`);
+    static register<T>(token: ServiceToken<T>, instance: T): void {
+        if (this.instances.has(token.symbol)) {
+            throw new Error(`Service ${token.symbol.toString()} already registered`);
         }
-        this.instances.set(key, instance);
+        this.instances.set(token.symbol, instance);
     }
 
     /**
-     * Get a registered service
+     * Get a registered service by typed token.
      *
-     * Throws if service not found
+     * The return type is inferred from the token's phantom type parameter,
+     * eliminating the need for manual generic annotations at call sites.
+     *
+     * Throws if the service is not found.
      */
-    static get<T>(key: string): T {
-        if (!this.instances.has(key)) {
-            throw new Error(`Service ${key} not found`);
+    static get<T>(token: ServiceToken<T>): T {
+        if (!this.instances.has(token.symbol)) {
+            throw new Error(`Service ${token.symbol.toString()} not found`);
         }
-        return this.instances.get(key) as T;
+        return this.instances.get(token.symbol) as T;
     }
 
     /**
-     * Check if service is registered
+     * Check if a service is registered
      */
-    static has(key: string): boolean {
-        return this.instances.has(key);
+    static has<T>(token: ServiceToken<T>): boolean {
+        return this.instances.has(token.symbol);
     }
 
     /**

@@ -207,6 +207,8 @@ export const clockCreatePayloadSchema = z.object({
     autoStart: z.boolean().optional(),
     position: imagePositionSchema.optional(),
     zIndex: z.number().optional(),
+    scale: z.number().min(0.1).max(10).optional(),
+    font: z.string().optional(),
     respectTimeScale: z.boolean().optional(),
     visibility: z.enum(["always", "hidden", "dm-only"]).optional(),
     onComplete: z.enum(["persist", "auto-hide", "auto-destroy"]).optional(),
@@ -250,6 +252,8 @@ export const clockUpdatePayloadSchema = z.object({
     position: imagePositionSchema.optional(),
     zIndex: z.number().optional(),
     visible: z.boolean().optional(),
+    scale: z.number().min(0.1).max(10).optional(),
+    font: z.string().optional(),
 });
 
 export const clockUpdateEventSchema = z.object({

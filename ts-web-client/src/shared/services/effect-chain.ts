@@ -26,8 +26,6 @@ export class EffectChain {
     private slots: EffectSlot[] = [];
     private inputNode: GainNode;
     private outputNode: GainNode;
-    private connected = false;
-
     constructor(private context: AudioContext) {
         this.inputNode = context.createGain();
         this.outputNode = context.createGain();
@@ -101,7 +99,6 @@ export class EffectChain {
         this.teardownSlots();
         this.inputNode.disconnect();
         this.outputNode.disconnect();
-        this.connected = false;
     }
 
     /**

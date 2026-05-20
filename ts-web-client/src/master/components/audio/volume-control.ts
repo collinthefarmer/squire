@@ -1,12 +1,7 @@
 import { BaseComponent } from "@components/base/base-component";
 import { cssSheet } from "@styles/adopt-styles";
 import { emitDomEvent } from "@utils/dom-events";
-import {
-    rangeInputStyles,
-    checkboxStyles,
-    labelStyles,
-    flexColumn,
-} from "@styles/common-styles";
+import { bindAllRangeFills } from "@utils/range-fill";
 // @ts-expect-error — Bun imports CSS as text
 import volumeControlCss from "./volume-control.css" with { type: "text" };
 // @ts-expect-error — Bun imports CSS as text
@@ -28,6 +23,7 @@ export class VolumeControl extends BaseComponent {
 
         this.render();
         this.setupEventListeners();
+        this.cleanup.push(bindAllRangeFills(this.shadowRoot!));
     }
     protected override render(): void {
         if (!this.shadowRoot) {

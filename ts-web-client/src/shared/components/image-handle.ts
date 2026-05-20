@@ -1,5 +1,6 @@
 import { BaseAssetComponent } from "@components/base/base-asset-component";
 import { ServiceRegistry } from "@services/service-registry";
+import { TOKENS } from "@services/service-tokens";
 import type { ConfigService } from "@services/config-service";
 import {
     colors,
@@ -43,7 +44,7 @@ export class ImageHandle extends BaseAssetComponent {
 
     connectedCallback(): void {
         this.configService =
-            ServiceRegistry.get<ConfigService>("ConfigService");
+            ServiceRegistry.get(TOKENS.ConfigService);
 
         this.attachShadow({ mode: "open" });
         this.render();

@@ -2,6 +2,7 @@ import { BaseComponent } from "@components/base/base-component";
 import { cssSheet } from "@styles/adopt-styles";
 import { onDomEvent } from "@utils/dom-events";
 import { ServiceRegistry } from "@services/service-registry";
+import { TOKENS } from "@services/service-tokens";
 import type { LiveAudioService } from "@master/services/live-audio-service";
 
 // @ts-expect-error — Bun imports CSS as text
@@ -24,7 +25,7 @@ export class AudioControls extends BaseComponent {
         super.connectedCallback();
 
         this.liveAudioService =
-            ServiceRegistry.get<LiveAudioService>("LiveAudioService");
+            ServiceRegistry.get(TOKENS.LiveAudioService);
 
         this.adoptStyles(cssSheet(commonCss), cssSheet(audioControlsCss));
         this.render();

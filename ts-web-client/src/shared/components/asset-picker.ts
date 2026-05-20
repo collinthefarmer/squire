@@ -6,6 +6,7 @@ import {
     type AssetChangeDetail,
 } from "@utils/dom-events";
 import { ServiceRegistry } from "@services/service-registry";
+import { TOKENS } from "@services/service-tokens";
 import type { AssetService, ImageAsset } from "@master/services/asset-service";
 // @ts-expect-error — Bun imports CSS as text
 import assetPickerCss from "./asset-picker.css" with { type: "text" };
@@ -49,7 +50,7 @@ export class AssetPicker extends BaseComponent {
 
     override connectedCallback(): void {
         super.connectedCallback();
-        this.assetService = ServiceRegistry.get<AssetService>("AssetService");
+        this.assetService = ServiceRegistry.get(TOKENS.AssetService);
         this.adoptStyles(cssSheet(commonCss), cssSheet(assetPickerCss));
 
         this.render();

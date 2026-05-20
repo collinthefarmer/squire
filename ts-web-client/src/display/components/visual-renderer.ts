@@ -2,9 +2,8 @@ import { animationFrameScheduler, observeOn } from "rxjs";
 import { cssSheet } from "@styles/adopt-styles";
 import { BaseComponent } from "@components/base/base-component";
 import { ServiceRegistry } from "@services/service-registry";
+import { TOKENS } from "@services/service-tokens";
 import { observeResize } from "@utils/observe-resize";
-import type { ConfigService } from "@services/config-service";
-import type { VisualService } from "@display/services/visual-service";
 import type { ImageLayerState } from "@types";
 import { ImageCache, drawLayers } from "@utils/canvas-renderer";
 import { Logger } from "@utils/logger";
@@ -30,7 +29,7 @@ export class VisualRenderer extends BaseComponent {
     override connectedCallback(): void {
         super.connectedCallback();
 
-        const config = ServiceRegistry.get<ConfigService>("ConfigService");
+        const config = ServiceRegistry.get(TOKENS.ConfigService);
         this.imageCache = new ImageCache(config.getApiUrl());
 
         this.adoptStyles(cssSheet(commonCss), cssSheet(visualRendererCss));
@@ -45,7 +44,7 @@ export class VisualRenderer extends BaseComponent {
         }
 
         const visualService =
-            ServiceRegistry.get<VisualService>("VisualService");
+            ServiceRegistry.get(TOKENS.VisualService);
 
         this.subscribe(
             visualService.getLayers$().pipe(observeOn(animationFrameScheduler)),

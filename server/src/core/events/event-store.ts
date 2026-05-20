@@ -2,17 +2,9 @@ import { Subject, Observable, filter } from "rxjs";
 import { matchesPattern } from "@utils/event-pattern";
 import type { Event } from "@types";
 import { Logger } from "@utils/logger";
-import { imageReplay } from "./replay-configs";
 import type { ReplayDomain } from "./replay-domain";
 
 const logger = new Logger("EventStore");
-
-/**
- * EventStore configuration
- */
-export interface EventStoreConfig {
-    bufferSize?: number;
-}
 
 /**
  * EventStore - Source of truth for all events
@@ -20,20 +12,17 @@ export interface EventStoreConfig {
  * Maintains event streams with replay capability for client synchronization.
  * Domain replay behavior is defined declaratively in replay-configs.ts
  * using the creation-centric rule system (see ReplayDomain).
+ *
+ * All replay domains must be registered via registerDomain() before
+ * accepting events.
  */
 export class EventStore {
     private events$ = new Subject<Event>();
-
-    private domains: Array<{ prefix: string; domain: ReplayDomain }> = [
-        { prefix: "visual.image.", domain: imageReplay },
-    ];
-
+    private domains: Array<{ prefix: string; domain: ReplayDomain }> = [];
     private currentTimeEvent: Event | null = null;
 
-    constructor(_config: EventStoreConfig = {}) {
-        logger.info("EventStore initialized", {
-            bufferSize: _config.bufferSize,
-        });
+    constructor() {
+        logger.info("EventStore initialized");
     }
 
     /**

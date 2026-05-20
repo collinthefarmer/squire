@@ -40,16 +40,34 @@
 
 .track-volume {
     width: var(--sizing-track-volume);
-    height: var(--spacing-md);
     flex-shrink: 0;
     position: relative;
     z-index: 1;
-    accent-color: var(--color-blue-500);
-    cursor: pointer;
 }
 
 .track-block.live .track-volume {
-    accent-color: var(--color-red-500);
+    background: linear-gradient(
+        to right,
+        var(--color-red-600) var(--fill, 0%),
+        var(--color-gray-800) var(--fill, 0%)
+    );
+}
+
+.track-block.live .track-volume:focus {
+    border-color: var(--color-red-500);
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.track-block.live .track-volume::-webkit-slider-thumb {
+    background: var(--color-red-500);
+}
+
+.track-block.live .track-volume::-moz-range-thumb {
+    background: var(--color-red-500);
+}
+
+.track-block.live .track-volume::-moz-range-progress {
+    background: var(--color-red-600);
 }
 
 .track-stop {

@@ -2,6 +2,7 @@ import { BaseComponent } from "@components/base/base-component";
 import { cssSheet } from "@styles/adopt-styles";
 import { onDomEvent } from "@utils/dom-events";
 import { ServiceRegistry } from "@services/service-registry";
+import { TOKENS } from "@services/service-tokens";
 import type { MicCaptureService } from "@master/services/mic-capture-service";
 import type { LocalStore } from "@services/local-store";
 
@@ -25,8 +26,8 @@ export class SettingsPanel extends BaseComponent {
         super.connectedCallback();
 
         this.micCaptureService =
-            ServiceRegistry.get<MicCaptureService>("MicCaptureService");
-        this.localStore = ServiceRegistry.get<LocalStore>("LocalStore");
+            ServiceRegistry.get(TOKENS.MicCaptureService);
+        this.localStore = ServiceRegistry.get(TOKENS.LocalStore);
 
         this.adoptStyles(cssSheet(commonCss), cssSheet(settingsPanelCss));
         this.render();

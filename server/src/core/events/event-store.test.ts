@@ -1,6 +1,7 @@
 import { test, expect, describe } from "bun:test";
 import { EventStore } from "./event-store";
 import { defineReplay } from "./replay-domain";
+import { imageReplay } from "./replay-configs";
 import { makeEvent } from "../../test-utils/factories";
 import type { Event } from "@types";
 
@@ -148,6 +149,7 @@ describe("EventStore", () => {
     describe("getReplayEvents with image domain", () => {
         test("should include image.set events in replay", () => {
             const store = new EventStore();
+            store.registerDomain("visual.image.", imageReplay);
 
             store.append(
                 makeEvent("visual.image.set", {
@@ -167,6 +169,7 @@ describe("EventStore", () => {
 
         test("should not include cleared images in replay", () => {
             const store = new EventStore();
+            store.registerDomain("visual.image.", imageReplay);
 
             store.append(
                 makeEvent("visual.image.set", {

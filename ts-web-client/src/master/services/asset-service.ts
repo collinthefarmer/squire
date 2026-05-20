@@ -15,6 +15,12 @@ export interface ImageAsset {
     height: number;
 }
 
+export interface FontAsset {
+    name: string;
+    filename: string;
+    url: string;
+}
+
 /**
  * Asset service for master client
  *
@@ -24,6 +30,7 @@ export class AssetService {
     private logger = new Logger("AssetService");
     private audioAssets$ = new BehaviorSubject<AudioAsset[]>([]);
     private imageAssets$ = new BehaviorSubject<ImageAsset[]>([]);
+    private fontAssets$ = new BehaviorSubject<FontAsset[]>([]);
     private apiUrl: string;
 
     constructor(config: ConfigService) {
@@ -109,9 +116,61 @@ export class AssetService {
     }
 
     /**
+     * Get font assets observable
+     */
+    getFontAssets$(): Observable<FontAsset[]> {
+        return this.fontAssets$.asObservable();
+    }
+
+    /**
+     * Get current font assets value
+     */
+    getFontAssets(): FontAsset[] {
+        return this.fontAssets$.value;
+    }
+
+    /**
+     * Fetch font assets from server and register them as CSS @font-face
+     */
+    async fetchFontAssets(): Promise<void> {
+        try {
+            this.logger.info("Fetching font assets");
+            const response = await fetch(`${this.apiUrl}/api/assets/fonts`);
+
+            if (!response.ok) {
+                this.logger.error("Failed to fetch font assets", {
+                    status: response.status,
+                });
+                return;
+            }
+
+            const assets: FontAsset[] = await response.json();
+
+            for (const font of assets) {
+                const face = new FontFace(font.name, `url(${this.apiUrl}${font.url})`);
+                try {
+                    const loaded = await face.load();
+                    (document.fonts as FontFaceSet & { add(font: FontFace): void }).add(loaded);
+                } catch (error) {
+                    this.logger.debug("Failed to load font", { font: font.name, error });
+                }
+            }
+
+            this.fontAssets$.next(assets);
+            this.logger.info("Font assets loaded", { count: assets.length });
+        } catch (error) {
+            this.logger.error("Error fetching font assets", { error });
+        }
+    }
+
+    /**
      * Refresh all assets
      */
     async refreshAssets(): Promise<void> {
-        await Promise.all([this.fetchAudioAssets(), this.fetchImageAssets()]);
+        await Promise.all([
+            this.fetchAudioAssets(),
+            this.fetchImageAssets(),
+            this.fetchFontAssets(),
+        ]);
     }
 }

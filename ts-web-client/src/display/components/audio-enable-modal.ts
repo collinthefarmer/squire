@@ -2,7 +2,6 @@ import { BaseComponent } from "@components/base/base-component";
 import { cssSheet } from "@styles/adopt-styles";
 import { emitDomEvent } from "@utils/dom-events";
 import { Logger } from "@utils/logger";
-import { primaryButtonStyles, cardStyles } from "@styles/common-styles";
 // @ts-expect-error — Bun imports CSS as text
 import audioEnableModalCss from "./audio-enable-modal.css" with { type: "text" };
 // @ts-expect-error — Bun imports CSS as text

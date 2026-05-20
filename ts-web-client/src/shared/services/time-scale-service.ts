@@ -19,6 +19,10 @@ export class TimeScaleService {
     constructor(eventBus: EventBus, connectionService?: ConnectionService) {
         this.connectionService = connectionService ?? null;
 
+        eventBus.on("server:system.connected", () => {
+            this.scale$.next(1.0);
+        });
+
         eventBus.on("server:time.scale_changed", (event: unknown) => {
             const { scale } = (event as TimeScaleChangedEvent).payload;
             this.logger.info("Time scale changed", { scale });

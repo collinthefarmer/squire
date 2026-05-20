@@ -2,6 +2,7 @@ import { Subject, throttleTime } from "rxjs";
 import { BaseComponent } from "@components/base/base-component";
 import { cssSheet } from "@styles/adopt-styles";
 import { ServiceRegistry } from "@services/service-registry";
+import { TOKENS } from "@services/service-tokens";
 import type { MasterAudioService } from "@master/services/master-audio-service";
 import type {
     EffectChainLibrary,
@@ -43,9 +44,9 @@ export class EffectsRack extends BaseComponent {
         super.connectedCallback();
 
         this.audioService =
-            ServiceRegistry.get<MasterAudioService>("MasterAudioService");
+            ServiceRegistry.get(TOKENS.MasterAudioService);
         this.library =
-            ServiceRegistry.get<EffectChainLibrary>("EffectChainLibrary");
+            ServiceRegistry.get(TOKENS.EffectChainLibrary);
 
         this.adoptStyles(cssSheet(commonCss), cssSheet(effectsRackCss));
         this.render();

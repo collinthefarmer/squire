@@ -2,6 +2,7 @@ import { interval, animationFrameScheduler, type Subscription, takeUntil } from 
 import { cssSheet } from "@styles/adopt-styles";
 import { BaseComponent } from "@components/base/base-component";
 import { ServiceRegistry } from "@services/service-registry";
+import { TOKENS } from "@services/service-tokens";
 import type { DisplayClockService } from "@display/services/clock-service";
 import type { ClockState } from "@services/clock-state";
 import {
@@ -30,12 +31,16 @@ export class ClockRenderer extends BaseComponent {
     private clockService!: DisplayClockService;
     private animationSub: Subscription | null = null;
     private clocks: Map<string, ClockState> = new Map();
+    private loadedFonts = new Set<string>(["Courier New"]);
+    private apiUrl = "";
 
     override connectedCallback(): void {
         super.connectedCallback();
 
         this.clockService =
-            ServiceRegistry.get<DisplayClockService>("ClockService");
+            ServiceRegistry.get(TOKENS.ClockService);
+        this.apiUrl =
+            ServiceRegistry.get(TOKENS.ConfigService).getApiUrl();
 
         this.adoptStyles(cssSheet(commonCss), cssSheet(clockRendererCss));
 
@@ -114,12 +119,44 @@ export class ClockRenderer extends BaseComponent {
             CLOCK_DISPLAY.height,
         );
 
-        // Convert display-space to viewport percentage for responsive positioning
-        const leftPercent = (x / DISPLAY.WIDTH) * 100;
-        const topPercent = (y / DISPLAY.HEIGHT) * 100;
+        const centerXPercent = ((x + CLOCK_DISPLAY.width / 2) / DISPLAY.WIDTH) * 100;
+        const centerYPercent = ((y + CLOCK_DISPLAY.height / 2) / DISPLAY.HEIGHT) * 100;
 
-        el.style.left = `${leftPercent}%`;
-        el.style.top = `${topPercent}%`;
+        el.style.left = `${centerXPercent}%`;
+        el.style.top = `${centerYPercent}%`;
+        el.style.transform = `translate(-50%, -50%) scale(${clock.scale})`;
+        el.style.fontFamily = `"${clock.font}", monospace`;
+
+        this.ensureFontLoaded(clock.font);
+    }
+
+    /**
+     * Lazily load a font from the server if not already loaded.
+     */
+    private ensureFontLoaded(fontName: string): void {
+        if (this.loadedFonts.has(fontName)) {
+            return;
+        }
+
+        this.loadedFonts.add(fontName);
+
+        fetch(`${this.apiUrl}/api/assets/fonts`)
+            .then((res) => res.json())
+            .then((fonts: { name: string; url: string }[]) => {
+                const match = fonts.find((f) => f.name === fontName);
+                if (!match) {
+                    return;
+                }
+
+                const face = new FontFace(fontName, `url(${this.apiUrl}${match.url})`);
+                return face.load().then((loaded) => {
+                    (document.fonts as FontFaceSet & { add(font: FontFace): void }).add(loaded);
+                });
+            })
+            .catch(() => {
+                // Font not available — falls back to monospace via CSS
+                this.loadedFonts.delete(fontName);
+            });
     }
 
     private updateClockDisplay(el: HTMLElement, clock: ClockState): void {

@@ -16,5 +16,6 @@
     border-radius: 0.5rem;
     background: rgba(0, 0, 0, 0.6);
     min-width: 120px;
-    transition: var(--transition-normal);
+    transform-origin: center;
+    transition: color 0.3s ease;
 }

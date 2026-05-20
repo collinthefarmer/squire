@@ -1,7 +1,6 @@
 import { BaseComponent } from "@components/base/base-component";
 import { cssSheet } from "@styles/adopt-styles";
 import { emitDomEvent } from "@utils/dom-events";
-import { selectStyles, labelStyles, flexColumn } from "@styles/common-styles";
 // @ts-expect-error — Bun imports CSS as text
 import channelSelectorCss from "./channel-selector.css" with { type: "text" };
 // @ts-expect-error — Bun imports CSS as text

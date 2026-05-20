@@ -1,12 +1,6 @@
 import { BaseComponent } from "@components/base/base-component";
 import { cssSheet } from "@styles/adopt-styles";
 import { emitDomEvent } from "@utils/dom-events";
-import {
-    secondaryButtonStyles,
-    successButtonStyles,
-    dangerButtonStyles,
-    grid,
-} from "@styles/common-styles";
 // @ts-expect-error — Bun imports CSS as text
 import audioPlaybackButtonsCss from "./audio-playback-buttons.css" with { type: "text" };
 // @ts-expect-error — Bun imports CSS as text
@@ -29,6 +23,7 @@ export class AudioPlaybackButtons extends BaseComponent {
         this.render();
         this.setupEventListeners();
     }
+
     protected override render(): void {
         if (!this.shadowRoot) {
             return;

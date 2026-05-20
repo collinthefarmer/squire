@@ -164,7 +164,7 @@ export function createClockReplay(timeService: TimeService) {
         "ui.clock.create": {
             removes: ["ui.clock.destroy"],
             folds: {
-                "ui.clock.update": ["position", "zIndex", "visible"],
+                "ui.clock.update": ["position", "zIndex", "visible", "scale", "font"],
             },
             replaces: ["ui.clock.start"],
             appends: ["ui.clock.pause", "ui.clock.adjust"],

@@ -1,8 +1,10 @@
 import { Subject, throttleTime } from "rxjs";
 import { BaseComponent } from "@components/base/base-component";
 import { emitDomEvent } from "@utils/dom-events";
+import { bindAllRangeFills, updateRangeFill } from "@utils/range-fill";
 import { cssSheet } from "@styles/adopt-styles";
 import { ServiceRegistry } from "@services/service-registry";
+import { TOKENS } from "@services/service-tokens";
 import type { MasterAudioService } from "@master/services/master-audio-service";
 import type { AssetService } from "@master/services/asset-service";
 import type {
@@ -80,10 +82,10 @@ export class TimelineTrackBlock extends BaseComponent {
         super.connectedCallback();
 
         this.audioService =
-            ServiceRegistry.get<MasterAudioService>("MasterAudioService");
-        this.assetService = ServiceRegistry.get<AssetService>("AssetService");
+            ServiceRegistry.get(TOKENS.MasterAudioService);
+        this.assetService = ServiceRegistry.get(TOKENS.AssetService);
         this.contextMenuService =
-            ServiceRegistry.get<ContextMenuService>("ContextMenuService");
+            ServiceRegistry.get(TOKENS.ContextMenuService);
 
         this.trackId = this.getAttribute("track-id") ?? "";
         this.channel = this.getAttribute("channel") ?? "";
@@ -93,6 +95,7 @@ export class TimelineTrackBlock extends BaseComponent {
         this.adoptStyles(cssSheet(commonCss), cssSheet(trackBlockCss));
         this.render();
         this.setupSubscriptions();
+        this.cleanup.push(bindAllRangeFills(this.shadowRoot!));
     }
 
     override disconnectedCallback(): void {
@@ -110,7 +113,7 @@ export class TimelineTrackBlock extends BaseComponent {
                 <button class="track-stop" id="stop" title="Stop track">×</button>
                 <div class="track-progress" id="progress"></div>
                 <span class="track-name" id="name"></span>
-                <input type="range" class="track-volume" id="volume"
+                <input type="range" class="track-volume range-compact" id="volume"
                     min="0" max="1" step="0.01" value="1" />
             </div>
         `;
@@ -195,6 +198,7 @@ export class TimelineTrackBlock extends BaseComponent {
         if (volumeEl && this.shadowRoot?.activeElement !== volumeEl) {
             volumeEl.value = String(track.volume);
             volumeEl.title = `Volume: ${Math.round(track.volume * 100)}%`;
+            updateRangeFill(volumeEl);
         }
     }
 

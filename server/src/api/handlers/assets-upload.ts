@@ -1,3 +1,4 @@
+import { basename } from "node:path";
 import { errorResponse, jsonResponse } from "@core/http/responses";
 import {
     isValidAudioFile,
@@ -8,6 +9,23 @@ import {
 } from "@core/http/validation";
 import { Logger } from "@utils/logger";
 import type { RouteHandler } from "@core/http/router";
+
+/**
+ * Sanitize an uploaded filename to prevent path traversal.
+ *
+ * Strips directory components, replaces dangerous characters,
+ * and rejects empty or dot-only names.
+ */
+function sanitizeFilename(name: string): string | null {
+    const base = basename(name);
+    const sanitized = base.replace(/[^a-zA-Z0-9._-]/g, "_");
+
+    if (!sanitized || sanitized === "." || sanitized === "..") {
+        return null;
+    }
+
+    return sanitized;
+}
 
 const logger = new Logger("AssetsUpload");
 
@@ -39,15 +57,20 @@ export const uploadAudioAsset: RouteHandler = async (req) => {
             return errorResponse("File too large (max 100MB)", 413);
         }
 
-        const targetPath = `public/audio/${file.name}`;
+        const safeName = sanitizeFilename(file.name);
+        if (!safeName) {
+            return errorResponse("Invalid filename", 400);
+        }
+
+        const targetPath = `public/audio/${safeName}`;
         await Bun.write(targetPath, file);
 
         const savedFile = Bun.file(targetPath);
 
         return jsonResponse(
             {
-                name: file.name,
-                url: `/public/audio/${file.name}`,
+                name: safeName,
+                url: `/public/audio/${safeName}`,
                 size: savedFile.size,
                 uploadedAt: Date.now(),
             },
@@ -87,15 +110,20 @@ export const uploadImageAsset: RouteHandler = async (req) => {
             return errorResponse("File too large (max 50MB)", 413);
         }
 
-        const targetPath = `public/images/${file.name}`;
+        const safeName = sanitizeFilename(file.name);
+        if (!safeName) {
+            return errorResponse("Invalid filename", 400);
+        }
+
+        const targetPath = `public/images/${safeName}`;
         await Bun.write(targetPath, file);
 
         const savedFile = Bun.file(targetPath);
 
         return jsonResponse(
             {
-                name: file.name,
-                url: `/public/images/${file.name}`,
+                name: safeName,
+                url: `/public/images/${safeName}`,
                 size: savedFile.size,
                 uploadedAt: Date.now(),
             },

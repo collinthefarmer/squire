@@ -11,11 +11,6 @@ import type { EventBus } from "@services/event-bus";
 import type {
     ImageLayerState,
     ImageEvent,
-    ImageSetEvent,
-    ImageClearEvent,
-    ImageTransformEvent,
-    ImageEffectEvent,
-    ImageLayerConfigEvent,
 } from "@types";
 
 /**
@@ -64,6 +59,11 @@ export class VisualService {
     };
 
     private setupEventListeners(): void {
+        this.eventBus.on("server:system.connected", () => {
+            this.logger.info("Resetting layer state for reconnection sync");
+            this.layers$.next(new Map());
+        });
+
         this.eventBus.on("server:visual.image.*", (event: unknown) => {
             try {
                 this.handleImageEvent(event as ImageEvent);

@@ -9,6 +9,7 @@ import type {
     DragScaleDetail,
 } from "@utils/dom-events";
 import { ServiceRegistry } from "@services/service-registry";
+import { TOKENS } from "@services/service-tokens";
 import { Logger } from "@utils/logger";
 import type {
     CanvasObject,
@@ -133,16 +134,16 @@ export class CanvasOverlay extends BaseComponent {
         super.connectedCallback();
 
         this.visualService =
-            ServiceRegistry.get<MasterVisualService>("MasterVisualService");
+            ServiceRegistry.get(TOKENS.MasterVisualService);
         this.imageToolbarService =
-            ServiceRegistry.get<ImageToolbarService>("ImageToolbarService");
+            ServiceRegistry.get(TOKENS.ImageToolbarService);
         this.contextMenuService =
-            ServiceRegistry.get<ContextMenuService>("ContextMenuService");
+            ServiceRegistry.get(TOKENS.ContextMenuService);
 
         this.registerProvider("image", this.visualService);
         this.registerProvider(
             "clock",
-            ServiceRegistry.get<CanvasObjectProvider>("MasterClockService"),
+            ServiceRegistry.get(TOKENS.MasterClockService),
         );
 
         this.contextMenuService.registerProvider(this.menuProvider);
@@ -214,6 +215,10 @@ export class CanvasOverlay extends BaseComponent {
             onDomEvent(this.shadowRoot, "drag-scale", (e) => {
                 e.stopPropagation();
                 this.handleOverlayDragScale(e);
+            }),
+            onDomEvent(this.shadowRoot, "drag-cancel", (e) => {
+                e.stopPropagation();
+                this.handleOverlayDragCancel();
             }),
             onDomEvent(this.shadowRoot, "drag-click", (e) => {
                 e.stopPropagation();
@@ -348,13 +353,29 @@ export class CanvasOverlay extends BaseComponent {
         }
     }
 
+    private handleOverlayDragCancel(): void {
+        if (!this.activeDragId) {
+            return;
+        }
+
+        const handle = this.findHandle(this.activeDragId);
+        if (handle) {
+            handle.style.transform = "";
+        }
+
+        this.logger.info("dragCancel", { objectId: this.activeDragId });
+
+        this.activeDragId = null;
+        this.pendingScale = null;
+    }
+
     private handleOverlayDragScale(e: CustomEvent<DragScaleDetail>): void {
         if (!this.activeDragId) {
             return;
         }
 
         const obj = this.objects.find((o) => o.id === this.activeDragId);
-        if (!obj || obj.type !== "image") {
+        if (!obj) {
             return;
         }
 
