@@ -6,20 +6,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Squire is an event-driven D&D campaign application built with Bun and TypeScript. The system consists of a WebSocket server that broadcasts events to multiple connected clients, enabling synchronized audio, visual, and game state across different displays and devices.
 
-## Code Standards
+## Documentation
 
-**IMPORTANT:** All code in this repository must follow the standards documented in `/docs/CODE_STANDARDS.md`. This comprehensive document defines:
+- `/docs/ARCHITECTURE.md` — Human-readable system overview (start here to understand the system)
+- `/docs/FEATURE_STATUS.md` — What's built, what's planned
+- `/docs/standards/CODE_STANDARDS.md` — Server and general coding rules (LLM reference)
+- `/docs/standards/CLIENT_STANDARDS.md` — Client coding rules, component workflow, refactoring guidance (LLM reference)
 
-- Architecture & design principles (event-driven, DI, service patterns)
-- State management (immutability, helper functions with strict naming)
-- Type safety & validation (TypeScript + Zod)
-- Code organization & structure
-- Functions & methods (single responsibility, early returns)
-- Error handling & logging (Logger class, structured logging)
-- Extensibility patterns (adding events, backward compatibility)
-- Testing, documentation, and Bun-specific practices
-
-Please review this document before making significant changes to the codebase.
+**IMPORTANT:** All code must follow the standards in `/docs/standards/`. Review before making significant changes.
 
 ## Import Aliases
 
@@ -99,71 +93,20 @@ Use `bun test` to run tests. Tests are written using Bun's built-in test runner.
 
 ## Architecture
 
-### Event System
+See `/docs/ARCHITECTURE.md` for the full system overview. Key points:
 
-The core architecture is event-driven with a central EventBus that routes messages between the server and clients. All communication happens through typed events validated with Zod schemas.
-
-**Event Flow:**
-1. Master client sends event via WebSocket to server
-2. Server validates event against Zod schema (`server/src/schemas.ts`)
-3. Server emits event on internal EventBus
-4. Services subscribed to event types handle state updates
-5. Server broadcasts event to all connected clients via ClientRegistry
-6. Display clients receive and render events
+- Event-driven: master client → server (validates + broadcasts) → display clients
+- Server is a thin event router with EventBus, StateStore, EventStore, and DI container
+- Both clients use Web Components + RxJS, no framework
+- Shared reducer functions (`apply{Domain}{Action}`) keep event-to-state logic DRY across clients
 
 **Key Files:**
-- `server/src/types.ts` - TypeScript type definitions for all events and state
-- `server/src/schemas.ts` - Zod schemas for runtime validation
-- `server/src/core/events/event-bus.ts` - Pub/sub event bus implementation
-- `server/src/core/transport/client-registry.ts` - WebSocket client management
-- `server/src/core/state/state-store.ts` - Server-side state persistence
-
-### Dependency Injection
-
-The server uses a simple DI container (`server/src/core/di/container.ts`) with symbol-based tokens. Services are registered either as instances or factories and resolved through the container.
-
-**Service Registration Pattern:**
-```typescript
-container.registerInstance(TOKENS.EventBus, new EventBus());
-container.registerFactory(TOKENS.AudioService, () => {
-    return new AudioService(
-        container.resolve(TOKENS.EventBus),
-        container.resolve(TOKENS.StateStore),
-        container.resolve(TOKENS.ClientRegistry)
-    );
-});
-```
-
-All service tokens are defined in `server/src/core/di/container.ts` under `TOKENS`.
-
-### Service Architecture
-
-Services follow a standard pattern:
-1. Injected with EventBus, StateStore, and ClientRegistry
-2. Subscribe to specific event types in constructor
-3. Update state in StateStore
-4. Broadcast events to clients via ClientRegistry
-
-**Current Services:**
-- `AudioService` (`server/src/services/audio/audio-service.ts`) - Handles audio.* events
-- `ImageService` (`server/src/services/image/image-service.ts`) - Handles visual.image.* events
-
-### State Management
-
-State is maintained server-side in a `StateStore` which holds:
-- `audio` - Audio channel states (playing, volume, loop, etc.)
-- `image` - Image layer states (imageRef, position, effects, etc.)
-- `clients` - Connected client registry
-
-When new clients connect, the server sends them the current state via initial sync events.
-
-### Client Connection Lifecycle
-
-1. Client connects via WebSocket to `ws://localhost:3000`
-2. Server generates unique `clientId` and registers client
-3. Server sends current state (audio playing, images displayed, etc.)
-4. Client sends events, server validates and broadcasts
-5. On disconnect, server removes client from registry
+- `server/src/types.ts` — TypeScript types (discriminated unions)
+- `server/src/schemas.ts` — Zod schemas (runtime validation)
+- `server/src/core/events/event-bus.ts` — Pub/sub event bus
+- `server/src/core/di/container.ts` — DI container + `TOKENS`
+- `server/src/core/state/state-store.ts` — Server state
+- `server/src/core/transport/client-registry.ts` — WebSocket clients
 
 ## Event Types
 
@@ -235,32 +178,7 @@ scripts/
 
 ## Web Client Architecture
 
-**IMPORTANT:** All client code must follow the architecture and implementation standards documented in `/docs/CLIENT_ARCHITECTURE.md`. This comprehensive document defines:
-
-- Service-driven state management (RxJS observables, singletons)
-- Web Components standards (Custom Elements, Shadow DOM, lifecycle)
-- TypeScript patterns (strict typing, branded types, interfaces)
-- Event handling (WebSocket → EventBus → Services → Components)
-- State management (immutable updates, helper functions)
-- Component communication (props, events, services, slots)
-- Connection resilience (EventBus independence, reconnection guarantees)
-- Observable lifecycle (BehaviorSubject vs Subject, derived state patterns)
-- CSS architecture (external `.css` files vs `getStyles()`)
-- Testing, performance, and accessibility standards
-
-The client architecture emphasizes **web standard APIs** (no frameworks), **service-driven logic**, and **composable single-responsibility components**.
-
-For detailed patterns, examples, and step-by-step guidance, see `/docs/CLIENT_ARCHITECTURE.md`.
-
-### Component Creation Workflow
-
-When adding new components to the master client, follow the structured workflow in `/docs/COMPONENT_WORKFLOW.md`. This document covers:
-
-- Planning phase (purpose, patterns, file structure, API design)
-- Implementation templates (presentational and container components)
-- Refactor pass (code reuse, testability, cohesiveness)
-- Server-side integration (when new event types are needed)
-- Checklists for each phase
+All client code must follow `/docs/standards/CLIENT_STANDARDS.md`. Key principles: service-driven state (RxJS), Web Components (Shadow DOM), no frameworks, composable single-responsibility components.
 
 ### Display Client
 
@@ -311,84 +229,14 @@ Control interface for DM to trigger events.
 
 ## Code Style
 
-**See `/docs/CODE_STANDARDS.md` for comprehensive code style standards.**
+See `/docs/standards/CODE_STANDARDS.md` for full rules. Key principles:
 
-Key principles covered in the standards document:
-- Single responsibility and focused functions
-- Early returns and guard clauses (examples below)
-- Strict naming conventions (get*, set*, update*, remove* for state helpers)
-- Logger class for all logging (no direct console.* calls)
-- Interface-based design (IEventBus, IStateStore, IClientRegistry)
+- Early returns and guard clauses — keep happy path at lowest indentation
+- Strict naming: `get*`, `set*`, `update*`, `remove*` for state helpers
+- Logger class for all logging — no direct `console.*` calls
 - Immutable state updates with helper functions
-
-### Early Returns (Summary)
-
-Always prefer early returns for error cases, validation, and guard clauses. This reduces nesting and makes the happy path clear.
-
-**Good:**
-```typescript
-function handleEvent(event: any): void {
-    if (!event) {
-        return;
-    }
-
-    if (!event.payload) {
-        console.warn("Missing payload");
-        return;
-    }
-
-    // Happy path with minimal nesting
-    processEvent(event);
-}
-```
-
-**Bad:**
-```typescript
-function handleEvent(event: any): void {
-    if (event) {
-        if (event.payload) {
-            // Happy path buried in nesting
-            processEvent(event);
-        } else {
-            console.warn("Missing payload");
-        }
-    }
-}
-```
-
-### Guard Clauses
-
-Use guard clauses at the start of functions to validate preconditions:
-
-```typescript
-function renderLayer(layerId: string): void {
-    if (!this.containerElement) {
-        console.warn("No container element");
-        return;
-    }
-
-    const state = this.layers.get(layerId);
-    if (!state) {
-        console.warn("Layer not found");
-        return;
-    }
-
-    // Main logic here
-}
-```
-
-### Continue in Loops
-
-Use `continue` to skip iterations early rather than wrapping logic in conditionals:
-
-```typescript
-for (const [pattern, handlers] of this.handlers.entries()) {
-    if (!this.matches(event.type, pattern)) {
-        continue;
-    }
-    // Process matching handlers
-}
-```
+- Single responsibility, focused functions
+- `continue` in loops to skip early
 - never cast to any or unknown in TypeScript. Always use type guards to assert types.
 - white-space is meaningful. Bookend related code between empty lines to convey meaning. Position properties and variables where they belong, taking into consideration visibility, importance, complexity, etc.
 - keep try blocks as sparse as possible. Only wrap code that could throw errors.
