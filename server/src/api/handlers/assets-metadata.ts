@@ -1,6 +1,6 @@
 import { Input, FilePathSource, ALL_FORMATS } from "mediabunny";
 import { errorResponse, jsonResponse } from "@core/http/responses";
-import { isValidAudioFile } from "@core/http/validation";
+import { isValidAudioFile, sanitizeFilename } from "@core/http/validation";
 import { Logger, extractErrorDetail } from "@utils/logger";
 import type { RouteHandler } from "@core/http/router";
 
@@ -164,7 +164,10 @@ async function extractImageMetadata(
  * Get audio file metadata
  */
 export const getAudioMetadata: RouteHandler = async (_req, params) => {
-    const { filename } = params;
+    const filename = sanitizeFilename(params.filename);
+    if (!filename) {
+        return errorResponse("Invalid filename", 400);
+    }
     const filePath = `public/audio/${filename}`;
 
     const file = Bun.file(filePath);
@@ -186,7 +189,10 @@ export const getAudioMetadata: RouteHandler = async (_req, params) => {
  * Get image file metadata
  */
 export const getImageMetadata: RouteHandler = async (_req, params) => {
-    const { filename } = params;
+    const filename = sanitizeFilename(params.filename);
+    if (!filename) {
+        return errorResponse("Invalid filename", 400);
+    }
     const filePath = `public/images/${filename}`;
 
     const file = Bun.file(filePath);

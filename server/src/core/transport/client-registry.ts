@@ -42,25 +42,41 @@ export class ClientRegistry {
     }
 
     /**
-     * Broadcast event to all clients
+     * Broadcast event to all clients.
+     *
+     * Snapshots the client list before iterating to avoid
+     * TOCTOU issues if a client disconnects mid-broadcast.
+     * Returns the count of clients that failed to receive.
      */
     broadcast(
         event: Event,
         filter?: (client: ConnectedClient) => boolean,
-    ): void {
+    ): number {
         const clients = filter
             ? this.getAllClients().filter(filter)
             : this.getAllClients();
 
         const message = JSON.stringify(event);
+        let failures = 0;
 
         for (const client of clients) {
             try {
                 client.ws.send(message);
             } catch (error) {
+                failures++;
                 this.logger.error("Failed to send to client", { clientId: client.id, error });
             }
         }
+
+        if (failures > 0) {
+            this.logger.warn("Partial broadcast", {
+                total: clients.length,
+                failures,
+                eventType: event.type,
+            });
+        }
+
+        return failures;
     }
 
     /**

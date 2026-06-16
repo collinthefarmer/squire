@@ -2,8 +2,8 @@
  * Simple dependency injection container
  */
 export class Container {
-    private services: Map<symbol, any> = new Map();
-    private factories: Map<symbol, () => any> = new Map();
+    private services: Map<symbol, unknown> = new Map();
+    private factories: Map<symbol, () => unknown> = new Map();
 
     /**
      * Register a service instance

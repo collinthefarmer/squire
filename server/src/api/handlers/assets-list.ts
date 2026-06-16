@@ -1,4 +1,4 @@
-import { readdirSync, mkdirSync, readFileSync } from "node:fs";
+import { readdirSync, existsSync, readFileSync } from "node:fs";
 import { imageSize } from "image-size";
 import { jsonResponse, errorResponse } from "@core/http/responses";
 import { isValidAudioFile, isValidImageFile, isValidFontFile } from "@core/http/validation";
@@ -16,7 +16,9 @@ export const listAudioAssets: RouteHandler = async () => {
     const audioDir = `${PUBLIC_DIR}/audio`;
 
     try {
-        mkdirSync(audioDir, { recursive: true });
+        if (!existsSync(audioDir)) {
+            return jsonResponse([]);
+        }
         const files = readdirSync(audioDir);
 
         const audioFiles = files.filter(isValidAudioFile).map((f) => ({
@@ -39,7 +41,9 @@ export const listImageAssets: RouteHandler = async () => {
     const imagesDir = `${PUBLIC_DIR}/images`;
 
     try {
-        mkdirSync(imagesDir, { recursive: true });
+        if (!existsSync(imagesDir)) {
+            return jsonResponse([]);
+        }
         const files = readdirSync(imagesDir);
 
         const imageFiles = files.filter(isValidImageFile).map((f) => {
@@ -79,7 +83,9 @@ export const listFontAssets: RouteHandler = async () => {
     const fontsDir = `${PUBLIC_DIR}/fonts`;
 
     try {
-        mkdirSync(fontsDir, { recursive: true });
+        if (!existsSync(fontsDir)) {
+            return jsonResponse([]);
+        }
         const files = readdirSync(fontsDir);
 
         const fontFiles = files.filter(isValidFontFile).map((f) => {

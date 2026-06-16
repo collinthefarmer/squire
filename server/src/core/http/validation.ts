@@ -50,3 +50,22 @@ export function isValidFontFile(filename: string): boolean {
 export function validateFileSize(size: number, maxSize: number): boolean {
     return size > 0 && size <= maxSize;
 }
+
+/**
+ * Sanitize a filename to prevent path traversal.
+ *
+ * Strips directory components, replaces dangerous characters,
+ * and rejects empty or dot-only names. Returns null if the
+ * filename is unsafe.
+ */
+export function sanitizeFilename(name: string): string | null {
+    const { basename } = require("node:path") as typeof import("node:path");
+    const base = basename(name);
+    const sanitized = base.replace(/[^a-zA-Z0-9._-]/g, "_");
+
+    if (!sanitized || sanitized === "." || sanitized === "..") {
+        return null;
+    }
+
+    return sanitized;
+}
