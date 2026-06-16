@@ -30,6 +30,16 @@ function sanitizeFilename(name: string): string | null {
 const logger = new Logger("AssetsUpload");
 
 /**
+ * Extract a readable error string that preserves stack traces.
+ */
+function extractErrorDetail(error: unknown): string {
+    if (error instanceof Error) {
+        return error.stack ?? error.message;
+    }
+    return String(error);
+}
+
+/**
  * Upload audio file
  */
 export const uploadAudioAsset: RouteHandler = async (req) => {
@@ -77,7 +87,7 @@ export const uploadAudioAsset: RouteHandler = async (req) => {
             201,
         );
     } catch (error) {
-        logger.error("Audio upload error", { error });
+        logger.error("Audio upload error", { error: extractErrorDetail(error) });
         return errorResponse("Upload failed", 500);
     }
 };
@@ -130,7 +140,7 @@ export const uploadImageAsset: RouteHandler = async (req) => {
             201,
         );
     } catch (error) {
-        logger.error("Image upload error", { error });
+        logger.error("Image upload error", { error: extractErrorDetail(error) });
         return errorResponse("Upload failed", 500);
     }
 };

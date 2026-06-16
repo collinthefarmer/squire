@@ -10,6 +10,16 @@ const PUBLIC_DIR = "public";
 const logger = new Logger("AssetsListHandler");
 
 /**
+ * Extract a readable error string that preserves stack traces.
+ */
+function extractErrorDetail(error: unknown): string {
+    if (error instanceof Error) {
+        return error.stack ?? error.message;
+    }
+    return String(error);
+}
+
+/**
  * List all audio assets
  */
 export const listAudioAssets: RouteHandler = async () => {
@@ -27,7 +37,7 @@ export const listAudioAssets: RouteHandler = async () => {
 
         return jsonResponse(audioFiles);
     } catch (error) {
-        logger.error("Failed to list audio files", { error });
+        logger.error("Failed to list audio files", { error: extractErrorDetail(error) });
         return errorResponse("Failed to list audio files", 500);
     }
 };
@@ -52,8 +62,9 @@ export const listImageAssets: RouteHandler = async () => {
                 const dimensions = imageSize(buffer);
                 width = dimensions.width ?? 0;
                 height = dimensions.height ?? 0;
-            } catch (error) {
-                logger.debug("Could not read image dimensions", { file: f, error });
+            } catch (dimError) {
+                const detail = dimError instanceof Error ? dimError.stack ?? dimError.message : String(dimError);
+                logger.debug("Could not read image dimensions", { file: f, error: detail });
             }
 
             return {
@@ -66,7 +77,7 @@ export const listImageAssets: RouteHandler = async () => {
 
         return jsonResponse(imageFiles);
     } catch (error) {
-        logger.error("Failed to list image files", { error });
+        logger.error("Failed to list image files", { error: extractErrorDetail(error) });
         return errorResponse("Failed to list image files", 500);
     }
 };
@@ -92,7 +103,7 @@ export const listFontAssets: RouteHandler = async () => {
 
         return jsonResponse(fontFiles);
     } catch (error) {
-        logger.error("Failed to list font files", { error });
+        logger.error("Failed to list font files", { error: extractErrorDetail(error) });
         return errorResponse("Failed to list font files", 500);
     }
 };

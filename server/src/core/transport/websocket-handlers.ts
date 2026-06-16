@@ -65,7 +65,8 @@ export function routeMessage(
         if (error instanceof ZodError) {
             logger.error("Validation error", { errors: error.format() });
         } else {
-            logger.error("Failed to route message", { clientId, error: String(error) });
+            const detail = error instanceof Error ? error.stack ?? error.message : String(error);
+            logger.error("Failed to route message", { clientId, error: detail });
         }
     }
 }
@@ -103,6 +104,8 @@ export function createWebSocketHandlers(
     return {
         open(ws: ServerWebSocket<WebSocketData>) {
             const { clientId, clientType } = ws.data;
+
+            logger.info("Client connected", { clientId, role: clientType });
 
             const client: ConnectedClient = {
                 id: clientId,
@@ -149,7 +152,10 @@ export function createWebSocketHandlers(
         },
 
         close(ws: ServerWebSocket<WebSocketData>) {
-            const clientId = ws.data.clientId;
+            const { clientId, clientType } = ws.data;
+
+            logger.info("Client disconnected", { clientId, role: clientType });
+
             clientRegistry.unregister(clientId);
             broadcastClientList(clientRegistry);
         },

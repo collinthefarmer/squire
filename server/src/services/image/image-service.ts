@@ -44,7 +44,8 @@ export class ImageService {
                 try {
                     this.handleEvent(event);
                 } catch (error) {
-                    logger.error("Failed to handle image event", { type: event.type, error: String(error) });
+                    const detail = error instanceof Error ? error.stack ?? error.message : String(error);
+                    logger.error("Failed to handle image event", { type: event.type, error: detail });
                 }
             });
     }
