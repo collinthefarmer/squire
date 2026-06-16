@@ -28,6 +28,16 @@ function isEnabled(level: LogLevel): boolean {
     return LOG_LEVELS[level] >= LOG_LEVELS[currentLevel];
 }
 
+/**
+ * Extract a readable error string that preserves stack traces.
+ */
+export function extractErrorDetail(error: unknown): string {
+    if (error instanceof Error) {
+        return error.stack ?? error.message;
+    }
+    return String(error);
+}
+
 export class Logger {
     constructor(private context: string) {}
 

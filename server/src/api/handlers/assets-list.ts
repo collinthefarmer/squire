@@ -4,20 +4,10 @@ import { jsonResponse, errorResponse } from "@core/http/responses";
 import { isValidAudioFile, isValidImageFile, isValidFontFile } from "@core/http/validation";
 import { getAudioDuration } from "./assets-metadata";
 import type { RouteHandler } from "@core/http/router";
-import { Logger } from "@utils/logger";
+import { Logger, extractErrorDetail } from "@utils/logger";
 
 const PUBLIC_DIR = "public";
 const logger = new Logger("AssetsListHandler");
-
-/**
- * Extract a readable error string that preserves stack traces.
- */
-function extractErrorDetail(error: unknown): string {
-    if (error instanceof Error) {
-        return error.stack ?? error.message;
-    }
-    return String(error);
-}
 
 /**
  * List all audio assets

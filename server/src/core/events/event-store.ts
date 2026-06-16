@@ -20,6 +20,7 @@ export class EventStore {
     private events$ = new Subject<Event>();
     private domains: Array<{ prefix: string; domain: ReplayDomain }> = [];
     private currentTimeEvent: Event | null = null;
+    private count = 0;
 
     constructor() {
         logger.info("EventStore initialized");
@@ -38,9 +39,17 @@ export class EventStore {
      * Append event to store and notify subscribers
      */
     append(event: Event): void {
+        this.count++;
         this.events$.next(event);
         this.updateDomainStore(event);
         logger.debug("Event appended", { type: event.type });
+    }
+
+    /**
+     * Total number of events appended since server start.
+     */
+    getEventCount(): number {
+        return this.count;
     }
 
     /**

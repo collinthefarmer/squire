@@ -1,7 +1,7 @@
 import { Input, FilePathSource, ALL_FORMATS } from "mediabunny";
 import { errorResponse, jsonResponse } from "@core/http/responses";
 import { isValidAudioFile } from "@core/http/validation";
-import { Logger } from "@utils/logger";
+import { Logger, extractErrorDetail } from "@utils/logger";
 import type { RouteHandler } from "@core/http/router";
 
 const logger = new Logger("AssetsMetadata");
@@ -34,16 +34,6 @@ interface ImageMetadata {
 
 /** In-memory cache of audio durations (seconds), keyed by filename */
 const audioDurationCache = new Map<string, number>();
-
-/**
- * Extract a readable error string that preserves stack traces.
- */
-function extractErrorDetail(error: unknown): string {
-    if (error instanceof Error) {
-        return error.stack ?? error.message;
-    }
-    return String(error);
-}
 
 /**
  * Get cached audio duration, or null if not yet computed.

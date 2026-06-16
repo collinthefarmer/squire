@@ -7,7 +7,7 @@ import {
     MAX_AUDIO_SIZE,
     MAX_IMAGE_SIZE,
 } from "@core/http/validation";
-import { Logger } from "@utils/logger";
+import { Logger, extractErrorDetail } from "@utils/logger";
 import type { RouteHandler } from "@core/http/router";
 
 /**
@@ -28,16 +28,6 @@ function sanitizeFilename(name: string): string | null {
 }
 
 const logger = new Logger("AssetsUpload");
-
-/**
- * Extract a readable error string that preserves stack traces.
- */
-function extractErrorDetail(error: unknown): string {
-    if (error instanceof Error) {
-        return error.stack ?? error.message;
-    }
-    return String(error);
-}
 
 /**
  * Upload audio file

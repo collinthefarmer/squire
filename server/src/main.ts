@@ -6,7 +6,7 @@ import {
     getUpgradeData,
 } from "@core/transport/websocket-handlers";
 import { handleStaticFile } from "@api/handlers/static-files";
-import { Logger } from "@utils/logger";
+import { Logger, extractErrorDetail } from "@utils/logger";
 import { preloadAudioDurations } from "@api/handlers/assets-metadata";
 import {
     createAudioReplay,
@@ -25,16 +25,6 @@ import type { WebSocketData } from "@types";
 
 const PUBLIC_DIR = "public";
 const logger = new Logger("Main");
-
-/**
- * Extract a readable error string that preserves stack traces.
- */
-function extractErrorDetail(error: unknown): string {
-    if (error instanceof Error) {
-        return error.stack ?? error.message;
-    }
-    return String(error);
-}
 
 /**
  * Main entry point
@@ -139,6 +129,7 @@ async function main() {
                         uptime: Math.floor((Date.now() - startTime) / 1000),
                         clients: clientRegistry.getCount(),
                         clientsByRole: { master, display },
+                        eventCount: eventStore.getEventCount(),
                     }),
                     { headers: { "Content-Type": "application/json" } },
                 );
