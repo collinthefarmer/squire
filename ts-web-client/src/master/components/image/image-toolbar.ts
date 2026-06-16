@@ -8,6 +8,7 @@ import type { ImageToolbarService } from "@master/services/image-toolbar-service
 import type { MasterVisualService } from "@master/services/visual-service";
 import type { LayerControlPanel, LayerEntry } from "./layer-control-panel";
 import type { ImageLayerState } from "@types";
+import { layerId as toLayerId } from "@types";
 // @ts-expect-error — Bun imports CSS as text
 import imageToolbarCss from "./image-toolbar.css" with { type: "text" };
 // @ts-expect-error — Bun imports CSS as text
@@ -72,7 +73,7 @@ export class ImageToolbar extends BaseComponent {
             onDomEvent(this.shadowRoot, "layer-remove", (e) => {
                 const serverLayer = this.visualService
                     .getLayers()
-                    .get(e.detail.layer);
+                    .get(toLayerId(e.detail.layer));
                 if (serverLayer?.imageRef) {
                     this.visualService.clearImage(e.detail.layer);
                 }
@@ -96,7 +97,7 @@ export class ImageToolbar extends BaseComponent {
             onDomEvent(this.shadowRoot, "layer-aspect-ratio", (e) => {
                 const current = this.visualService
                     .getLayers()
-                    .get(e.detail.layer);
+                    .get(toLayerId(e.detail.layer));
                 if (current?.imageRef) {
                     this.visualService.setImage(
                         e.detail.layer,

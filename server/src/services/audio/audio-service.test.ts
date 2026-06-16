@@ -5,6 +5,12 @@ import { StateStore } from "@core/state/state-store";
 import { ClientRegistry } from "@core/transport/client-registry";
 import { getAudioChannel, getAllAudioChannels } from "@utils/state-helpers";
 import { makeMetadata } from "../../test-utils/factories";
+import { channelId, trackId } from "@types";
+
+const CH_MUSIC = channelId("music");
+const CH_SFX = channelId("sfx");
+const T1 = trackId("t1");
+const T2 = trackId("t2");
 
 describe("AudioService", () => {
     let eventStore: EventStore;
@@ -34,12 +40,12 @@ describe("AudioService", () => {
                 metadata: makeMetadata(),
             });
 
-            const channel = getAudioChannel(stateStore.getState(), "music");
+            const channel = getAudioChannel(stateStore.getState(), CH_MUSIC);
             expect(channel).toBeDefined();
             expect(channel!.volume).toBe(0.8);
             expect(channel!.tracks.size).toBe(1);
 
-            const track = channel!.tracks.get("t1");
+            const track = channel!.tracks.get(T1);
             expect(track).toBeDefined();
             expect(track!.playing).toBe(true);
             expect(track!.source.ref).toBe("song.mp3");
@@ -59,7 +65,7 @@ describe("AudioService", () => {
                 metadata: makeMetadata(),
             });
 
-            const channel = getAudioChannel(stateStore.getState(), "sfx");
+            const channel = getAudioChannel(stateStore.getState(), CH_SFX);
             expect(channel).toBeDefined();
             expect(channel!.tracks.size).toBe(1);
         });
@@ -91,7 +97,7 @@ describe("AudioService", () => {
                 metadata: makeMetadata(),
             });
 
-            const channel = getAudioChannel(stateStore.getState(), "music");
+            const channel = getAudioChannel(stateStore.getState(), CH_MUSIC);
             expect(channel!.tracks.size).toBe(2);
         });
     });
@@ -117,8 +123,8 @@ describe("AudioService", () => {
                 metadata: makeMetadata(),
             });
 
-            const channel = getAudioChannel(stateStore.getState(), "music");
-            expect(channel!.tracks.get("t1")!.playing).toBe(false);
+            const channel = getAudioChannel(stateStore.getState(), CH_MUSIC);
+            expect(channel!.tracks.get(T1)!.playing).toBe(false);
         });
 
         test("should pause all tracks when no trackId", () => {
@@ -141,8 +147,8 @@ describe("AudioService", () => {
                 metadata: makeMetadata(),
             });
 
-            const channel = getAudioChannel(stateStore.getState(), "music");
-            expect(channel!.tracks.get("t1")!.playing).toBe(false);
+            const channel = getAudioChannel(stateStore.getState(), CH_MUSIC);
+            expect(channel!.tracks.get(T1)!.playing).toBe(false);
         });
     });
 
@@ -173,8 +179,8 @@ describe("AudioService", () => {
                 metadata: makeMetadata(),
             });
 
-            const channel = getAudioChannel(stateStore.getState(), "music");
-            expect(channel!.tracks.get("t1")!.playing).toBe(true);
+            const channel = getAudioChannel(stateStore.getState(), CH_MUSIC);
+            expect(channel!.tracks.get(T1)!.playing).toBe(true);
         });
 
         test("should be no-op for non-existent channel", () => {
@@ -209,7 +215,7 @@ describe("AudioService", () => {
                 metadata: makeMetadata(),
             });
 
-            expect(getAudioChannel(stateStore.getState(), "music")).toBeUndefined();
+            expect(getAudioChannel(stateStore.getState(), CH_MUSIC)).toBeUndefined();
         });
 
         test("should remove specific track and clean up empty channel", () => {
@@ -233,7 +239,7 @@ describe("AudioService", () => {
             });
 
             // Channel removed because it became empty
-            expect(getAudioChannel(stateStore.getState(), "music")).toBeUndefined();
+            expect(getAudioChannel(stateStore.getState(), CH_MUSIC)).toBeUndefined();
         });
 
         test("should keep channel when other tracks remain", () => {
@@ -269,10 +275,10 @@ describe("AudioService", () => {
                 metadata: makeMetadata(),
             });
 
-            const channel = getAudioChannel(stateStore.getState(), "music");
+            const channel = getAudioChannel(stateStore.getState(), CH_MUSIC);
             expect(channel).toBeDefined();
             expect(channel!.tracks.size).toBe(1);
-            expect(channel!.tracks.has("t2")).toBe(true);
+            expect(channel!.tracks.has(T2)).toBe(true);
         });
     });
 
@@ -297,7 +303,7 @@ describe("AudioService", () => {
                 metadata: makeMetadata(),
             });
 
-            const channel = getAudioChannel(stateStore.getState(), "music");
+            const channel = getAudioChannel(stateStore.getState(), CH_MUSIC);
             expect(channel!.volume).toBe(0.3);
         });
 
@@ -321,8 +327,8 @@ describe("AudioService", () => {
                 metadata: makeMetadata(),
             });
 
-            const track = getAudioChannel(stateStore.getState(), "music")!
-                .tracks.get("t1");
+            const track = getAudioChannel(stateStore.getState(), CH_MUSIC)!
+                .tracks.get(T1);
             expect(track!.volume).toBe(0.5);
         });
     });
@@ -348,8 +354,8 @@ describe("AudioService", () => {
                 metadata: makeMetadata(),
             });
 
-            const track = getAudioChannel(stateStore.getState(), "music")!
-                .tracks.get("t1");
+            const track = getAudioChannel(stateStore.getState(), CH_MUSIC)!
+                .tracks.get(T1);
             expect(track!.loop).toBe(true);
         });
     });
@@ -386,13 +392,13 @@ describe("AudioService", () => {
                 metadata: makeMetadata(),
             });
 
-            const channel = service.getChannel("music");
+            const channel = service.getChannel(CH_MUSIC);
             expect(channel).toBeDefined();
             expect(channel!.volume).toBe(0.7);
         });
 
         test("getChannel should return undefined for missing channel", () => {
-            expect(service.getChannel("nonexistent")).toBeUndefined();
+            expect(service.getChannel(channelId("nonexistent"))).toBeUndefined();
         });
     });
 });

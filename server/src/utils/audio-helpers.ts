@@ -1,10 +1,17 @@
-import type { AudioChannelState, AudioTrackState } from "@types";
+import type {
+    AudioChannelState,
+    AudioTrackState,
+    AudioEffect,
+    ChannelId,
+    TrackId,
+} from "@types";
+import { trackId } from "@types";
 
 /**
  * Generate a unique track ID
  */
-export function generateTrackId(): string {
-    return `track-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+export function generateTrackId(): TrackId {
+    return trackId(`track-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`);
 }
 
 /**
@@ -12,8 +19,8 @@ export function generateTrackId(): string {
  * Returns a new object with a copied tracks map (safe for mutation).
  */
 export function getOrCreateChannel(
-    channels: ReadonlyMap<string, AudioChannelState>,
-    channelId: string,
+    channels: ReadonlyMap<ChannelId, AudioChannelState>,
+    channelId: ChannelId,
     volume: number,
 ): AudioChannelState {
     const existing = channels.get(channelId);
@@ -22,7 +29,7 @@ export function getOrCreateChannel(
         return { ...existing, tracks: new Map(existing.tracks) };
     }
 
-    return { id: channelId, tracks: new Map(), volume, effects: [] };
+    return { id: channelId, tracks: new Map<TrackId, AudioTrackState>(), volume, effects: [] };
 }
 
 /**
@@ -30,14 +37,14 @@ export function getOrCreateChannel(
  * Returns a new Map.
  */
 export function updateTracksConditional(
-    tracks: ReadonlyMap<string, AudioTrackState>,
-    trackId: string | undefined,
+    tracks: ReadonlyMap<TrackId, AudioTrackState>,
+    targetTrackId: TrackId | undefined,
     updater: (track: AudioTrackState) => AudioTrackState,
-): Map<string, AudioTrackState> {
+): Map<TrackId, AudioTrackState> {
     const updated = new Map(tracks);
 
     for (const [id, track] of updated) {
-        if (!trackId || id === trackId) {
+        if (!targetTrackId || id === targetTrackId) {
             updated.set(id, updater(track));
         }
     }
@@ -50,10 +57,10 @@ export function updateTracksConditional(
  */
 export function removeTrack(
     channel: AudioChannelState,
-    trackId: string,
+    targetTrackId: TrackId,
 ): AudioChannelState {
     const tracks = new Map(channel.tracks);
-    tracks.delete(trackId);
+    tracks.delete(targetTrackId);
     return { ...channel, tracks };
 }
 
@@ -80,17 +87,17 @@ export function hasAnyPlaying(channel: AudioChannelState): boolean {
  * Create a default AudioTrackState for a new play event.
  */
 export function createTrackState(
-    trackId: string,
+    id: TrackId,
     source: { type: "file" | "stream" | "live"; ref: string },
     options: {
         volume?: number;
         loop?: boolean;
-        effects?: { type: string; params: Record<string, unknown> }[];
+        effects?: AudioEffect[];
         respectTimeScale?: boolean;
     },
 ): AudioTrackState {
     return {
-        id: trackId,
+        id,
         source,
         playing: true,
         position: 0,

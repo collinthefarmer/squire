@@ -7,13 +7,35 @@
  * wet/dry mix parameter.
  */
 
+import type { AudioEffect, AudioEffectType } from "@types";
+
 export interface EffectDefinition {
-    type: string;
+    type: AudioEffectType;
     label: string;
     defaultParams: Record<string, number>;
     paramRanges: Record<string, { min: number; max: number; step: number; unit: string }>;
     createNodes(ctx: AudioContext): AudioNode[];
     applyParams(nodes: AudioNode[], params: Record<string, unknown>): void;
+}
+
+/**
+ * Create a typed AudioEffect from an EffectDefinition and optional params.
+ *
+ * Bridges the gap between the generic EffectDefinition interface (which
+ * uses Record<string, number> for flexibility) and the discriminated
+ * AudioEffect union. The type field narrows the discriminant; params
+ * are structurally compatible because each definition's defaultParams
+ * contain exactly the keys required by the corresponding AudioEffect variant.
+ */
+export function createEffectFromDefinition(
+    def: EffectDefinition,
+    params?: Record<string, number>,
+): AudioEffect {
+    const merged = params ? { ...def.defaultParams, ...params } : { ...def.defaultParams };
+
+    // The definition's type field is an AudioEffectType literal,
+    // and the merged params structurally match the expected shape.
+    return { type: def.type, params: merged } as AudioEffect;
 }
 
 // -- Reverb --

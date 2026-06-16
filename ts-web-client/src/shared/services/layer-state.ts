@@ -14,6 +14,7 @@ import type {
     ImageTransformEvent,
     ImageEffectEvent,
     ImageLayerConfigEvent,
+    LayerId,
 } from "@types";
 
 const DEFAULT_LAYER: Omit<
@@ -35,9 +36,9 @@ const DEFAULT_LAYER: Omit<
  * changing images. Creates a new layer with defaults if none exists.
  */
 export function applyImageSet(
-    layers: Map<string, ImageLayerState>,
+    layers: Map<LayerId, ImageLayerState>,
     event: ImageSetEvent,
-): Map<string, ImageLayerState> {
+): Map<LayerId, ImageLayerState> {
     const { layer, imageRef, aspectRatio, position, scale } = event.payload;
     const existing = layers.get(layer);
 
@@ -65,9 +66,9 @@ export function applyImageSet(
  * Apply a visual.image.clear event.
  */
 export function applyImageClear(
-    layers: Map<string, ImageLayerState>,
+    layers: Map<LayerId, ImageLayerState>,
     event: ImageClearEvent,
-): Map<string, ImageLayerState> {
+): Map<LayerId, ImageLayerState> {
     return removeFromMap(layers, event.payload.layer);
 }
 
@@ -77,9 +78,9 @@ export function applyImageClear(
  * Selectively updates position, scale, and rotation.
  */
 export function applyImageTransform(
-    layers: Map<string, ImageLayerState>,
+    layers: Map<LayerId, ImageLayerState>,
     event: ImageTransformEvent,
-): Map<string, ImageLayerState> {
+): Map<LayerId, ImageLayerState> {
     const { layer, position, scale, rotation } = event.payload;
 
     return updateInMap(layers, layer, (state) => {
@@ -105,9 +106,9 @@ export function applyImageTransform(
  * Merges effects into existing array or replaces them entirely.
  */
 export function applyImageEffect(
-    layers: Map<string, ImageLayerState>,
+    layers: Map<LayerId, ImageLayerState>,
     event: ImageEffectEvent,
-): Map<string, ImageLayerState> {
+): Map<LayerId, ImageLayerState> {
     const { layer, effects, replace } = event.payload;
 
     return updateInMap(layers, layer, (state) => {
@@ -124,9 +125,9 @@ export function applyImageEffect(
  * Selectively updates blend mode, opacity, z-index, and visibility.
  */
 export function applyImageLayerConfig(
-    layers: Map<string, ImageLayerState>,
+    layers: Map<LayerId, ImageLayerState>,
     event: ImageLayerConfigEvent,
-): Map<string, ImageLayerState> {
+): Map<LayerId, ImageLayerState> {
     const { layer, blendMode, opacity, zIndex, visible } = event.payload;
 
     return updateInMap(layers, layer, (state) => {

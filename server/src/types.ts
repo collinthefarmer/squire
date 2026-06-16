@@ -3,6 +3,33 @@ import type { ServerWebSocket } from "bun";
 // Core type definitions
 
 /**
+ * Branded type utility — prevents cross-domain ID mixing at compile time.
+ * A branded string is still a string at runtime, but TypeScript treats
+ * ChannelId, LayerId, and TrackId as incompatible with each other and
+ * with plain strings.
+ */
+type Brand<T, B extends string> = T & { readonly __brand: B };
+
+export type ChannelId = Brand<string, "ChannelId">;
+export type LayerId = Brand<string, "LayerId">;
+export type TrackId = Brand<string, "TrackId">;
+
+/** Create a ChannelId from a plain string */
+export function channelId(s: string): ChannelId {
+    return s as ChannelId;
+}
+
+/** Create a LayerId from a plain string */
+export function layerId(s: string): LayerId {
+    return s as LayerId;
+}
+
+/** Create a TrackId from a plain string */
+export function trackId(s: string): TrackId {
+    return s as TrackId;
+}
+
+/**
  * Base event structure
  */
 export interface Event<T extends string = string, P = unknown> {
@@ -20,11 +47,25 @@ export interface EventMetadata {
 }
 
 /**
+ * Audio effect types — discriminated union based on effect type string.
+ *
+ * Each variant specifies the exact parameters that effect requires.
+ * The three built-in effects (reverb, chorus, distortion) are modeled
+ * after the Web Audio API node graph in effect-definitions.ts.
+ */
+export type AudioEffect =
+    | { type: "reverb"; params: { decay: number; mix: number } }
+    | { type: "chorus"; params: { rate: number; depth: number; mix: number } }
+    | { type: "distortion"; params: { amount: number; tone: number; mix: number } };
+
+export type AudioEffectType = AudioEffect["type"];
+
+/**
  * Audio event types
  */
 export interface AudioPlayPayload {
-    channel: string;
-    trackId?: string;
+    channel: ChannelId;
+    trackId?: TrackId;
     source: {
         type: "file" | "stream" | "live";
         ref: string;
@@ -35,35 +76,30 @@ export interface AudioPlayPayload {
     respectTimeScale: boolean;
 }
 
-export interface AudioEffect {
-    type: string;
-    params: Record<string, unknown>;
-}
-
 export type AudioPlayEvent = Event<"audio.play", AudioPlayPayload>;
 export type AudioPauseEvent = Event<
     "audio.pause",
-    { channel: string; trackId?: string }
+    { channel: ChannelId; trackId?: TrackId }
 >;
 export type AudioResumeEvent = Event<
     "audio.resume",
-    { channel: string; trackId?: string }
+    { channel: ChannelId; trackId?: TrackId }
 >;
 export type AudioStopEvent = Event<
     "audio.stop",
-    { channel: string; trackId?: string }
+    { channel: ChannelId; trackId?: TrackId }
 >;
 export type AudioVolumeEvent = Event<
     "audio.volume",
-    { channel: string; volume: number; trackId?: string }
+    { channel: ChannelId; volume: number; trackId?: TrackId }
 >;
 export type AudioLoopEvent = Event<
     "audio.loop",
-    { channel: string; trackId: string; loop: boolean }
+    { channel: ChannelId; trackId: TrackId; loop: boolean }
 >;
 export type AudioChannelEffectsEvent = Event<
     "audio.channel_effects",
-    { channel: string; effects: AudioEffect[] }
+    { channel: ChannelId; effects: AudioEffect[] }
 >;
 
 export type AudioEvent =
@@ -79,7 +115,7 @@ export type AudioEvent =
  * Audio state
  */
 export interface AudioTrackState {
-    id: string;
+    id: TrackId;
     source: {
         type: "file" | "stream" | "live";
         ref: string;
@@ -93,14 +129,14 @@ export interface AudioTrackState {
 }
 
 export interface AudioChannelState {
-    id: string;
-    tracks: ReadonlyMap<string, AudioTrackState>;
+    id: ChannelId;
+    tracks: ReadonlyMap<TrackId, AudioTrackState>;
     volume: number;
     effects: AudioEffect[];
 }
 
 export interface AudioState {
-    channels: ReadonlyMap<string, AudioChannelState>;
+    channels: ReadonlyMap<ChannelId, AudioChannelState>;
     masterVolume: number;
 }
 
@@ -171,13 +207,23 @@ export interface ImageTransition {
     easing?: string; // CSS easing function
 }
 
-export interface ImageEffect {
-    type: string; // "blur", "tint", "glow", etc.
-    params: Record<string, unknown>;
-}
+/**
+ * Image effect types — discriminated union.
+ *
+ * Image effects map to CSS filter functions applied during canvas
+ * rendering. Each variant declares its required parameters.
+ */
+export type ImageEffect =
+    | { type: "blur"; params: { radius: number } }
+    | { type: "glow"; params: { intensity: number } }
+    | { type: "tint"; params: { color: string; amount: number } }
+    | { type: "brightness"; params: { level: number } }
+    | { type: "contrast"; params: { level: number } };
+
+export type ImageEffectType = ImageEffect["type"];
 
 export interface ImageSetPayload {
-    layer: string; // Layer alias like "background", "midground", etc.
+    layer: LayerId;
     imageRef: string; // Asset reference
     aspectRatio: AspectRatioMode;
     position?: ImagePosition;
@@ -186,25 +232,25 @@ export interface ImageSetPayload {
 }
 
 export interface ImageClearPayload {
-    layer: string;
+    layer: LayerId;
     transition?: ImageTransition;
 }
 
 export interface ImageTransformPayload {
-    layer: string;
+    layer: LayerId;
     position?: ImagePosition;
     scale?: number;
     rotation?: number; // degrees
 }
 
 export interface ImageEffectPayload {
-    layer: string;
+    layer: LayerId;
     effects: ImageEffect[];
     replace: boolean; // If true, replace all effects; if false, add/merge
 }
 
 export interface ImageLayerConfigPayload {
-    layer: string;
+    layer: LayerId;
     blendMode?: BlendMode;
     opacity?: number; // 0.0 to 1.0
     zIndex?: number;
@@ -234,7 +280,7 @@ export type ImageEvent =
  * Image layer state
  */
 export interface ImageLayerState {
-    id: string; // Layer alias
+    id: LayerId;
     imageRef: string | null;
     aspectRatio: AspectRatioMode;
     position: ImagePosition;
@@ -248,7 +294,7 @@ export interface ImageLayerState {
 }
 
 export interface ImageState {
-    layers: ReadonlyMap<string, ImageLayerState>;
+    layers: ReadonlyMap<LayerId, ImageLayerState>;
 }
 
 /**

@@ -11,7 +11,9 @@ import type {
 import {
     getAllEffectDefinitions,
     getEffectDefinition,
+    createEffectFromDefinition,
 } from "@services/effect-definitions";
+import { cloneAudioEffect } from "@utils/effect-helpers";
 import type { AudioEffect } from "@types";
 
 // @ts-expect-error — Bun imports CSS as text
@@ -59,10 +61,7 @@ export class EffectsRack extends BaseComponent {
         this.chainId = chainId;
         this.chain = this.library.getChain(chainId) ?? null;
         this.effects = this.chain
-            ? this.chain.effects.map((e) => ({
-                  ...e,
-                  params: { ...e.params },
-              }))
+            ? this.chain.effects.map(cloneAudioEffect)
             : [];
 
         this.classList.add("visible");
@@ -153,10 +152,7 @@ export class EffectsRack extends BaseComponent {
             }
 
             this.ensureUserChain();
-            this.effects.push({
-                type: def.type,
-                params: { ...def.defaultParams },
-            });
+            this.effects.push(createEffectFromDefinition(def));
             this.applyAndSave();
             this.renderContent();
         });
@@ -228,10 +224,14 @@ export class EffectsRack extends BaseComponent {
         const params = document.createElement("div");
         params.className = "effect-params";
 
+        // Dynamic key access is safe here — paramRanges defines the same
+        // keys that exist on the effect's typed params object.
+        const effectParams = effect.params as Record<string, number>;
+
         for (const [key, range] of Object.entries(def.paramRanges)) {
-            const value = (effect.params[key] as number) ?? range.min;
+            const value = effectParams[key] ?? range.min;
             params.appendChild(
-                this.createParamSlider(effect, key, value, range),
+                this.createParamSlider(effectParams, key, value, range),
             );
         }
 
@@ -240,7 +240,7 @@ export class EffectsRack extends BaseComponent {
     }
 
     private createParamSlider(
-        effect: AudioEffect,
+        effectParams: Record<string, number>,
         key: string,
         value: number,
         range: { min: number; max: number; step: number; unit: string },
@@ -266,7 +266,7 @@ export class EffectsRack extends BaseComponent {
 
         slider.addEventListener("input", () => {
             const newValue = parseFloat(slider.value);
-            effect.params[key] = newValue;
+            effectParams[key] = newValue;
             display.textContent = this.formatValue(newValue, range.unit);
             this.ensureUserChain();
             this.paramChange$.next();
@@ -334,7 +334,7 @@ export class EffectsRack extends BaseComponent {
 
         const newId = this.library.createChain(
             name,
-            this.effects.map((e) => ({ ...e, params: { ...e.params } })),
+            this.effects.map(cloneAudioEffect),
         );
         this.chainId = newId;
         this.chain = this.library.getChain(newId) ?? null;

@@ -12,6 +12,7 @@ import type {
     MenuProvider,
 } from "@services/context-menu-service";
 import type { AudioTrackState } from "@types";
+import { trackId as toTrackId } from "@types";
 
 // @ts-expect-error — Bun imports CSS as text
 import trackBlockCss from "./timeline-track-block.css" with { type: "text" };
@@ -37,7 +38,7 @@ export class TimelineTrackBlock extends BaseComponent {
     private contextMenuService!: ContextMenuService;
     private volumeChange$ = new Subject<number>();
 
-    private trackId = "";
+    private trackId = toTrackId("");
     private channel = "";
 
     private menuProvider: MenuProvider = (_target, path) => {
@@ -87,7 +88,7 @@ export class TimelineTrackBlock extends BaseComponent {
         this.contextMenuService =
             ServiceRegistry.get(TOKENS.ContextMenuService);
 
-        this.trackId = this.getAttribute("track-id") ?? "";
+        this.trackId = toTrackId(this.getAttribute("track-id") ?? "");
         this.channel = this.getAttribute("channel") ?? "";
 
         this.contextMenuService.registerProvider(this.menuProvider);

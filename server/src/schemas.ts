@@ -1,8 +1,20 @@
 import { z } from "zod";
+import { channelId, layerId, trackId } from "./types";
+import type { ChannelId, LayerId, TrackId } from "./types";
 
 /**
  * Zod schemas for runtime validation
+ *
+ * Branded ID fields use .transform() to convert plain strings into
+ * their branded counterparts after validation. Effect schemas use
+ * discriminated unions that mirror the TypeScript types in types.ts.
  */
+
+// -- Branded ID schemas --
+
+const channelIdSchema = z.string().transform((s): ChannelId => channelId(s));
+const layerIdSchema = z.string().transform((s): LayerId => layerId(s));
+const trackIdSchema = z.string().transform((s): TrackId => trackId(s));
 
 // Base schemas
 export const eventMetadataSchema = z.object({
@@ -13,11 +25,39 @@ export const eventMetadataSchema = z.object({
     priority: z.enum(["low", "normal", "high"]).optional(),
 });
 
-// Audio schemas
-export const audioEffectSchema = z.object({
-    type: z.string(),
-    params: z.record(z.string(), z.unknown()),
+// -- Audio effect schemas (discriminated union) --
+
+const reverbEffectSchema = z.object({
+    type: z.literal("reverb"),
+    params: z.object({
+        decay: z.number(),
+        mix: z.number(),
+    }),
 });
+
+const chorusEffectSchema = z.object({
+    type: z.literal("chorus"),
+    params: z.object({
+        rate: z.number(),
+        depth: z.number(),
+        mix: z.number(),
+    }),
+});
+
+const distortionEffectSchema = z.object({
+    type: z.literal("distortion"),
+    params: z.object({
+        amount: z.number(),
+        tone: z.number(),
+        mix: z.number(),
+    }),
+});
+
+export const audioEffectSchema = z.discriminatedUnion("type", [
+    reverbEffectSchema,
+    chorusEffectSchema,
+    distortionEffectSchema,
+]);
 
 export const audioSourceSchema = z.object({
     type: z.enum(["file", "stream", "live"]),
@@ -25,8 +65,8 @@ export const audioSourceSchema = z.object({
 });
 
 export const audioPlayPayloadSchema = z.object({
-    channel: z.string(),
-    trackId: z.string().optional(),
+    channel: channelIdSchema,
+    trackId: trackIdSchema.optional(),
     source: audioSourceSchema,
     volume: z.number().min(0).max(1),
     loop: z.boolean(),
@@ -43,8 +83,8 @@ export const audioPlayEventSchema = z.object({
 export const audioPauseEventSchema = z.object({
     type: z.literal("audio.pause"),
     payload: z.object({
-        channel: z.string(),
-        trackId: z.string().optional(),
+        channel: channelIdSchema,
+        trackId: trackIdSchema.optional(),
     }),
     metadata: eventMetadataSchema,
 });
@@ -52,8 +92,8 @@ export const audioPauseEventSchema = z.object({
 export const audioResumeEventSchema = z.object({
     type: z.literal("audio.resume"),
     payload: z.object({
-        channel: z.string(),
-        trackId: z.string().optional(),
+        channel: channelIdSchema,
+        trackId: trackIdSchema.optional(),
     }),
     metadata: eventMetadataSchema,
 });
@@ -61,8 +101,8 @@ export const audioResumeEventSchema = z.object({
 export const audioStopEventSchema = z.object({
     type: z.literal("audio.stop"),
     payload: z.object({
-        channel: z.string(),
-        trackId: z.string().optional(),
+        channel: channelIdSchema,
+        trackId: trackIdSchema.optional(),
     }),
     metadata: eventMetadataSchema,
 });
@@ -70,9 +110,9 @@ export const audioStopEventSchema = z.object({
 export const audioVolumeEventSchema = z.object({
     type: z.literal("audio.volume"),
     payload: z.object({
-        channel: z.string(),
+        channel: channelIdSchema,
         volume: z.number().min(0).max(1),
-        trackId: z.string().optional(),
+        trackId: trackIdSchema.optional(),
     }),
     metadata: eventMetadataSchema,
 });
@@ -80,8 +120,8 @@ export const audioVolumeEventSchema = z.object({
 export const audioLoopEventSchema = z.object({
     type: z.literal("audio.loop"),
     payload: z.object({
-        channel: z.string(),
-        trackId: z.string(),
+        channel: channelIdSchema,
+        trackId: trackIdSchema,
         loop: z.boolean(),
     }),
     metadata: eventMetadataSchema,
@@ -90,7 +130,7 @@ export const audioLoopEventSchema = z.object({
 export const audioChannelEffectsEventSchema = z.object({
     type: z.literal("audio.channel_effects"),
     payload: z.object({
-        channel: z.string(),
+        channel: channelIdSchema,
         effects: z.array(audioEffectSchema),
     }),
     metadata: eventMetadataSchema,
@@ -107,6 +147,41 @@ export const audioEventSchema = z.discriminatedUnion("type", [
     audioChannelEffectsEventSchema,
 ]);
 
+// -- Image effect schemas (discriminated union) --
+
+const blurEffectSchema = z.object({
+    type: z.literal("blur"),
+    params: z.object({ radius: z.number() }),
+});
+
+const glowEffectSchema = z.object({
+    type: z.literal("glow"),
+    params: z.object({ intensity: z.number() }),
+});
+
+const tintEffectSchema = z.object({
+    type: z.literal("tint"),
+    params: z.object({ color: z.string(), amount: z.number() }),
+});
+
+const brightnessEffectSchema = z.object({
+    type: z.literal("brightness"),
+    params: z.object({ level: z.number() }),
+});
+
+const contrastEffectSchema = z.object({
+    type: z.literal("contrast"),
+    params: z.object({ level: z.number() }),
+});
+
+export const imageEffectSchema = z.discriminatedUnion("type", [
+    blurEffectSchema,
+    glowEffectSchema,
+    tintEffectSchema,
+    brightnessEffectSchema,
+    contrastEffectSchema,
+]);
+
 // Image/Visual schemas
 export const imagePositionSchema = z.object({
     x: z.union([z.string(), z.number()]),
@@ -119,13 +194,8 @@ export const imageTransitionSchema = z.object({
     easing: z.string().optional(),
 });
 
-export const imageEffectSchema = z.object({
-    type: z.string(),
-    params: z.record(z.string(), z.unknown()),
-});
-
 export const imageSetPayloadSchema = z.object({
-    layer: z.string(),
+    layer: layerIdSchema,
     imageRef: z.string(),
     aspectRatio: z.enum(["cover", "contain", "fill", "native", "custom"]),
     position: imagePositionSchema.optional(),
@@ -140,7 +210,7 @@ export const imageSetEventSchema = z.object({
 });
 
 export const imageClearPayloadSchema = z.object({
-    layer: z.string(),
+    layer: layerIdSchema,
     transition: imageTransitionSchema.optional(),
 });
 
@@ -151,7 +221,7 @@ export const imageClearEventSchema = z.object({
 });
 
 export const imageTransformPayloadSchema = z.object({
-    layer: z.string(),
+    layer: layerIdSchema,
     position: imagePositionSchema.optional(),
     scale: z.number().optional(),
     rotation: z.number().optional(),
@@ -164,7 +234,7 @@ export const imageTransformEventSchema = z.object({
 });
 
 export const imageEffectPayloadSchema = z.object({
-    layer: z.string(),
+    layer: layerIdSchema,
     effects: z.array(imageEffectSchema),
     replace: z.boolean(),
 });
@@ -176,7 +246,7 @@ export const imageEffectEventSchema = z.object({
 });
 
 export const imageLayerConfigPayloadSchema = z.object({
-    layer: z.string(),
+    layer: layerIdSchema,
     blendMode: z
         .enum(["normal", "multiply", "screen", "overlay", "add"])
         .optional(),

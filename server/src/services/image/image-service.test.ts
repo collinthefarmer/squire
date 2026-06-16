@@ -5,6 +5,10 @@ import { StateStore } from "@core/state/state-store";
 import { ClientRegistry } from "@core/transport/client-registry";
 import { getImageLayer } from "@utils/state-helpers";
 import { makeMetadata } from "../../test-utils/factories";
+import { layerId } from "@types";
+
+const BG = layerId("bg");
+const BACKGROUND = layerId("background");
 
 describe("ImageService", () => {
     let eventStore: EventStore;
@@ -31,7 +35,7 @@ describe("ImageService", () => {
                 metadata: makeMetadata(),
             });
 
-            const layer = getImageLayer(stateStore.getState(), "background");
+            const layer = getImageLayer(stateStore.getState(), BACKGROUND);
             expect(layer).toBeDefined();
             expect(layer!.imageRef).toBe("forest.png");
             expect(layer!.aspectRatio).toBe("cover");
@@ -68,7 +72,7 @@ describe("ImageService", () => {
                 metadata: makeMetadata(),
             });
 
-            const layer = getImageLayer(stateStore.getState(), "bg");
+            const layer = getImageLayer(stateStore.getState(), BG);
             expect(layer!.imageRef).toBe("b.png");
             expect(layer!.opacity).toBe(0.5); // Preserved
         });
@@ -92,7 +96,7 @@ describe("ImageService", () => {
                 metadata: makeMetadata(),
             });
 
-            expect(getImageLayer(stateStore.getState(), "bg")).toBeUndefined();
+            expect(getImageLayer(stateStore.getState(), BG)).toBeUndefined();
         });
     });
 
@@ -119,7 +123,7 @@ describe("ImageService", () => {
                 metadata: makeMetadata(),
             });
 
-            const layer = getImageLayer(stateStore.getState(), "bg");
+            const layer = getImageLayer(stateStore.getState(), BG);
             expect(layer!.position).toEqual({ x: 100, y: 200 });
             expect(layer!.scale).toBe(2.0);
             expect(layer!.rotation).toBe(45);
@@ -146,7 +150,7 @@ describe("ImageService", () => {
                 metadata: makeMetadata(),
             });
 
-            const layer = getImageLayer(stateStore.getState(), "bg");
+            const layer = getImageLayer(stateStore.getState(), BG);
             expect(layer!.scale).toBe(1.5); // Unchanged
             expect(layer!.rotation).toBe(90);
         });
@@ -174,7 +178,7 @@ describe("ImageService", () => {
                 metadata: makeMetadata(),
             });
 
-            const layer = getImageLayer(stateStore.getState(), "bg");
+            const layer = getImageLayer(stateStore.getState(), BG);
             expect(layer!.effects).toHaveLength(1);
             expect(layer!.effects[0].type).toBe("blur");
         });
@@ -210,7 +214,7 @@ describe("ImageService", () => {
                 metadata: makeMetadata(),
             });
 
-            const layer = getImageLayer(stateStore.getState(), "bg");
+            const layer = getImageLayer(stateStore.getState(), BG);
             expect(layer!.effects).toHaveLength(2);
         });
     });
@@ -239,7 +243,7 @@ describe("ImageService", () => {
                 metadata: makeMetadata(),
             });
 
-            const layer = getImageLayer(stateStore.getState(), "bg");
+            const layer = getImageLayer(stateStore.getState(), BG);
             expect(layer!.blendMode).toBe("multiply");
             expect(layer!.opacity).toBe(0.7);
             expect(layer!.zIndex).toBe(5);
@@ -264,7 +268,7 @@ describe("ImageService", () => {
         });
 
         test("getLayer should return undefined for missing layer", () => {
-            expect(service.getLayer("nonexistent")).toBeUndefined();
+            expect(service.getLayer(layerId("nonexistent"))).toBeUndefined();
         });
     });
 });
