@@ -25,11 +25,14 @@ import type {
     ClockUpdateEvent,
     TimeScaleChangedEvent,
 } from "@types";
+import { channelId, layerId, trackId } from "@types";
 
 /**
  * Event builder service for master client
  *
- * Provides static factory methods for type-safe event construction
+ * Provides static factory methods for type-safe event construction.
+ * Accepts plain strings from the UI and brands them into ChannelId,
+ * LayerId, and TrackId at the event-construction boundary.
  */
 export class EventBuilder {
     /**
@@ -48,8 +51,8 @@ export class EventBuilder {
         return {
             type: "audio.play",
             payload: {
-                channel: params.channel,
-                trackId: params.trackId,
+                channel: channelId(params.channel),
+                trackId: params.trackId ? trackId(params.trackId) : undefined,
                 source: {
                     type: params.sourceType ?? "file",
                     ref: params.source,
@@ -76,8 +79,8 @@ export class EventBuilder {
         return {
             type: "audio.pause",
             payload: {
-                channel: params.channel,
-                trackId: params.trackId,
+                channel: channelId(params.channel),
+                trackId: params.trackId ? trackId(params.trackId) : undefined,
             },
             metadata: {
                 timestamp: Date.now(),
@@ -96,8 +99,8 @@ export class EventBuilder {
         return {
             type: "audio.resume",
             payload: {
-                channel: params.channel,
-                trackId: params.trackId,
+                channel: channelId(params.channel),
+                trackId: params.trackId ? trackId(params.trackId) : undefined,
             },
             metadata: {
                 timestamp: Date.now(),
@@ -116,8 +119,8 @@ export class EventBuilder {
         return {
             type: "audio.stop",
             payload: {
-                channel: params.channel,
-                trackId: params.trackId,
+                channel: channelId(params.channel),
+                trackId: params.trackId ? trackId(params.trackId) : undefined,
             },
             metadata: {
                 timestamp: Date.now(),
@@ -137,9 +140,9 @@ export class EventBuilder {
         return {
             type: "audio.volume",
             payload: {
-                channel: params.channel,
+                channel: channelId(params.channel),
                 volume: params.volume,
-                trackId: params.trackId,
+                trackId: params.trackId ? trackId(params.trackId) : undefined,
             },
             metadata: {
                 timestamp: Date.now(),
@@ -155,7 +158,7 @@ export class EventBuilder {
         return {
             type: "audio.channel_effects",
             payload: {
-                channel: params.channel,
+                channel: channelId(params.channel),
                 effects: params.effects,
             },
             metadata: {
@@ -173,8 +176,8 @@ export class EventBuilder {
         return {
             type: "audio.loop",
             payload: {
-                channel: params.channel,
-                trackId: params.trackId,
+                channel: channelId(params.channel),
+                trackId: trackId(params.trackId),
                 loop: params.loop,
             },
             metadata: {
@@ -198,7 +201,7 @@ export class EventBuilder {
         return {
             type: "visual.image.set",
             payload: {
-                layer: params.layer,
+                layer: layerId(params.layer),
                 imageRef: params.imageRef,
                 aspectRatio: params.aspectRatio,
                 position: params.position,
@@ -222,7 +225,7 @@ export class EventBuilder {
         return {
             type: "visual.image.clear",
             payload: {
-                layer: params.layer,
+                layer: layerId(params.layer),
                 transition: params.transition,
             },
             metadata: {
@@ -244,7 +247,7 @@ export class EventBuilder {
         return {
             type: "visual.image.transform",
             payload: {
-                layer: params.layer,
+                layer: layerId(params.layer),
                 position: params.position,
                 scale: params.scale,
                 rotation: params.rotation,
@@ -267,7 +270,7 @@ export class EventBuilder {
         return {
             type: "visual.image.effect",
             payload: {
-                layer: params.layer,
+                layer: layerId(params.layer),
                 effects: params.effects,
                 replace: params.replace,
             },
@@ -291,7 +294,7 @@ export class EventBuilder {
         return {
             type: "visual.image.layer_config",
             payload: {
-                layer: params.layer,
+                layer: layerId(params.layer),
                 blendMode: params.blendMode,
                 opacity: params.opacity,
                 zIndex: params.zIndex,

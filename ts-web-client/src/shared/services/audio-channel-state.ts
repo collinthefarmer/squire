@@ -13,6 +13,8 @@ import type {
     AudioChannelState,
     AudioTrackState,
     AudioEffect,
+    ChannelId,
+    TrackId,
 } from "@types";
 
 /**
@@ -21,21 +23,21 @@ import type {
  * Creates the channel if it doesn't exist, then adds or replaces the track.
  */
 export function applyAudioPlay(
-    channels: Map<string, AudioChannelState>,
+    channels: Map<ChannelId, AudioChannelState>,
     params: {
-        channel: string;
-        trackId: string;
+        channel: ChannelId;
+        trackId: TrackId;
         source: { type: "file" | "stream" | "live"; ref: string };
         volume: number;
         loop: boolean;
         effects?: AudioEffect[];
         respectTimeScale: boolean;
     },
-): Map<string, AudioChannelState> {
+): Map<ChannelId, AudioChannelState> {
     const { channel, trackId, source, volume, loop, effects, respectTimeScale } = params;
     const existing = channels.get(channel);
 
-    const tracks = new Map(existing?.tracks ?? []);
+    const tracks = new Map<TrackId, AudioTrackState>(existing?.tracks ?? []);
     tracks.set(trackId, {
         id: trackId,
         source,
@@ -61,10 +63,10 @@ export function applyAudioPlay(
  * Removes the channel entirely if it becomes empty after track removal.
  */
 export function applyAudioStop(
-    channels: Map<string, AudioChannelState>,
-    channel: string,
-    trackId: string | undefined,
-): Map<string, AudioChannelState> {
+    channels: Map<ChannelId, AudioChannelState>,
+    channel: ChannelId,
+    trackId: TrackId | undefined,
+): Map<ChannelId, AudioChannelState> {
     if (!trackId) {
         return removeFromMap(channels, channel);
     }
@@ -90,11 +92,11 @@ export function applyAudioStop(
  * Shared iteration + immutable update pattern used by pause, resume, loop, volume.
  */
 export function updateMatchingTracks(
-    channels: Map<string, AudioChannelState>,
-    channel: string,
-    trackId: string | undefined,
+    channels: Map<ChannelId, AudioChannelState>,
+    channel: ChannelId,
+    trackId: TrackId | undefined,
     updater: (track: AudioTrackState) => AudioTrackState,
-): Map<string, AudioChannelState> {
+): Map<ChannelId, AudioChannelState> {
     return updateInMap(channels, channel, (ch) => {
         const tracks = new Map(ch.tracks);
 
@@ -115,11 +117,11 @@ export function updateMatchingTracks(
  * Otherwise updates the channel-level volume.
  */
 export function applyAudioVolume(
-    channels: Map<string, AudioChannelState>,
-    channel: string,
+    channels: Map<ChannelId, AudioChannelState>,
+    channel: ChannelId,
     volume: number,
-    trackId: string | undefined,
-): Map<string, AudioChannelState> {
+    trackId: TrackId | undefined,
+): Map<ChannelId, AudioChannelState> {
     if (trackId) {
         return updateMatchingTracks(channels, channel, trackId, (t) => ({
             ...t,
@@ -134,10 +136,10 @@ export function applyAudioVolume(
  * Apply an audio.channel_effects event.
  */
 export function applyAudioChannelEffects(
-    channels: Map<string, AudioChannelState>,
-    channel: string,
+    channels: Map<ChannelId, AudioChannelState>,
+    channel: ChannelId,
     effects: AudioEffect[],
-): Map<string, AudioChannelState> {
+): Map<ChannelId, AudioChannelState> {
     return updateInMap(channels, channel, (ch) => ({ ...ch, effects }));
 }
 
@@ -145,10 +147,10 @@ export function applyAudioChannelEffects(
  * Iterate over track IDs matching a trackId filter (or all tracks in channel).
  */
 export function forEachMatchingTrack(
-    channels: Map<string, AudioChannelState>,
-    channel: string,
-    trackId: string | undefined,
-    callback: (trackId: string) => void,
+    channels: Map<ChannelId, AudioChannelState>,
+    channel: ChannelId,
+    trackId: TrackId | undefined,
+    callback: (trackId: TrackId) => void,
 ): void {
     const ch = channels.get(channel);
     if (!ch) {

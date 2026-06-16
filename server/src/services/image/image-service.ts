@@ -9,6 +9,7 @@ import type {
     ImageLayerConfigEvent,
     ImageLayerState,
     ImageEvent,
+    LayerId,
 } from "@types";
 import {
     setImageLayer,
@@ -196,11 +197,11 @@ export class ImageService {
     /**
      * Get layer state from materialized view
      */
-    getLayer(layerId: string): ImageLayerState | undefined {
+    getLayer(id: LayerId): ImageLayerState | undefined {
         const state = this.stateStore.getState();
         if (!state.image) {
             return undefined;
         }
-        return getImageLayer(state, layerId);
+        return getImageLayer(state, id);
     }
 }

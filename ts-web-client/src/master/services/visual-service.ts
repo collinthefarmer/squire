@@ -26,6 +26,7 @@ import type {
     ImageTransition,
     ImageLayerState,
     ImageEvent,
+    LayerId,
 } from "@types";
 
 /**
@@ -74,7 +75,7 @@ export class MasterVisualService implements CanvasObjectProvider {
     private assetService: AssetService;
     private imageToolbarService: ImageToolbarService;
 
-    private layers$ = new BehaviorSubject<Map<string, ImageLayerState>>(
+    private layers$ = new BehaviorSubject<Map<LayerId, ImageLayerState>>(
         new Map(),
     );
 
@@ -96,7 +97,7 @@ export class MasterVisualService implements CanvasObjectProvider {
     }
 
     private computeCanvasObjects(
-        layers: Map<string, ImageLayerState>,
+        layers: Map<LayerId, ImageLayerState>,
     ): CanvasObject[] {
         const objects: CanvasObject[] = [];
 
@@ -169,11 +170,11 @@ export class MasterVisualService implements CanvasObjectProvider {
 
     // -- Layer access --
 
-    getLayers$(): Observable<Map<string, ImageLayerState>> {
+    getLayers$(): Observable<Map<LayerId, ImageLayerState>> {
         return this.layers$.asObservable();
     }
 
-    getLayers(): Map<string, ImageLayerState> {
+    getLayers(): Map<LayerId, ImageLayerState> {
         return this.layers$.value;
     }
 
@@ -363,9 +364,9 @@ export class MasterVisualService implements CanvasObjectProvider {
 
     private readonly handlers: {
         [K in ImageEvent["type"]]: (
-            current: Map<string, ImageLayerState>,
+            current: Map<LayerId, ImageLayerState>,
             event: Extract<ImageEvent, { type: K }>,
-        ) => Map<string, ImageLayerState>;
+        ) => Map<LayerId, ImageLayerState>;
     } = {
         "visual.image.set": (c, e) => applyImageSet(c, e),
         "visual.image.clear": (c, e) => applyImageClear(c, e),
@@ -392,7 +393,7 @@ export class MasterVisualService implements CanvasObjectProvider {
     private handleImageEvent(event: ImageEvent): void {
         const current = this.layers$.value;
         const handler = this.handlers[event.type];
-        const updated = (handler as (c: Map<string, ImageLayerState>, e: ImageEvent) => Map<string, ImageLayerState>)(current, event);
+        const updated = (handler as (c: Map<LayerId, ImageLayerState>, e: ImageEvent) => Map<LayerId, ImageLayerState>)(current, event);
 
         this.logger.info(event.type, { layer: event.payload.layer });
         this.layers$.next(updated);

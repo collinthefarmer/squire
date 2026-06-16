@@ -1,6 +1,7 @@
 import { BehaviorSubject, type Observable } from "rxjs";
 import { Logger } from "@utils/logger";
 import { EFFECT_PRESETS } from "@shared/constants/effect-presets";
+import { cloneAudioEffects } from "@utils/effect-helpers";
 import type { LocalStore } from "@services/local-store";
 import type { AudioEffect } from "@types";
 
@@ -131,7 +132,7 @@ export class EffectChainLibrary {
 
         return this.createChain(
             source.label + labelSuffix,
-            source.effects.map((e) => ({ ...e, params: { ...e.params } })),
+            cloneAudioEffects(source.effects),
         );
     }
 

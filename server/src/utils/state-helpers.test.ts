@@ -24,16 +24,18 @@ import type {
     ImageLayerState,
     ImageState,
 } from "../types";
+import { channelId, layerId } from "../types";
+import type { ChannelId, LayerId, TrackId } from "../types";
 
 // -- Test Fixtures --
 
 function makeChannel(
-    id: string,
+    id: ChannelId,
     overrides: Partial<AudioChannelState> = {},
 ): AudioChannelState {
     return {
         id,
-        tracks: new Map(),
+        tracks: new Map<TrackId, import("../types").AudioTrackState>(),
         volume: 1.0,
         effects: [],
         ...overrides,
@@ -41,7 +43,7 @@ function makeChannel(
 }
 
 function makeLayer(
-    id: string,
+    id: LayerId,
     overrides: Partial<ImageLayerState> = {},
 ): ImageLayerState {
     return {
@@ -60,6 +62,19 @@ function makeLayer(
     };
 }
 
+// Convenience branded IDs for tests
+const CH_MUSIC = channelId("music");
+const CH_AMBIENT = channelId("ambient");
+const CH_A = channelId("a");
+const CH_B = channelId("b");
+const CH_NONEXISTENT = channelId("nonexistent");
+
+const LY_BG = layerId("bg");
+const LY_BACKGROUND = layerId("background");
+const LY_A = layerId("a");
+const LY_B = layerId("b");
+const LY_NOPE = layerId("nope");
+
 // -- Audio State Helpers --
 
 describe("Audio State Helpers", () => {
@@ -74,7 +89,7 @@ describe("Audio State Helpers", () => {
 
         test("should return existing audio state", () => {
             const audioState: AudioState = {
-                channels: new Map([["music", makeChannel("music")]]),
+                channels: new Map<ChannelId, AudioChannelState>([[CH_MUSIC, makeChannel(CH_MUSIC)]]),
                 masterVolume: 0.5,
             };
             const state: ApplicationState = { audio: audioState };
@@ -87,7 +102,7 @@ describe("Audio State Helpers", () => {
         test("should set audio state immutably", () => {
             const original: ApplicationState = {};
             const audioState: AudioState = {
-                channels: new Map(),
+                channels: new Map<ChannelId, AudioChannelState>(),
                 masterVolume: 0.8,
             };
 
@@ -102,7 +117,7 @@ describe("Audio State Helpers", () => {
                 time: { scale: 2.0 },
             };
             const audioState: AudioState = {
-                channels: new Map(),
+                channels: new Map<ChannelId, AudioChannelState>(),
                 masterVolume: 1.0,
             };
 
@@ -116,37 +131,37 @@ describe("Audio State Helpers", () => {
     describe("setAudioChannel", () => {
         test("should add a channel to empty state", () => {
             const state: ApplicationState = {};
-            const channel = makeChannel("ambient");
+            const channel = makeChannel(CH_AMBIENT);
 
-            const updated = setAudioChannel(state, "ambient", channel);
+            const updated = setAudioChannel(state, CH_AMBIENT, channel);
 
-            expect(getAudioChannel(updated, "ambient")).toEqual(channel);
-            expect(getAudioChannel(state, "ambient")).toBeUndefined();
+            expect(getAudioChannel(updated, CH_AMBIENT)).toEqual(channel);
+            expect(getAudioChannel(state, CH_AMBIENT)).toBeUndefined();
         });
 
         test("should replace an existing channel", () => {
-            const state = setAudioChannel({}, "music", makeChannel("music", { volume: 0.5 }));
-            const replacement = makeChannel("music", { volume: 0.8 });
+            const state = setAudioChannel({}, CH_MUSIC, makeChannel(CH_MUSIC, { volume: 0.5 }));
+            const replacement = makeChannel(CH_MUSIC, { volume: 0.8 });
 
-            const updated = setAudioChannel(state, "music", replacement);
+            const updated = setAudioChannel(state, CH_MUSIC, replacement);
 
-            expect(getAudioChannel(updated, "music")?.volume).toBe(0.8);
-            expect(getAudioChannel(state, "music")?.volume).toBe(0.5);
+            expect(getAudioChannel(updated, CH_MUSIC)?.volume).toBe(0.8);
+            expect(getAudioChannel(state, CH_MUSIC)?.volume).toBe(0.5);
         });
     });
 
     describe("removeAudioChannel", () => {
         test("should remove an existing channel", () => {
-            const state = setAudioChannel({}, "music", makeChannel("music"));
-            const updated = removeAudioChannel(state, "music");
+            const state = setAudioChannel({}, CH_MUSIC, makeChannel(CH_MUSIC));
+            const updated = removeAudioChannel(state, CH_MUSIC);
 
-            expect(getAudioChannel(updated, "music")).toBeUndefined();
-            expect(getAudioChannel(state, "music")).toBeDefined();
+            expect(getAudioChannel(updated, CH_MUSIC)).toBeUndefined();
+            expect(getAudioChannel(state, CH_MUSIC)).toBeDefined();
         });
 
         test("should be a no-op for non-existent channel", () => {
             const state: ApplicationState = {};
-            const updated = removeAudioChannel(state, "nonexistent");
+            const updated = removeAudioChannel(state, CH_NONEXISTENT);
 
             expect(updated.audio?.channels.size).toBe(0);
         });
@@ -154,21 +169,21 @@ describe("Audio State Helpers", () => {
 
     describe("updateAudioChannel", () => {
         test("should update an existing channel immutably", () => {
-            const state = setAudioChannel({}, "music", makeChannel("music", { volume: 0.5 }));
+            const state = setAudioChannel({}, CH_MUSIC, makeChannel(CH_MUSIC, { volume: 0.5 }));
 
-            const updated = updateAudioChannel(state, "music", (ch) => ({
+            const updated = updateAudioChannel(state, CH_MUSIC, (ch) => ({
                 ...ch,
                 volume: 0.9,
             }));
 
-            expect(getAudioChannel(updated, "music")?.volume).toBe(0.9);
-            expect(getAudioChannel(state, "music")?.volume).toBe(0.5);
+            expect(getAudioChannel(updated, CH_MUSIC)?.volume).toBe(0.9);
+            expect(getAudioChannel(state, CH_MUSIC)?.volume).toBe(0.5);
         });
 
         test("should be a no-op for non-existent channel", () => {
             const state: ApplicationState = {};
 
-            const updated = updateAudioChannel(state, "nonexistent", (ch) => ({
+            const updated = updateAudioChannel(state, CH_NONEXISTENT, (ch) => ({
                 ...ch,
                 volume: 0,
             }));
@@ -179,29 +194,29 @@ describe("Audio State Helpers", () => {
 
     describe("updateAudioChannels", () => {
         test("should provide a mutable copy of channels map", () => {
-            const state = setAudioChannel({}, "a", makeChannel("a"));
+            const state = setAudioChannel({}, CH_A, makeChannel(CH_A));
 
             const updated = updateAudioChannels(state, (channels) => {
-                channels.set("b", makeChannel("b"));
+                channels.set(CH_B, makeChannel(CH_B));
                 return channels;
             });
 
-            expect(getAudioChannel(updated, "a")).toBeDefined();
-            expect(getAudioChannel(updated, "b")).toBeDefined();
-            expect(getAudioChannel(state, "b")).toBeUndefined();
+            expect(getAudioChannel(updated, CH_A)).toBeDefined();
+            expect(getAudioChannel(updated, CH_B)).toBeDefined();
+            expect(getAudioChannel(state, CH_B)).toBeUndefined();
         });
     });
 
     describe("getAudioChannel", () => {
         test("should return undefined for empty state", () => {
-            expect(getAudioChannel({}, "music")).toBeUndefined();
+            expect(getAudioChannel({}, CH_MUSIC)).toBeUndefined();
         });
 
         test("should return channel when it exists", () => {
-            const channel = makeChannel("music");
-            const state = setAudioChannel({}, "music", channel);
+            const channel = makeChannel(CH_MUSIC);
+            const state = setAudioChannel({}, CH_MUSIC, channel);
 
-            expect(getAudioChannel(state, "music")).toEqual(channel);
+            expect(getAudioChannel(state, CH_MUSIC)).toEqual(channel);
         });
     });
 
@@ -212,8 +227,8 @@ describe("Audio State Helpers", () => {
 
         test("should return all channels", () => {
             let state: ApplicationState = {};
-            state = setAudioChannel(state, "a", makeChannel("a"));
-            state = setAudioChannel(state, "b", makeChannel("b"));
+            state = setAudioChannel(state, CH_A, makeChannel(CH_A));
+            state = setAudioChannel(state, CH_B, makeChannel(CH_B));
 
             const channels = getAllAudioChannels(state);
             expect(channels).toHaveLength(2);
@@ -232,7 +247,7 @@ describe("Image State Helpers", () => {
 
         test("should return existing image state", () => {
             const imageState: ImageState = {
-                layers: new Map([["bg", makeLayer("bg")]]),
+                layers: new Map<LayerId, ImageLayerState>([[LY_BG, makeLayer(LY_BG)]]),
             };
             const state: ApplicationState = { image: imageState };
 
@@ -243,7 +258,7 @@ describe("Image State Helpers", () => {
     describe("setImageState", () => {
         test("should set image state immutably", () => {
             const original: ApplicationState = {};
-            const imageState: ImageState = { layers: new Map() };
+            const imageState: ImageState = { layers: new Map<LayerId, ImageLayerState>() };
 
             const updated = setImageState(original, imageState);
 
@@ -254,66 +269,66 @@ describe("Image State Helpers", () => {
 
     describe("setImageLayer", () => {
         test("should add a layer to empty state", () => {
-            const layer = makeLayer("background");
-            const updated = setImageLayer({}, "background", layer);
+            const layer = makeLayer(LY_BACKGROUND);
+            const updated = setImageLayer({}, LY_BACKGROUND, layer);
 
-            expect(getImageLayer(updated, "background")).toEqual(layer);
+            expect(getImageLayer(updated, LY_BACKGROUND)).toEqual(layer);
         });
 
         test("should not mutate original state", () => {
             const state: ApplicationState = {};
-            setImageLayer(state, "bg", makeLayer("bg"));
+            setImageLayer(state, LY_BG, makeLayer(LY_BG));
 
-            expect(getImageLayer(state, "bg")).toBeUndefined();
+            expect(getImageLayer(state, LY_BG)).toBeUndefined();
         });
     });
 
     describe("updateImageLayer", () => {
         test("should update existing layer immutably", () => {
-            const state = setImageLayer({}, "bg", makeLayer("bg", { opacity: 1.0 }));
+            const state = setImageLayer({}, LY_BG, makeLayer(LY_BG, { opacity: 1.0 }));
 
-            const updated = updateImageLayer(state, "bg", (l) => ({
+            const updated = updateImageLayer(state, LY_BG, (l) => ({
                 ...l,
                 opacity: 0.5,
             }));
 
-            expect(getImageLayer(updated, "bg")?.opacity).toBe(0.5);
-            expect(getImageLayer(state, "bg")?.opacity).toBe(1.0);
+            expect(getImageLayer(updated, LY_BG)?.opacity).toBe(0.5);
+            expect(getImageLayer(state, LY_BG)?.opacity).toBe(1.0);
         });
 
         test("should be a no-op for non-existent layer", () => {
-            const updated = updateImageLayer({}, "nope", (l) => ({ ...l, opacity: 0 }));
+            const updated = updateImageLayer({}, LY_NOPE, (l) => ({ ...l, opacity: 0 }));
             expect(getAllImageLayers(updated)).toHaveLength(0);
         });
     });
 
     describe("removeImageLayer", () => {
         test("should remove an existing layer", () => {
-            const state = setImageLayer({}, "bg", makeLayer("bg"));
-            const updated = removeImageLayer(state, "bg");
+            const state = setImageLayer({}, LY_BG, makeLayer(LY_BG));
+            const updated = removeImageLayer(state, LY_BG);
 
-            expect(getImageLayer(updated, "bg")).toBeUndefined();
-            expect(getImageLayer(state, "bg")).toBeDefined();
+            expect(getImageLayer(updated, LY_BG)).toBeUndefined();
+            expect(getImageLayer(state, LY_BG)).toBeDefined();
         });
     });
 
     describe("updateImageLayers", () => {
         test("should provide a mutable copy of layers map", () => {
-            const state = setImageLayer({}, "a", makeLayer("a"));
+            const state = setImageLayer({}, LY_A, makeLayer(LY_A));
 
             const updated = updateImageLayers(state, (layers) => {
-                layers.set("b", makeLayer("b"));
+                layers.set(LY_B, makeLayer(LY_B));
                 return layers;
             });
 
-            expect(getImageLayer(updated, "b")).toBeDefined();
-            expect(getImageLayer(state, "b")).toBeUndefined();
+            expect(getImageLayer(updated, LY_B)).toBeDefined();
+            expect(getImageLayer(state, LY_B)).toBeUndefined();
         });
     });
 
     describe("getImageLayer", () => {
         test("should return undefined for empty state", () => {
-            expect(getImageLayer({}, "bg")).toBeUndefined();
+            expect(getImageLayer({}, LY_BG)).toBeUndefined();
         });
     });
 
@@ -324,8 +339,8 @@ describe("Image State Helpers", () => {
 
         test("should return all layers", () => {
             let state: ApplicationState = {};
-            state = setImageLayer(state, "a", makeLayer("a"));
-            state = setImageLayer(state, "b", makeLayer("b"));
+            state = setImageLayer(state, LY_A, makeLayer(LY_A));
+            state = setImageLayer(state, LY_B, makeLayer(LY_B));
 
             expect(getAllImageLayers(state)).toHaveLength(2);
         });

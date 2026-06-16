@@ -11,6 +11,7 @@ import type { EventBus } from "@services/event-bus";
 import type {
     ImageLayerState,
     ImageEvent,
+    LayerId,
 } from "@types";
 
 /**
@@ -21,7 +22,7 @@ import type {
  */
 export class DisplayVisualService {
     private logger = new Logger("DisplayVisualService");
-    private layers$ = new BehaviorSubject<Map<string, ImageLayerState>>(
+    private layers$ = new BehaviorSubject<Map<LayerId, ImageLayerState>>(
         new Map(),
     );
 
@@ -29,15 +30,15 @@ export class DisplayVisualService {
         this.setupEventListeners();
     }
 
-    getLayers$(): Observable<Map<string, ImageLayerState>> {
+    getLayers$(): Observable<Map<LayerId, ImageLayerState>> {
         return this.layers$.asObservable();
     }
 
-    getLayers(): Map<string, ImageLayerState> {
+    getLayers(): Map<LayerId, ImageLayerState> {
         return this.layers$.value;
     }
 
-    getLayer(id: string): ImageLayerState | undefined {
+    getLayer(id: LayerId): ImageLayerState | undefined {
         return this.layers$.value.get(id);
     }
 
@@ -47,9 +48,9 @@ export class DisplayVisualService {
 
     private readonly handlers: {
         [K in ImageEvent["type"]]: (
-            current: Map<string, ImageLayerState>,
+            current: Map<LayerId, ImageLayerState>,
             event: Extract<ImageEvent, { type: K }>,
-        ) => Map<string, ImageLayerState>;
+        ) => Map<LayerId, ImageLayerState>;
     } = {
         "visual.image.set": (c, e) => applyImageSet(c, e),
         "visual.image.clear": (c, e) => applyImageClear(c, e),
@@ -76,7 +77,7 @@ export class DisplayVisualService {
     private handleImageEvent(event: ImageEvent): void {
         const current = this.layers$.value;
         const handler = this.handlers[event.type];
-        const updated = (handler as (c: Map<string, ImageLayerState>, e: ImageEvent) => Map<string, ImageLayerState>)(current, event);
+        const updated = (handler as (c: Map<LayerId, ImageLayerState>, e: ImageEvent) => Map<LayerId, ImageLayerState>)(current, event);
 
         this.logger.info(event.type, { layer: event.payload.layer });
         this.layers$.next(updated);

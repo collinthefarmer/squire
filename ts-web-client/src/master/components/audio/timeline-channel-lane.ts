@@ -9,6 +9,7 @@ import type {
     NamedChain,
 } from "@master/services/effect-chain-library";
 import type { AudioChannelState } from "@types";
+import { channelId as toChannelId } from "@types";
 
 // @ts-expect-error — Bun imports CSS as text
 import timelineChannelLaneCss from "./timeline-channel-lane.css" with { type: "text" };
@@ -152,7 +153,7 @@ export class TimelineChannelLane extends BaseComponent {
     }
 
     private handlePlayPause(): void {
-        const channel = this.audioService.getChannel(this.channelId);
+        const channel = this.audioService.getChannel(toChannelId(this.channelId));
         if (!channel) {
             return;
         }

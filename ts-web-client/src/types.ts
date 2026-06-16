@@ -8,6 +8,9 @@
 export type {
     Event,
     EventMetadata,
+    ChannelId,
+    LayerId,
+    TrackId,
     AudioPlayEvent,
     AudioPauseEvent,
     AudioResumeEvent,
@@ -19,6 +22,7 @@ export type {
     AudioChannelState,
     AudioTrackState,
     AudioEffect,
+    AudioEffectType,
     ImageSetEvent,
     ImageClearEvent,
     ImageTransformEvent,
@@ -29,6 +33,7 @@ export type {
     ImagePosition,
     ImageTransition,
     ImageEffect,
+    ImageEffectType,
     AspectRatioMode,
     BlendMode,
     TransitionType,
@@ -50,6 +55,13 @@ export type {
     TimeScaleChangedEvent,
     TimeScaleChangedPayload,
     TimeEvent,
+} from "../../server/src/types";
+
+// Re-export branded ID creator functions
+export {
+    channelId,
+    layerId,
+    trackId,
 } from "../../server/src/types";
 
 /**

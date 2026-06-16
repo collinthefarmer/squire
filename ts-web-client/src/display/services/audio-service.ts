@@ -13,7 +13,7 @@ import { AudioElementManager } from "./audio-element-manager";
 import { AudioEffectChainManager } from "./audio-effect-chain-manager";
 import type { EventBus } from "@services/event-bus";
 import type { ConfigService } from "@services/config-service";
-import type { AudioEffect } from "@types";
+import type { AudioEffect, ChannelId, TrackId } from "@types";
 import type {
     AudioChannelState,
     AudioTrackState,
@@ -23,6 +23,7 @@ import type {
     AudioStopEvent,
     AudioVolumeEvent,
 } from "@types";
+import { channelId, trackId } from "@types";
 
 /**
  * Audio service for display client
@@ -32,7 +33,7 @@ import type {
  */
 export class DisplayAudioService {
     private logger = new Logger("DisplayAudioService");
-    private channels$ = new BehaviorSubject<Map<string, AudioChannelState>>(
+    private channels$ = new BehaviorSubject<Map<ChannelId, AudioChannelState>>(
         new Map(),
     );
     private elements = new AudioElementManager();
@@ -48,15 +49,15 @@ export class DisplayAudioService {
         this.setupTimeScaleListener();
     }
 
-    getChannels$(): Observable<Map<string, AudioChannelState>> {
+    getChannels$(): Observable<Map<ChannelId, AudioChannelState>> {
         return this.channels$.asObservable();
     }
 
-    getChannels(): Map<string, AudioChannelState> {
+    getChannels(): Map<ChannelId, AudioChannelState> {
         return this.channels$.value;
     }
 
-    getChannel(id: string): AudioChannelState | undefined {
+    getChannel(id: ChannelId): AudioChannelState | undefined {
         return this.channels$.value.get(id);
     }
 
@@ -88,11 +89,11 @@ export class DisplayAudioService {
         this.onAudioEvent<AudioVolumeEvent>("audio.volume", (e) =>
             this.handleVolume(e),
         );
-        this.onAudioEvent<{ payload: { channel: string; trackId: string; loop: boolean } }>(
+        this.onAudioEvent<{ payload: { channel: ChannelId; trackId: TrackId; loop: boolean } }>(
             "audio.loop",
             (e) => this.handleLoop(e),
         );
-        this.onAudioEvent<{ payload: { channel: string; effects: AudioEffect[] } }>(
+        this.onAudioEvent<{ payload: { channel: ChannelId; effects: AudioEffect[] } }>(
             "audio.channel_effects",
             (e) => this.handleChannelEffects(e),
         );
@@ -116,12 +117,12 @@ export class DisplayAudioService {
                 this.logger.info("Time scale changed, adjusting audio", { scale });
 
                 for (const [, channel] of this.channels$.value) {
-                    for (const [trackId, track] of channel.tracks) {
+                    for (const [tid, track] of channel.tracks) {
                         if (!track.respectTimeScale) {
                             continue;
                         }
 
-                        const audio = this.elements.get(trackId);
+                        const audio = this.elements.get(tid);
                         if (!audio) {
                             continue;
                         }
@@ -145,10 +146,10 @@ export class DisplayAudioService {
     private handlePlay(event: AudioPlayEvent): void {
         const { channel, source, volume, loop, effects, respectTimeScale } =
             event.payload;
-        const trackId = event.payload.trackId ?? generateTrackId();
+        const tid = event.payload.trackId ?? generateTrackId();
 
         if (source.type === "live") {
-            this.handleLivePlay(trackId, channel, source, volume, effects, respectTimeScale);
+            this.handleLivePlay(tid, channel, source, volume, effects, respectTimeScale);
             return;
         }
 
@@ -160,13 +161,13 @@ export class DisplayAudioService {
 
         this.logger.info("Audio play (file)", {
             channel,
-            trackId,
+            trackId: tid,
             source: source.ref,
             startPosition: startPosition.toFixed(2),
         });
 
         const audio = this.elements.create(
-            trackId,
+            tid,
             channel,
             this.buildAudioUrl(source.ref),
             volume,
@@ -188,11 +189,11 @@ export class DisplayAudioService {
         });
 
         if (this.effects.hasChain(channel)) {
-            this.effects.routeThroughChain(trackId, audio, channel);
+            this.effects.routeThroughChain(tid, audio, channel);
         }
 
-        this.updateChannelState(channel, trackId, {
-            id: trackId,
+        this.updateChannelState(channel, tid, {
+            id: tid,
             source,
             playing: true,
             position: startPosition,
@@ -204,18 +205,18 @@ export class DisplayAudioService {
     }
 
     private handleLivePlay(
-        trackId: string,
-        channel: string,
-        source: { type: string; ref: string },
+        tid: TrackId,
+        channel: ChannelId,
+        source: { type: "file" | "stream" | "live"; ref: string },
         volume: number,
-        effects: { type: string; params: Record<string, unknown> }[] | undefined,
+        effects: AudioEffect[] | undefined,
         respectTimeScale: boolean,
     ): void {
-        this.logger.info("Audio play (live)", { channel, trackId });
+        this.logger.info("Audio play (live)", { channel, trackId: tid });
 
         const receiver = ServiceRegistry.get(TOKENS.WebRTCReceiverService);
 
-        const audio = this.elements.createLive(trackId, channel, volume);
+        const audio = this.elements.createLive(tid, channel, volume);
 
         const sub = receiver.getStream$().subscribe((stream) => {
             if (!stream || audio.srcObject === stream) {
@@ -228,11 +229,11 @@ export class DisplayAudioService {
             });
         });
 
-        this.elements.setLiveCleanup(trackId, () => sub.unsubscribe());
+        this.elements.setLiveCleanup(tid, () => sub.unsubscribe());
 
-        this.updateChannelState(channel, trackId, {
-            id: trackId,
-            source: source as { type: "file" | "stream" | "live"; ref: string },
+        this.updateChannelState(channel, tid, {
+            id: tid,
+            source,
             playing: true,
             position: 0,
             volume: 1.0,
@@ -243,16 +244,16 @@ export class DisplayAudioService {
     }
 
     private updateChannelState(
-        channel: string,
-        trackId: string,
+        channel: ChannelId,
+        tid: TrackId,
         track: AudioTrackState,
         volume: number,
     ): void {
         const current = this.channels$.value;
         const existing = current.get(channel);
 
-        const tracks = new Map(existing?.tracks ?? []);
-        tracks.set(trackId, track);
+        const tracks = new Map<TrackId, AudioTrackState>(existing?.tracks ?? []);
+        tracks.set(tid, track);
 
         const channelState: AudioChannelState = existing
             ? { ...existing, tracks }
@@ -263,18 +264,18 @@ export class DisplayAudioService {
     }
 
     private handlePause(event: AudioPauseEvent): void {
-        const { channel, trackId } = event.payload;
-        this.logger.info("Audio pause", { channel, trackId: trackId ?? "all" });
+        const { channel, trackId: tid } = event.payload;
+        this.logger.info("Audio pause", { channel, trackId: tid ?? "all" });
 
         const ch = this.channels$.value.get(channel);
         const trackIds = ch ? Array.from(ch.tracks.keys()) : [];
 
-        this.elements.forEachTrackElement(channel, trackId, trackIds, (audio) => {
+        this.elements.forEachTrackElement(channel, tid, trackIds, (audio) => {
             audio.pause();
         });
 
         this.channels$.next(
-            updateMatchingTracks(this.channels$.value, channel, trackId, (track) => ({
+            updateMatchingTracks(this.channels$.value, channel, tid, (track) => ({
                 ...track,
                 playing: false,
             })),
@@ -282,20 +283,20 @@ export class DisplayAudioService {
     }
 
     private handleResume(event: AudioResumeEvent): void {
-        const { channel, trackId } = event.payload;
-        this.logger.info("Audio resume", { channel, trackId: trackId ?? "all" });
+        const { channel, trackId: tid } = event.payload;
+        this.logger.info("Audio resume", { channel, trackId: tid ?? "all" });
 
         const ch = this.channels$.value.get(channel);
         const trackIds = ch ? Array.from(ch.tracks.keys()) : [];
 
-        this.elements.forEachTrackElement(channel, trackId, trackIds, (audio) => {
+        this.elements.forEachTrackElement(channel, tid, trackIds, (audio) => {
             audio.play().catch((error) => {
                 this.logger.error("Failed to resume audio", { channel, error });
             });
         });
 
         this.channels$.next(
-            updateMatchingTracks(this.channels$.value, channel, trackId, (track) => ({
+            updateMatchingTracks(this.channels$.value, channel, tid, (track) => ({
                 ...track,
                 playing: true,
             })),
@@ -303,27 +304,27 @@ export class DisplayAudioService {
     }
 
     private handleStop(event: AudioStopEvent): void {
-        const { channel, trackId } = event.payload;
-        this.logger.info("Audio stop", { channel, trackId: trackId ?? "all" });
+        const { channel, trackId: tid } = event.payload;
+        this.logger.info("Audio stop", { channel, trackId: tid ?? "all" });
 
-        if (trackId) {
-            this.elements.stopTrack(trackId);
+        if (tid) {
+            this.elements.stopTrack(tid);
         } else {
             const ch = this.channels$.value.get(channel);
             if (ch) {
-                for (const tid of ch.tracks.keys()) {
-                    this.elements.stopTrack(tid);
+                for (const id of ch.tracks.keys()) {
+                    this.elements.stopTrack(id);
                 }
             }
         }
 
         this.channels$.next(
-            applyAudioStop(this.channels$.value, channel, trackId),
+            applyAudioStop(this.channels$.value, channel, tid),
         );
     }
 
     private handleChannelEffects(event: {
-        payload: { channel: string; effects: AudioEffect[] };
+        payload: { channel: ChannelId; effects: AudioEffect[] };
     }): void {
         const { channel, effects } = event.payload;
         this.logger.info("Channel effects", { channel, count: effects.length });
@@ -354,18 +355,18 @@ export class DisplayAudioService {
     }
 
     private handleLoop(event: {
-        payload: { channel: string; trackId: string; loop: boolean };
+        payload: { channel: ChannelId; trackId: TrackId; loop: boolean };
     }): void {
-        const { channel, trackId, loop } = event.payload;
-        this.logger.info("Audio loop", { channel, trackId, loop });
+        const { channel, trackId: tid, loop } = event.payload;
+        this.logger.info("Audio loop", { channel, trackId: tid, loop });
 
-        const audio = this.elements.get(trackId);
+        const audio = this.elements.get(tid);
         if (audio) {
             audio.loop = loop;
         }
 
         this.channels$.next(
-            updateMatchingTracks(this.channels$.value, channel, trackId, (track) => ({
+            updateMatchingTracks(this.channels$.value, channel, tid, (track) => ({
                 ...track,
                 loop,
             })),
@@ -373,14 +374,14 @@ export class DisplayAudioService {
     }
 
     private handleVolume(event: AudioVolumeEvent): void {
-        const { channel, volume, trackId } = event.payload;
+        const { channel, volume, trackId: tid } = event.payload;
         this.logger.info("Audio volume", {
             channel,
-            trackId: trackId ?? "channel",
+            trackId: tid ?? "channel",
             volume,
         });
 
-        const updated = applyAudioVolume(this.channels$.value, channel, volume, trackId);
+        const updated = applyAudioVolume(this.channels$.value, channel, volume, tid);
         this.channels$.next(updated);
 
         const ch = updated.get(channel);
@@ -388,14 +389,14 @@ export class DisplayAudioService {
             return;
         }
 
-        if (trackId) {
-            const audio = this.elements.get(trackId);
+        if (tid) {
+            const audio = this.elements.get(tid);
             if (audio) {
                 audio.volume = volume * ch.volume;
             }
         } else {
-            for (const [tid, track] of ch.tracks) {
-                const audio = this.elements.get(tid);
+            for (const [id, track] of ch.tracks) {
+                const audio = this.elements.get(id);
                 if (audio) {
                     audio.volume = track.volume * volume;
                 }

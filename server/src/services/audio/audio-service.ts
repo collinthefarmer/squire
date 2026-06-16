@@ -11,6 +11,7 @@ import type {
     AudioChannelEffectsEvent,
     AudioChannelState,
     AudioEvent,
+    ChannelId,
     Event,
 } from "@types";
 import {
@@ -95,7 +96,7 @@ export class AudioService {
 
         this.stateStore.updateState((state) => {
             const ch = getOrCreateChannel(
-                state.audio?.channels ?? new Map(),
+                state.audio?.channels ?? new Map<ChannelId, AudioChannelState>(),
                 channel,
                 volume,
             );
@@ -264,11 +265,11 @@ export class AudioService {
         return getAllAudioChannels(state);
     }
 
-    getChannel(channelId: string): AudioChannelState | undefined {
+    getChannel(id: ChannelId): AudioChannelState | undefined {
         const state = this.stateStore.getState();
         if (!state.audio) {
             return undefined;
         }
-        return getAudioChannel(state, channelId);
+        return getAudioChannel(state, id);
     }
 }

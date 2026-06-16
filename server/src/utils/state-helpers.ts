@@ -2,8 +2,10 @@ import type {
     ApplicationState,
     AudioState,
     AudioChannelState,
+    ChannelId,
     ImageState,
     ImageLayerState,
+    LayerId,
 } from "../types";
 
 /**
@@ -12,7 +14,7 @@ import type {
 export function getAudioState(state: ApplicationState): AudioState {
     return (
         state.audio || {
-            channels: new Map(),
+            channels: new Map<ChannelId, AudioChannelState>(),
             masterVolume: 1.0,
         }
     );
@@ -37,8 +39,8 @@ export function setAudioState(
 export function updateAudioChannels(
     state: ApplicationState,
     updater: (
-        channels: Map<string, AudioChannelState>,
-    ) => Map<string, AudioChannelState>,
+        channels: Map<ChannelId, AudioChannelState>,
+    ) => Map<ChannelId, AudioChannelState>,
 ): ApplicationState {
     const audioState = getAudioState(state);
     const channels = updater(new Map(audioState.channels));
@@ -54,7 +56,7 @@ export function updateAudioChannels(
  */
 export function setAudioChannel(
     state: ApplicationState,
-    channelId: string,
+    channelId: ChannelId,
     channelState: AudioChannelState,
 ): ApplicationState {
     return updateAudioChannels(state, (channels) => {
@@ -68,7 +70,7 @@ export function setAudioChannel(
  */
 export function removeAudioChannel(
     state: ApplicationState,
-    channelId: string,
+    channelId: ChannelId,
 ): ApplicationState {
     return updateAudioChannels(state, (channels) => {
         channels.delete(channelId);
@@ -81,7 +83,7 @@ export function removeAudioChannel(
  */
 export function updateAudioChannel(
     state: ApplicationState,
-    channelId: string,
+    channelId: ChannelId,
     updater: (channel: AudioChannelState) => AudioChannelState,
 ): ApplicationState {
     return updateAudioChannels(state, (channels) => {
@@ -98,7 +100,7 @@ export function updateAudioChannel(
  */
 export function getAudioChannel(
     state: ApplicationState,
-    channelId: string,
+    channelId: ChannelId,
 ): AudioChannelState | undefined {
     const audioState = state.audio;
     if (!audioState) {
@@ -126,7 +128,7 @@ export function getAllAudioChannels(
 export function getImageState(state: ApplicationState): ImageState {
     return (
         state.image || {
-            layers: new Map(),
+            layers: new Map<LayerId, ImageLayerState>(),
         }
     );
 }
@@ -150,8 +152,8 @@ export function setImageState(
 export function updateImageLayers(
     state: ApplicationState,
     updater: (
-        layers: Map<string, ImageLayerState>,
-    ) => Map<string, ImageLayerState>,
+        layers: Map<LayerId, ImageLayerState>,
+    ) => Map<LayerId, ImageLayerState>,
 ): ApplicationState {
     const imageState = getImageState(state);
     const layers = updater(new Map(imageState.layers));
@@ -167,7 +169,7 @@ export function updateImageLayers(
  */
 export function setImageLayer(
     state: ApplicationState,
-    layerId: string,
+    layerId: LayerId,
     layerState: ImageLayerState,
 ): ApplicationState {
     return updateImageLayers(state, (layers) => {
@@ -181,7 +183,7 @@ export function setImageLayer(
  */
 export function updateImageLayer(
     state: ApplicationState,
-    layerId: string,
+    layerId: LayerId,
     updater: (layer: ImageLayerState) => ImageLayerState,
 ): ApplicationState {
     return updateImageLayers(state, (layers) => {
@@ -198,7 +200,7 @@ export function updateImageLayer(
  */
 export function getImageLayer(
     state: ApplicationState,
-    layerId: string,
+    layerId: LayerId,
 ): ImageLayerState | undefined {
     const imageState = state.image;
     if (!imageState) {
@@ -223,7 +225,7 @@ export function getAllImageLayers(state: ApplicationState): ImageLayerState[] {
  */
 export function removeImageLayer(
     state: ApplicationState,
-    layerId: string,
+    layerId: LayerId,
 ): ApplicationState {
     return updateImageLayers(state, (layers) => {
         layers.delete(layerId);
