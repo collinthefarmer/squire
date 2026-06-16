@@ -44,7 +44,7 @@ export class VisualRenderer extends BaseComponent {
         }
 
         const visualService =
-            ServiceRegistry.get(TOKENS.VisualService);
+            ServiceRegistry.get(TOKENS.DisplayVisualService);
 
         this.subscribe(
             visualService.getLayers$().pipe(observeOn(animationFrameScheduler)),

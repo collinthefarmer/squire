@@ -30,8 +30,8 @@ import type {
  * Coordinates audio channel state, delegates playback to
  * AudioElementManager and effect routing to AudioEffectChainManager.
  */
-export class AudioService {
-    private logger = new Logger("AudioService");
+export class DisplayAudioService {
+    private logger = new Logger("DisplayAudioService");
     private channels$ = new BehaviorSubject<Map<string, AudioChannelState>>(
         new Map(),
     );

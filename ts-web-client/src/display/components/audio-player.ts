@@ -30,7 +30,7 @@ export class AudioPlayer extends BaseComponent {
     override connectedCallback(): void {
         super.connectedCallback();
 
-        const audioService = ServiceRegistry.get(TOKENS.AudioService);
+        const audioService = ServiceRegistry.get(TOKENS.DisplayAudioService);
 
         this.subscribe(
             audioService.getChannels$().pipe(

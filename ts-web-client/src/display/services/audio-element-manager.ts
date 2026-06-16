@@ -6,7 +6,7 @@ const logger = new Logger("AudioElementManager");
  * Manages HTMLAudioElement lifecycle: creation, seeking, playback,
  * pausing, stopping, and cleanup.
  *
- * Extracted from AudioService to isolate DOM audio concerns.
+ * Extracted from DisplayAudioService to isolate DOM audio concerns.
  */
 export class AudioElementManager {
     /** Audio elements keyed by trackId */

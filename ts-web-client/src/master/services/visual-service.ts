@@ -361,7 +361,7 @@ export class MasterVisualService implements CanvasObjectProvider {
 
     // -- Server event handling --
 
-    private readonly imageHandlers: {
+    private readonly handlers: {
         [K in ImageEvent["type"]]: (
             current: Map<string, ImageLayerState>,
             event: Extract<ImageEvent, { type: K }>,
@@ -391,7 +391,7 @@ export class MasterVisualService implements CanvasObjectProvider {
 
     private handleImageEvent(event: ImageEvent): void {
         const current = this.layers$.value;
-        const handler = this.imageHandlers[event.type];
+        const handler = this.handlers[event.type];
         const updated = (handler as (c: Map<string, ImageLayerState>, e: ImageEvent) => Map<string, ImageLayerState>)(current, event);
 
         this.logger.info(event.type, { layer: event.payload.layer });

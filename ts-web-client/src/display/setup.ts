@@ -6,8 +6,8 @@ import { ConfigService } from "@services/config-service";
 import { TimeScaleService } from "@services/time-scale-service";
 import { WebRTCSignalingService } from "@services/webrtc-signaling-service";
 import { WebRTCReceiverService } from "@display/services/webrtc-receiver-service";
-import { AudioService } from "@display/services/audio-service";
-import { VisualService } from "@display/services/visual-service";
+import { DisplayAudioService } from "@display/services/audio-service";
+import { DisplayVisualService } from "@display/services/visual-service";
 import { DisplayClockService } from "@display/services/clock-service";
 
 import { AudioEnableModal } from "@display/components/audio-enable-modal";
@@ -36,11 +36,11 @@ export function createDisplayServices() {
     const receiverService = new WebRTCReceiverService(signalingService);
     ServiceRegistry.register(TOKENS.WebRTCReceiverService, receiverService);
 
-    const audioService = new AudioService(eventBus, config);
-    ServiceRegistry.register(TOKENS.AudioService, audioService);
+    const audioService = new DisplayAudioService(eventBus, config);
+    ServiceRegistry.register(TOKENS.DisplayAudioService, audioService);
 
-    const visualService = new VisualService(eventBus);
-    ServiceRegistry.register(TOKENS.VisualService, visualService);
+    const visualService = new DisplayVisualService(eventBus);
+    ServiceRegistry.register(TOKENS.DisplayVisualService, visualService);
 
     const timeScaleService = new TimeScaleService(eventBus);
     ServiceRegistry.register(TOKENS.TimeScaleService, timeScaleService);

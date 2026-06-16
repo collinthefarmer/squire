@@ -5,7 +5,7 @@ import type { AudioEffect } from "@types";
  * Manages Web Audio API effect chains per channel.
  *
  * Owns AudioContext creation, MediaElementSourceNode routing,
- * and EffectChain lifecycle. Extracted from AudioService to
+ * and EffectChain lifecycle. Extracted from DisplayAudioService to
  * isolate Web Audio concerns from playback management.
  */
 export class AudioEffectChainManager {

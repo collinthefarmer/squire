@@ -19,8 +19,8 @@ import type {
  * Manages image layer state, subscribes to server events,
  * and provides observables for components to render
  */
-export class VisualService {
-    private logger = new Logger("VisualService");
+export class DisplayVisualService {
+    private logger = new Logger("DisplayVisualService");
     private layers$ = new BehaviorSubject<Map<string, ImageLayerState>>(
         new Map(),
     );
@@ -45,7 +45,7 @@ export class VisualService {
         return Array.from(this.layers$.value.values());
     }
 
-    private readonly imageHandlers: {
+    private readonly handlers: {
         [K in ImageEvent["type"]]: (
             current: Map<string, ImageLayerState>,
             event: Extract<ImageEvent, { type: K }>,
@@ -75,7 +75,7 @@ export class VisualService {
 
     private handleImageEvent(event: ImageEvent): void {
         const current = this.layers$.value;
-        const handler = this.imageHandlers[event.type];
+        const handler = this.handlers[event.type];
         const updated = (handler as (c: Map<string, ImageLayerState>, e: ImageEvent) => Map<string, ImageLayerState>)(current, event);
 
         this.logger.info(event.type, { layer: event.payload.layer });

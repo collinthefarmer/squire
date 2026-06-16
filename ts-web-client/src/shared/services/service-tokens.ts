@@ -7,7 +7,7 @@
  * raw string keys.
  *
  * Usage:
- *   ServiceRegistry.get(TOKENS.AudioService)  // returns AudioService
+ *   ServiceRegistry.get(TOKENS.DisplayAudioService)  // returns DisplayAudioService
  */
 
 import type { ConfigService } from "@services/config-service";
@@ -19,8 +19,8 @@ import type { ContextMenuService } from "@services/context-menu-service";
 import type { WebRTCSignalingService } from "@services/webrtc-signaling-service";
 
 // Display-only services
-import type { AudioService } from "@display/services/audio-service";
-import type { VisualService } from "@display/services/visual-service";
+import type { DisplayAudioService } from "@display/services/audio-service";
+import type { DisplayVisualService } from "@display/services/visual-service";
 import type { DisplayClockService } from "@display/services/clock-service";
 import type { WebRTCReceiverService } from "@display/services/webrtc-receiver-service";
 
@@ -61,8 +61,8 @@ export const TOKENS = {
     WebRTCSignalingService: token<WebRTCSignalingService>("WebRTCSignalingService"),
 
     // Display
-    AudioService: token<AudioService>("AudioService"),
-    VisualService: token<VisualService>("VisualService"),
+    DisplayAudioService: token<DisplayAudioService>("DisplayAudioService"),
+    DisplayVisualService: token<DisplayVisualService>("DisplayVisualService"),
     ClockService: token<DisplayClockService>("ClockService"),
     WebRTCReceiverService: token<WebRTCReceiverService>("WebRTCReceiverService"),
 
