@@ -27,6 +27,16 @@ const PUBLIC_DIR = "public";
 const logger = new Logger("Main");
 
 /**
+ * Extract a readable error string that preserves stack traces.
+ */
+function extractErrorDetail(error: unknown): string {
+    if (error instanceof Error) {
+        return error.stack ?? error.message;
+    }
+    return String(error);
+}
+
+/**
  * Main entry point
  */
 async function main() {
@@ -61,6 +71,7 @@ async function main() {
 
     // Start server
     const PORT = parseInt(process.env.PORT ?? "3000", 10);
+    const startTime = Date.now();
 
     const certPath = "./certs/cert.pem";
     const keyPath = "./certs/key.pem";
@@ -103,17 +114,31 @@ async function main() {
                 try {
                     return await match.handler(req, match.params);
                 } catch (error) {
-                    logger.error("Route handler error", { path: url.pathname, error: String(error) });
+                    logger.error("Route handler error", { path: url.pathname, error: extractErrorDetail(error) });
                     return new Response("Internal Server Error", { status: 500 });
                 }
             }
 
             // Health check
             if (url.pathname.startsWith("/health")) {
+                const allClients = clientRegistry.getAllClients();
+
+                let master = 0;
+                let display = 0;
+                for (const c of allClients) {
+                    if (c.type === "master") {
+                        master++;
+                    } else {
+                        display++;
+                    }
+                }
+
                 return new Response(
                     JSON.stringify({
                         status: "healthy",
+                        uptime: Math.floor((Date.now() - startTime) / 1000),
                         clients: clientRegistry.getCount(),
+                        clientsByRole: { master, display },
                     }),
                     { headers: { "Content-Type": "application/json" } },
                 );
@@ -139,6 +164,6 @@ async function main() {
 
 // Start server
 main().catch((error) => {
-    logger.error("Fatal error:", error);
+    logger.error("Fatal error:", { error: extractErrorDetail(error) });
     process.exit(1);
 });

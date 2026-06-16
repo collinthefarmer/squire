@@ -36,6 +36,16 @@ interface ImageMetadata {
 const audioDurationCache = new Map<string, number>();
 
 /**
+ * Extract a readable error string that preserves stack traces.
+ */
+function extractErrorDetail(error: unknown): string {
+    if (error instanceof Error) {
+        return error.stack ?? error.message;
+    }
+    return String(error);
+}
+
+/**
  * Get cached audio duration, or null if not yet computed.
  */
 export function getAudioDuration(filename: string): number | undefined {
@@ -73,7 +83,7 @@ async function extractAudioMetadata(
                 channels = audioTrack.numberOfChannels ?? 0;
             }
         } catch (error) {
-            logger.debug("Audio metadata extraction failed, using defaults", { filename, error });
+            logger.debug("Audio metadata extraction failed, using defaults", { filename, error: extractErrorDetail(error) });
         }
     }
 
@@ -100,7 +110,7 @@ export async function preloadAudioDurations(): Promise<void> {
     try {
         files = readdirSync("public/audio");
     } catch (error) {
-        logger.debug("Audio directory not found, skipping preload", { error });
+        logger.debug("Audio directory not found, skipping preload", { error: extractErrorDetail(error) });
         return;
     }
 
@@ -147,7 +157,7 @@ async function extractImageMetadata(
         width = dimensions.width ?? 0;
         height = dimensions.height ?? 0;
     } catch (error) {
-        logger.debug("Could not read image dimensions", { filename, error });
+        logger.debug("Could not read image dimensions", { filename, error: extractErrorDetail(error) });
     }
 
     return {
@@ -177,7 +187,7 @@ export const getAudioMetadata: RouteHandler = async (_req, params) => {
         const metadata = await extractAudioMetadata(filename, file.size);
         return jsonResponse(metadata);
     } catch (error) {
-        logger.error("Metadata extraction error", { error });
+        logger.error("Metadata extraction error", { error: extractErrorDetail(error) });
         return errorResponse("Failed to extract metadata", 500);
     }
 };
@@ -199,7 +209,7 @@ export const getImageMetadata: RouteHandler = async (_req, params) => {
         const metadata = await extractImageMetadata(filename, file.size);
         return jsonResponse(metadata);
     } catch (error) {
-        logger.error("Metadata extraction error", { error });
+        logger.error("Metadata extraction error", { error: extractErrorDetail(error) });
         return errorResponse("Failed to extract metadata", 500);
     }
 };

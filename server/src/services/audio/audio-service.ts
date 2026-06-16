@@ -54,7 +54,8 @@ export class AudioService {
             try {
                 this.handleEvent(event);
             } catch (error) {
-                logger.error("Failed to handle audio event", { type: event.type, error: String(error) });
+                const detail = error instanceof Error ? error.stack ?? error.message : String(error);
+                logger.error("Failed to handle audio event", { type: event.type, error: detail });
             }
         });
     }
