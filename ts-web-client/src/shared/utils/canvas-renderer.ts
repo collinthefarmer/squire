@@ -121,29 +121,39 @@ export function calculateScaledDimensions(
     }
 }
 
+const DEFAULT_CACHE_MAX_SIZE = 50;
+
 /**
- * Image cache for efficient loading and reuse
+ * Image cache with LRU eviction for efficient loading and reuse
  *
  * Caches loaded images by their reference to avoid redundant network requests.
+ * Map insertion order tracks recency: most recently used entries are at the end.
+ * When the cache exceeds maxSize, the least recently used entry is evicted.
  */
 export class ImageCache {
     private cache = new Map<string, HTMLImageElement>();
     private baseUrl: string;
+    private maxSize: number;
 
-    constructor(baseUrl: string) {
+    constructor(baseUrl: string, maxSize: number = DEFAULT_CACHE_MAX_SIZE) {
         this.baseUrl = baseUrl;
+        this.maxSize = maxSize;
     }
 
     /**
      * Load an image from cache or fetch from network
+     *
+     * Cache hits promote the entry to most-recently-used position.
      */
     async loadImage(imageRef: string): Promise<HTMLImageElement | null> {
         if (this.cache.has(imageRef)) {
+            this.touchEntry(imageRef);
             return this.cache.get(imageRef)!;
         }
 
         try {
             const image = await this.fetchImage(imageRef);
+            this.evictIfNeeded();
             this.cache.set(imageRef, image);
             return image;
         } catch (error) {
@@ -166,7 +176,38 @@ export class ImageCache {
     }
 
     /**
-     * Clear cached images
+     * Move an existing entry to the most-recently-used position
+     *
+     * Deletes and re-inserts to place it at the end of Map iteration order.
+     */
+    private touchEntry(imageRef: string): void {
+        const image = this.cache.get(imageRef);
+        if (!image) {
+            return;
+        }
+
+        this.cache.delete(imageRef);
+        this.cache.set(imageRef, image);
+    }
+
+    /**
+     * Evict the least recently used entry if cache is at capacity
+     *
+     * The first key in Map iteration order is the oldest (least recently used).
+     */
+    private evictIfNeeded(): void {
+        if (this.cache.size < this.maxSize) {
+            return;
+        }
+
+        const oldestKey = this.cache.keys().next().value;
+        if (oldestKey !== undefined) {
+            this.cache.delete(oldestKey);
+        }
+    }
+
+    /**
+     * Clear all cached images
      */
     clear(): void {
         this.cache.clear();
@@ -177,6 +218,13 @@ export class ImageCache {
      */
     remove(imageRef: string): void {
         this.cache.delete(imageRef);
+    }
+
+    /**
+     * Current number of cached images
+     */
+    get size(): number {
+        return this.cache.size;
     }
 }
 
@@ -227,7 +275,7 @@ export function drawLayer(
 /**
  * Draw all layers to the canvas
  *
- * Clears canvas, sorts layers by zIndex, and draws each visible layer.
+ * Clears canvas, loads all visible images in parallel, then draws in zIndex order.
  */
 export async function drawLayers(
     ctx: CanvasRenderingContext2D,
@@ -240,20 +288,26 @@ export async function drawLayers(
         (a, b) => a.zIndex - b.zIndex,
     );
 
+    // Collect visible layers that need images
+    const visibleLayers = sortedLayers.filter(
+        (layer) => layer.visible && layer.imageRef,
+    );
+
+    // Load all images in parallel
+    const imageResults = await Promise.all(
+        visibleLayers.map((layer) => imageCache.loadImage(layer.imageRef!)),
+    );
+
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw each visible layer
-    for (const layer of sortedLayers) {
-        if (!layer.visible || !layer.imageRef) {
-            continue;
-        }
-
-        const image = await imageCache.loadImage(layer.imageRef);
+    // Draw each layer with its loaded image (already in zIndex order)
+    for (let i = 0; i < visibleLayers.length; i++) {
+        const image = imageResults[i];
         if (!image) {
             continue;
         }
 
-        drawLayer(ctx, layer, image, canvas.width, canvas.height);
+        drawLayer(ctx, visibleLayers[i], image, canvas.width, canvas.height);
     }
 }
