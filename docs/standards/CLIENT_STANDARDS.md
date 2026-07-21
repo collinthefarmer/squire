@@ -118,7 +118,43 @@ getActiveChannels$(): Observable<AudioChannelState[]> {
 }
 ```
 
-### 5.3 Error Boundaries
+### 5.3 Reactive Pipelines
+
+For stateful event processing (pointer tracking, gesture recognition, animation), prefer composed functions returning Observables over imperative classes with mutable fields.
+
+**Structure:**
+- Factory function returning `Observable<T>`, not a class with `events$`
+- `scan` for state accumulation — state lives in the accumulator, not class fields
+- `tap` for side effects — isolated from the pure reduction
+- `map` to project internal state to the public type
+- Pure reducer functions, testable in isolation without DOM
+
+**Why:** A class with switch/case handlers and mutable state hides the data flow. A pipeline makes each transformation visible and composable. State in `scan` is replaced, not mutated. Side effects in `tap` are explicit, not scattered through method bodies.
+
+```typescript
+// Good — composed pipeline, state in scan, effects in tap
+function trackedPointers$(element: HTMLElement): Observable<PointerSnapshot> {
+    return pointers$(element).pipe(
+        mergeMap(pointerLifecycle$),
+        scan(reduceTracker, emptyState()),
+        tap(applyEffects),
+        map(toSnapshot),
+        share(),
+    );
+}
+
+// Avoid — imperative class wrapping an Observable
+class PointerTracker {
+    private state = ClaimState.IDLE;
+    private readonly activePointers = new Map();
+    readonly events$: Observable<PointerSnapshot>;
+    // switch/case in every handler, side effects mixed with state updates
+}
+```
+
+**When classes are appropriate:** Services that manage long-lived subscriptions, expose `BehaviorSubject` state, and need explicit lifecycle (`ConnectionService`, `AppStore`). The distinction: services are stateful singletons; pipelines are data transformations.
+
+### 5.4 Error Boundaries
 
 A thrown error in an RxJS `Subject.next()` subscriber terminates the Subject permanently. Wrap every EventBus subscription handler in try/catch:
 

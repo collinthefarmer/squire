@@ -66,7 +66,11 @@ export function trackedPointers$(
         mergeMap((stream) => pointerLifecycle$(stream)),
         scan(
             (state: TrackerState, event: InternalEvent) =>
-                reduceTracker(state, event, scroll ? readScrollState(element) : null),
+                reduceTracker(
+                    state,
+                    event,
+                    scroll ? readScrollState(element) : null,
+                ),
             emptyState(),
         ),
         tap(applyClaimEffects),
@@ -75,17 +79,17 @@ export function trackedPointers$(
     );
 }
 
-// ── Internal types ──────────────────────────────────────────────
+// ── Internal types (exported for testing) ───────────────────────
 
-type InternalEvent = {
+export type InternalEvent = {
     phase: PointerPhase;
     stream: PointerStream;
     pointer: TrackedPointer;
 };
 
-type ClaimPhase = "idle" | "detecting" | "claimed" | "released";
+export type ClaimPhase = "idle" | "detecting" | "claimed" | "released";
 
-type TrackerState = {
+export type TrackerState = {
     active: Map<number, TrackedPointer>;
     streams: Map<number, PointerStream>;
     claimPhase: ClaimPhase;
@@ -93,7 +97,7 @@ type TrackerState = {
     lastEvent: InternalEvent;
 };
 
-type ScrollState = {
+export type ScrollState = {
     scrollTop: number;
     scrollHeight: number;
     clientHeight: number;
@@ -104,7 +108,7 @@ type ScrollState = {
 
 // ── Lifecycle flattening ────────────────────────────────────────
 
-function pointerLifecycle$(stream: PointerStream): Observable<InternalEvent> {
+export function pointerLifecycle$(stream: PointerStream): Observable<InternalEvent> {
     const base: TrackedPointer = {
         id: stream.id,
         position: stream.start,
@@ -146,7 +150,7 @@ function pointerLifecycle$(stream: PointerStream): Observable<InternalEvent> {
 
 const DETECTION_THRESHOLD = 10;
 
-function emptyState(): TrackerState {
+export function emptyState(): TrackerState {
     const noop: InternalEvent = {
         phase: "start",
         stream: null as unknown as PointerStream,
@@ -168,7 +172,7 @@ function emptyState(): TrackerState {
     };
 }
 
-function reduceTracker(
+export function reduceTracker(
     state: TrackerState,
     event: InternalEvent,
     scrollState: ScrollState | null,
@@ -196,8 +200,10 @@ function reduceTracker(
             active.set(event.pointer.id, event.pointer);
 
             if (claimPhase === "detecting" && scrollState) {
-                const dx = event.pointer.position.x - event.pointer.startPosition.x;
-                const dy = event.pointer.position.y - event.pointer.startPosition.y;
+                const dx =
+                    event.pointer.position.x - event.pointer.startPosition.x;
+                const dy =
+                    event.pointer.position.y - event.pointer.startPosition.y;
 
                 if (Math.hypot(dx, dy) >= DETECTION_THRESHOLD) {
                     claimPhase = canScrollInDirection(scrollState, dx, dy)
@@ -244,7 +250,7 @@ function readScrollState(element: HTMLElement): ScrollState {
     };
 }
 
-function canScrollInDirection(
+export function canScrollInDirection(
     scroll: ScrollState,
     dx: number,
     dy: number,
@@ -253,7 +259,9 @@ function canScrollInDirection(
 
     if (vertical) {
         if (dy < 0) {
-            return scroll.scrollTop + scroll.clientHeight < scroll.scrollHeight - 1;
+            return (
+                scroll.scrollTop + scroll.clientHeight < scroll.scrollHeight - 1
+            );
         }
 
         if (dy > 0) {
@@ -261,7 +269,9 @@ function canScrollInDirection(
         }
     } else {
         if (dx < 0) {
-            return scroll.scrollLeft + scroll.clientWidth < scroll.scrollWidth - 1;
+            return (
+                scroll.scrollLeft + scroll.clientWidth < scroll.scrollWidth - 1
+            );
         }
 
         if (dx > 0) {
