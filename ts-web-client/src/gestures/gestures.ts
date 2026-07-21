@@ -24,7 +24,7 @@ import {
     merge,
     type Subscription,
 } from "rxjs";
-import { buffer, debounceTime, filter, map, share, take } from "rxjs/operators";
+import { buffer, debounceTime, filter, share, take } from "rxjs/operators";
 import { pointers$ } from "./pointers";
 import type { PointerStream } from "./pointers";
 
@@ -32,7 +32,7 @@ import type { PointerStream } from "./pointers";
 
 export type Recognition<T> =
     | { status: "pending" }
-    | { status: "claim"; gesture$: Observable<T> }
+    | { status: "claim"; gesture$: Observable<T>; confidence: number }
     | { status: "reject" };
 
 export type Recognizer<T> = {
@@ -46,7 +46,7 @@ export type GestureSource = {
 
 // ── Constants ───────────────────────────────────────────────────
 
-const CONCURRENT_WINDOW_MS = 100;
+const CONCURRENT_WINDOW_MS = 50;
 
 // ── Factory ─────────────────────────────────────────────────────
 
@@ -59,24 +59,18 @@ export function gestures(element: HTMLElement): GestureSource {
     function ensureListening(): void {
         if (sourceSubscription) return;
 
-        // Single-touch: process immediately so the gate releases
-        // quickly enough for the browser to start scrolling.
-        const singleTouch$ = pointerSource$.pipe(
-            map((pointer) => [pointer]),
-        );
-
-        // Multi-touch: buffer concurrent pointers within a window,
-        // then run a separate competition for the group.
-        const multiTouch$ = pointerSource$.pipe(
+        // Buffer concurrent pointers within a short window.
+        // Single pointer → 1-touch recognizers only.
+        // Multiple pointers → ALL recognizers compete in one
+        // competition, each receiving the pointers it needs.
+        const grouped$ = pointerSource$.pipe(
             buffer(pointerSource$.pipe(debounceTime(CONCURRENT_WINDOW_MS))),
-            filter((group) => group.length >= 2),
+            filter((group) => group.length > 0),
         );
 
-        sourceSubscription = merge(singleTouch$, multiTouch$).subscribe(
-            (group) => {
-                runCompetition(group, group.length);
-            },
-        );
+        sourceSubscription = grouped$.subscribe((group) => {
+            runCompetition(group);
+        });
     }
 
     function stopListening(): void {
@@ -84,9 +78,9 @@ export function gestures(element: HTMLElement): GestureSource {
         sourceSubscription = null;
     }
 
-    function runCompetition(ptrs: PointerStream[], touches: number): void {
+    function runCompetition(ptrs: PointerStream[]): void {
         const candidates = registrations.filter(
-            (r) => r.recognizer.touches === touches,
+            (r) => r.recognizer.touches <= ptrs.length,
         );
 
         if (candidates.length === 0) {
@@ -96,50 +90,71 @@ export function gestures(element: HTMLElement): GestureSource {
 
         let resolved = false;
         let pendingCount = candidates.length;
+        const claims: {
+            candidate: Registration;
+            recognition: Recognition<unknown> & { status: "claim" };
+        }[] = [];
         const recognitionSubs: Subscription[] = [];
 
         const cleanup = (): void => {
             for (const sub of recognitionSubs) sub.unsubscribe();
         };
 
-        const reject = (): void => {
-            pendingCount--;
-
+        const tryResolve = (): void => {
             if (pendingCount > 0 || resolved) return;
 
             resolved = true;
             cleanup();
 
-            for (const p of ptrs) p.release();
+            if (claims.length === 0) {
+                for (const p of ptrs) p.release();
+                return;
+            }
+
+            // Weight confidence by pointer utilization — a recognizer
+            // that explains more of the input is preferred over one
+            // that ignores available pointers.
+            const weighted = claims.map((c) => ({
+                ...c,
+                score:
+                    c.recognition.confidence *
+                    (c.candidate.recognizer.touches / ptrs.length),
+            }));
+
+            weighted.sort((a, b) => b.score - a.score);
+            const winner = weighted[0]!;
+
+            for (const p of ptrs) p.capture();
+
+            const gestureSub = winner.recognition.gesture$.subscribe({
+                next: (value) => winner.candidate.subject.next(value),
+            });
+
+            merge(...ptrs.map((p) => p.end$))
+                .pipe(take(1))
+                .subscribe(() => {
+                    gestureSub.unsubscribe();
+                });
         };
 
         for (const candidate of candidates) {
+            const needed = candidate.recognizer.touches;
+            const given = ptrs.slice(0, needed);
+
             const sub = candidate.recognizer
-                .recognize(ptrs)
+                .recognize(given)
                 .subscribe((recognition) => {
                     if (resolved) return;
 
                     if (recognition.status === "pending") return;
 
-                    if (recognition.status === "reject") {
-                        reject();
-                        return;
+                    pendingCount--;
+
+                    if (recognition.status === "claim") {
+                        claims.push({ candidate, recognition });
                     }
 
-                    resolved = true;
-                    cleanup();
-
-                    for (const p of ptrs) p.capture();
-
-                    const gestureSub = recognition.gesture$.subscribe({
-                        next: (value) => candidate.subject.next(value),
-                    });
-
-                    merge(...ptrs.map((p) => p.end$))
-                        .pipe(take(1))
-                        .subscribe(() => {
-                            gestureSub.unsubscribe();
-                        });
+                    tryResolve();
                 });
 
             recognitionSubs.push(sub);

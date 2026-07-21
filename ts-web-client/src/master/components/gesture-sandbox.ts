@@ -15,8 +15,8 @@ import { BaseComponent } from "@core/base-component";
 import { pointers$ } from "@gestures/pointers";
 import { trackedPointers$ } from "@gestures/pointer-tracker";
 import { gestures } from "@gestures/gestures";
-import { drag } from "@gestures/recognizers";
-import type { DragEvent } from "@gestures/recognizers";
+import { drag, pinch } from "@gestures/recognizers";
+import type { DragEvent, PinchEvent } from "@gestures/recognizers";
 import type {
     PointerSnapshot,
     TrackedPointer,
@@ -271,6 +271,8 @@ export class GestureSandbox extends BaseComponent {
     private scrollEl: HTMLDivElement | null = null;
     private pullDistance = 0;
     private refreshing = false;
+    private twoFingerDelta: Point | null = null;
+    private pinchScale: number | null = null;
 
     // Shared
     private log: LogEntry[] = [];
@@ -341,6 +343,16 @@ export class GestureSandbox extends BaseComponent {
                         }),
                     ),
                     (e) => this.handlePullDrag(e),
+                );
+
+                this.subscribe(
+                    input.on(drag({ touches: 2 })),
+                    (e) => this.handleTwoFingerDrag(e),
+                );
+
+                this.subscribe(
+                    input.on(pinch()),
+                    (e) => this.handlePinch(e),
                 );
             }
         });
@@ -436,19 +448,31 @@ export class GestureSandbox extends BaseComponent {
                     <div class="scroll-zone">
                         <div class="zone-header">
                             <span>Scroll (drag recognizer)</span>
-                            ${this.refreshing
+                            ${this.pinchScale !== null
                                 ? html`<span class="claim-badge claim-claimed"
-                                      >Refreshing...</span
+                                      >Pinch:
+                                      ${this.pinchScale.toFixed(2)}x</span
                                   >`
-                                : this.pullDistance > 0
-                                  ? html`<span class="claim-badge claim-claimed"
-                                        >Pull:
-                                        ${Math.round(this.pullDistance)}px</span
+                                : this.twoFingerDelta
+                                  ? html`<span
+                                        class="claim-badge claim-claimed"
+                                        >2-finger:
+                                        (${Math.round(this.twoFingerDelta.x)},${Math.round(this.twoFingerDelta.y)})</span
                                     >`
-                                  : html`<span class="data-label"
-                                        >pull down at top to
-                                        refresh</span
-                                    >`}
+                                  : this.refreshing
+                                  ? html`<span class="claim-badge claim-claimed"
+                                        >Refreshing...</span
+                                    >`
+                                  : this.pullDistance > 0
+                                    ? html`<span
+                                          class="claim-badge claim-claimed"
+                                          >Pull:
+                                          ${Math.round(this.pullDistance)}px</span
+                                      >`
+                                    : html`<span class="data-label"
+                                          >1-finger pull / 2-finger
+                                          drag</span
+                                      >`}
                         </div>
                         <div class="scroll-area">
                             ${this.pullDistance > 0
@@ -666,6 +690,30 @@ export class GestureSandbox extends BaseComponent {
             }
 
             this.pullDistance = 0;
+        }
+
+        this.update();
+    }
+
+    private handleTwoFingerDrag(event: DragEvent): void {
+        if (event.phase === "move") {
+            this.twoFingerDelta = event.delta;
+        }
+
+        if (event.phase === "end") {
+            this.twoFingerDelta = null;
+        }
+
+        this.update();
+    }
+
+    private handlePinch(event: PinchEvent): void {
+        if (event.phase === "move") {
+            this.pinchScale = event.scale;
+        }
+
+        if (event.phase === "end") {
+            this.pinchScale = null;
         }
 
         this.update();
