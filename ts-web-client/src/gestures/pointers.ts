@@ -32,6 +32,62 @@ export type PointerStream = {
     release: () => void;
 };
 
+// ── Scroll state utilities ──────────────────────────────────────
+
+export type ScrollState = {
+    scrollTop: number;
+    scrollHeight: number;
+    clientHeight: number;
+    scrollLeft: number;
+    scrollWidth: number;
+    clientWidth: number;
+};
+
+export function readScrollState(element: HTMLElement): ScrollState {
+    return {
+        scrollTop: element.scrollTop,
+        scrollHeight: element.scrollHeight,
+        clientHeight: element.clientHeight,
+        scrollLeft: element.scrollLeft,
+        scrollWidth: element.scrollWidth,
+        clientWidth: element.clientWidth,
+    };
+}
+
+export function canScrollInDirection(
+    scroll: ScrollState,
+    dx: number,
+    dy: number,
+): boolean {
+    const vertical = Math.abs(dy) >= Math.abs(dx);
+
+    if (vertical) {
+        if (dy < 0) {
+            return (
+                scroll.scrollTop + scroll.clientHeight < scroll.scrollHeight - 1
+            );
+        }
+
+        if (dy > 0) {
+            return scroll.scrollTop > 0;
+        }
+    } else {
+        if (dx < 0) {
+            return (
+                scroll.scrollLeft + scroll.clientWidth < scroll.scrollWidth - 1
+            );
+        }
+
+        if (dx > 0) {
+            return scroll.scrollLeft > 0;
+        }
+    }
+
+    return false;
+}
+
+// ── Pointer stream factory ──────────────────────────────────────
+
 function normalizePointerType(raw: string): PointerStream["pointerType"] {
     if (raw === "mouse" || raw === "touch" || raw === "pen") return raw;
     return "mouse";

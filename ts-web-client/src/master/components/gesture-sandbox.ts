@@ -3,15 +3,20 @@
  *
  * Two zones side by side:
  * - Canvas (left): always-capture mode. Drag/pinch rects freely.
- * - Scroll zone (right): scroll coexistence mode. One finger scrolls
- *   natively, overscroll at boundary claims for pull gesture.
+ * - Scroll zone (right): plain native scrolling list. Gesture
+ *   recognition will be added when recognizer factories are built.
  *
  * Both zones share the same pointer data panel and event log.
  */
 
 import { html, nothing, type TemplateResult } from "lit-html";
+import { tap } from "rxjs/operators";
 import { BaseComponent } from "@core/base-component";
+import { pointers$ } from "@gestures/pointers";
 import { trackedPointers$ } from "@gestures/pointer-tracker";
+import { gestures } from "@gestures/gestures";
+import { drag } from "@gestures/recognizers";
+import type { DragEvent } from "@gestures/recognizers";
 import type {
     PointerSnapshot,
     TrackedPointer,
@@ -70,7 +75,7 @@ const STYLES = `
 
 .layout {
     display: grid;
-    grid-template-rows: auto 1fr auto auto;
+    grid-template-rows: auto 1fr auto;
     height: 100%;
 }
 
@@ -107,17 +112,6 @@ const STYLES = `
     justify-content: space-between;
     align-items: center;
 }
-
-.zone-header .claim-badge {
-    padding: 2px 6px;
-    border-radius: 3px;
-    font-size: 10px;
-    font-weight: bold;
-}
-
-.claim-detecting { background: #f1fa8c; color: #1a1a2e; }
-.claim-claimed { background: #50fa7b; color: #1a1a2e; }
-.claim-released { background: #ff5555; color: #fff; }
 
 /* Canvas zone (left) */
 .canvas-zone {
@@ -211,6 +205,15 @@ const STYLES = `
     flex-shrink: 0;
 }
 
+.zone-header .claim-badge {
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: bold;
+}
+
+.claim-claimed { background: #50fa7b; color: #1a1a2e; }
+
 /* Log panel */
 .log-panel {
     height: 140px;
@@ -265,11 +268,8 @@ export class GestureSandbox extends BaseComponent {
     private previousPositions = new Map<number, Point>();
 
     // Scroll zone
-    private scrollPointers: ReadonlyMap<number, TrackedPointer> = new Map();
     private scrollEl: HTMLDivElement | null = null;
-    private scrollClaimState: string = "idle";
     private pullDistance = 0;
-    private pullStartY: number | null = null;
     private refreshing = false;
 
     // Shared
@@ -320,15 +320,27 @@ export class GestureSandbox extends BaseComponent {
 
             if (this.canvasEl) {
                 this.subscribe(
-                    trackedPointers$(this.canvasEl),
+                    trackedPointers$(
+                        pointers$(this.canvasEl).pipe(
+                            tap((s) => s.capture()),
+                        ),
+                    ),
                     (snap) => this.handleCanvasEvent(snap),
                 );
             }
 
             if (this.scrollEl) {
+                const scrollEl = this.scrollEl;
+                const input = gestures(scrollEl);
+
                 this.subscribe(
-                    trackedPointers$(this.scrollEl, { scroll: true }),
-                    (snap) => this.handleScrollEvent(snap),
+                    input.on(
+                        drag({
+                            direction: { x: 0, y: 1 },
+                            when: () => scrollEl.scrollTop <= 0,
+                        }),
+                    ),
+                    (e) => this.handlePullDrag(e),
                 );
             }
         });
@@ -336,8 +348,6 @@ export class GestureSandbox extends BaseComponent {
 
     protected template(): TemplateResult {
         const canvasPointerList = [...this.canvasPointers.values()];
-        const scrollPointerList = [...this.scrollPointers.values()];
-        const allPointers = [...canvasPointerList, ...scrollPointerList];
 
         const canvasPair =
             canvasPointerList.length >= 2
@@ -351,10 +361,12 @@ export class GestureSandbox extends BaseComponent {
             <div class="layout">
                 <div class="data-panel">
                     <span>
-                        <span class="data-label">Total pointers:</span>
-                        <span class="data-value">${allPointers.length}</span>
+                        <span class="data-label">Pointers:</span>
+                        <span class="data-value"
+                            >${canvasPointerList.length}</span
+                        >
                     </span>
-                    ${allPointers.map(
+                    ${canvasPointerList.map(
                         (p) => html`
                             <span>
                                 <span class="data-label">#${p.id}:</span>
@@ -423,30 +435,20 @@ export class GestureSandbox extends BaseComponent {
 
                     <div class="scroll-zone">
                         <div class="zone-header">
-                            <span>Scroll (boundary detect)</span>
+                            <span>Scroll (drag recognizer)</span>
                             ${this.refreshing
                                 ? html`<span class="claim-badge claim-claimed"
                                       >Refreshing...</span
                                   >`
-                                : this.scrollClaimState === "claimed"
+                                : this.pullDistance > 0
                                   ? html`<span class="claim-badge claim-claimed"
                                         >Pull:
                                         ${Math.round(this.pullDistance)}px</span
                                     >`
-                                  : this.scrollClaimState === "detecting"
-                                    ? html`<span
-                                          class="claim-badge claim-detecting"
-                                          >detecting</span
-                                      >`
-                                    : this.scrollClaimState === "released"
-                                      ? html`<span
-                                            class="claim-badge claim-released"
-                                            >released</span
-                                        >`
-                                      : html`<span class="data-label"
-                                            >pull down at top to
-                                            refresh</span
-                                        >`}
+                                  : html`<span class="data-label"
+                                        >pull down at top to
+                                        refresh</span
+                                    >`}
                         </div>
                         <div class="scroll-area">
                             ${this.pullDistance > 0
@@ -477,23 +479,6 @@ export class GestureSandbox extends BaseComponent {
                                     `,
                                 )}
                             </div>
-                            ${scrollPointerList.map(
-                                (p) => html`
-                                    <div
-                                        class="touch-dot"
-                                        style="
-                                        left: ${p.position.x -
-                                        this.scrollOffset().x}px;
-                                        top: ${p.position.y -
-                                        this.scrollOffset().y}px;
-                                        background: hsl(${(p.id * 137) %
-                                        360}, 70%, 50%);
-                                    "
-                                    >
-                                        ${p.id}
-                                    </div>
-                                `,
-                            )}
                         </div>
                     </div>
                 </div>
@@ -522,16 +507,6 @@ export class GestureSandbox extends BaseComponent {
                         <span class="data-label">Canvas drag:</span>
                         <span class="data-value"
                             >${this.dragTarget?.id ?? "none"}</span
-                        >
-                    </span>
-                    <span>
-                        <span class="data-label">Scroll claim:</span>
-                        <span class="data-value">${this.scrollClaimState}</span>
-                    </span>
-                    <span>
-                        <span class="data-label">Pull:</span>
-                        <span class="data-value"
-                            >${Math.round(this.pullDistance)}px</span
                         >
                     </span>
                 </div>
@@ -675,80 +650,25 @@ export class GestureSandbox extends BaseComponent {
 
     // -- Scroll zone handlers --
 
-    private handleScrollEvent(snapshot: PointerSnapshot): void {
-        this.scrollPointers = snapshot.active;
-        this.scrollClaimState = snapshot.claimState ?? "idle";
-
-        const { phase, changed } = snapshot;
-
-        if (phase === "start") {
-            this.pullStartY = changed.position.y;
-            this.addLogEntry(
-                snapshot,
-                snapshot.claimState ? `[${snapshot.claimState}]` : "",
-                "scroll",
-            );
+    private handlePullDrag(event: DragEvent): void {
+        if (event.phase === "move") {
+            this.pullDistance = Math.max(0, event.delta.y);
         }
 
-        if (phase === "move" && snapshot.claimState === "claimed") {
-            if (this.pullStartY !== null) {
-                this.pullDistance = Math.max(
-                    0,
-                    changed.position.y - this.pullStartY,
-                );
+        if (event.phase === "end") {
+            if (this.pullDistance > PULL_REFRESH_THRESHOLD) {
+                this.refreshing = true;
+
+                setTimeout(() => {
+                    this.refreshing = false;
+                    this.update();
+                }, 1000);
             }
 
-            this.moveCount++;
-
-            if (this.moveCount % LOG_MOVE_THROTTLE === 0) {
-                this.addLogEntry(
-                    snapshot,
-                    `[pull] ${Math.round(this.pullDistance)}px`,
-                    "scroll",
-                );
-            }
-        }
-
-        if (phase === "end" || phase === "cancel") {
-            if (snapshot.activeCount === 0) {
-                if (
-                    snapshot.claimState === "claimed" &&
-                    this.pullDistance > PULL_REFRESH_THRESHOLD
-                ) {
-                    this.refreshing = true;
-                    this.pullDistance = 0;
-                    this.addLogEntry(snapshot, "[refresh triggered]", "scroll");
-
-                    setTimeout(() => {
-                        this.refreshing = false;
-                        this.update();
-                    }, 1000);
-                } else {
-                    this.pullDistance = 0;
-                    this.addLogEntry(
-                        snapshot,
-                        snapshot.claimState === "released"
-                            ? "[released to browser]"
-                            : "",
-                        "scroll",
-                    );
-                }
-
-                this.scrollClaimState = "idle";
-                this.pullStartY = null;
-            }
+            this.pullDistance = 0;
         }
 
         this.update();
-    }
-
-    private scrollOffset(): Point {
-        if (!this.scrollEl) {
-            return { x: 0, y: 0 };
-        }
-
-        const rect = this.scrollEl.getBoundingClientRect();
-        return { x: rect.left, y: rect.top };
     }
 
     // -- Shared --

@@ -1,17 +1,11 @@
 import { describe, test, expect } from "bun:test";
-import { Subject, of, EMPTY } from "rxjs";
+import { Subject, EMPTY } from "rxjs";
 import {
-    canScrollInDirection,
-    reduceTracker,
+    gather,
     emptyState,
     pointerLifecycle$,
 } from "./pointer-tracker";
-import type {
-    TrackerState,
-    InternalEvent,
-    ScrollState,
-    ClaimPhase,
-} from "./pointer-tracker";
+import type { InternalEvent } from "./pointer-tracker";
 import type { TrackedPointer } from "./pointer-tracker";
 import type { PointerStream } from "./pointers";
 import type { Point } from "./transform";
@@ -32,7 +26,10 @@ function makePointer(
     };
 }
 
-function makeStream(id: number, pointerType: "mouse" | "touch" = "touch"): PointerStream {
+function makeStream(
+    id: number,
+    pointerType: "mouse" | "touch" = "touch",
+): PointerStream {
     return {
         id,
         start: { x: 0, y: 0 },
@@ -50,328 +47,88 @@ function makeEvent(
     id: number,
     position: Point,
     startPosition?: Point,
-    pointerType: "mouse" | "touch" = "touch",
 ): InternalEvent {
     return {
         phase,
-        stream: makeStream(id, pointerType),
+        stream: makeStream(id),
         pointer: makePointer(id, position, startPosition),
     };
 }
 
-function makeScrollState(overrides?: Partial<ScrollState>): ScrollState {
-    return {
-        scrollTop: 0,
-        scrollHeight: 1000,
-        clientHeight: 500,
-        scrollLeft: 0,
-        scrollWidth: 500,
-        clientWidth: 500,
-        ...overrides,
-    };
-}
+// ── gather ──────────────────────────────────────────────────────
 
-function reduce(
-    state: TrackerState,
-    event: InternalEvent,
-    scrollState?: ScrollState | null,
-): TrackerState {
-    return reduceTracker(state, event, scrollState ?? null);
-}
+describe("gather", () => {
+    test("start adds pointer to active map", () => {
+        const state = gather(
+            emptyState(),
+            makeEvent("start", 1, { x: 10, y: 20 }),
+        );
 
-// ── canScrollInDirection ────────────────────────────────────────
-
-describe("canScrollInDirection", () => {
-    test("at top, finger moving down (overscroll) — cannot scroll", () => {
-        const scroll = makeScrollState({ scrollTop: 0 });
-        expect(canScrollInDirection(scroll, 0, 10)).toBe(false);
+        expect(state.active.size).toBe(1);
+        expect(state.active.get(1)?.position).toEqual({ x: 10, y: 20 });
     });
 
-    test("at top, finger moving up (scroll into content) — can scroll", () => {
-        const scroll = makeScrollState({ scrollTop: 0 });
-        expect(canScrollInDirection(scroll, 0, -10)).toBe(true);
+    test("move updates position in active map", () => {
+        let state = gather(
+            emptyState(),
+            makeEvent("start", 1, { x: 0, y: 0 }),
+        );
+
+        state = gather(state, makeEvent("move", 1, { x: 50, y: 75 }));
+
+        expect(state.active.get(1)?.position).toEqual({ x: 50, y: 75 });
     });
 
-    test("mid-scroll, finger moving down — can scroll", () => {
-        const scroll = makeScrollState({ scrollTop: 200 });
-        expect(canScrollInDirection(scroll, 0, 10)).toBe(true);
+    test("end removes pointer from active map", () => {
+        let state = gather(
+            emptyState(),
+            makeEvent("start", 1, { x: 0, y: 0 }),
+        );
+
+        state = gather(state, makeEvent("end", 1, { x: 10, y: 10 }));
+
+        expect(state.active.size).toBe(0);
     });
 
-    test("mid-scroll, finger moving up — can scroll", () => {
-        const scroll = makeScrollState({ scrollTop: 200 });
-        expect(canScrollInDirection(scroll, 0, -10)).toBe(true);
+    test("cancel removes pointer from active map", () => {
+        let state = gather(
+            emptyState(),
+            makeEvent("start", 1, { x: 0, y: 0 }),
+        );
+
+        state = gather(state, makeEvent("cancel", 1, { x: 0, y: 0 }));
+
+        expect(state.active.size).toBe(0);
     });
 
-    test("at bottom, finger moving up (overscroll) — cannot scroll", () => {
-        const scroll = makeScrollState({
-            scrollTop: 500,
-            scrollHeight: 1000,
-            clientHeight: 500,
-        });
-        expect(canScrollInDirection(scroll, 0, -10)).toBe(false);
+    test("multiple pointers tracked concurrently", () => {
+        let state = gather(
+            emptyState(),
+            makeEvent("start", 1, { x: 0, y: 0 }),
+        );
+
+        state = gather(state, makeEvent("start", 2, { x: 100, y: 0 }));
+
+        expect(state.active.size).toBe(2);
+
+        state = gather(state, makeEvent("end", 1, { x: 0, y: 0 }));
+
+        expect(state.active.size).toBe(1);
+        expect(state.active.has(2)).toBe(true);
     });
 
-    test("at bottom, finger moving down (scroll back up) — can scroll", () => {
-        const scroll = makeScrollState({
-            scrollTop: 500,
-            scrollHeight: 1000,
-            clientHeight: 500,
-        });
-        expect(canScrollInDirection(scroll, 0, 10)).toBe(true);
-    });
+    test("lastEvent tracks the most recent event", () => {
+        let state = gather(
+            emptyState(),
+            makeEvent("start", 1, { x: 0, y: 0 }),
+        );
 
-    test("horizontal: at left edge, finger moving right (overscroll) — cannot scroll", () => {
-        const scroll = makeScrollState({
-            scrollLeft: 0,
-            scrollWidth: 1000,
-            clientWidth: 500,
-        });
-        expect(canScrollInDirection(scroll, 10, 0)).toBe(false);
-    });
+        expect(state.lastEvent.phase).toBe("start");
 
-    test("horizontal: at left edge, finger moving left (scroll into content) — can scroll", () => {
-        const scroll = makeScrollState({
-            scrollLeft: 0,
-            scrollWidth: 1000,
-            clientWidth: 500,
-        });
-        expect(canScrollInDirection(scroll, -10, 0)).toBe(true);
-    });
+        state = gather(state, makeEvent("move", 1, { x: 50, y: 50 }));
 
-    test("no movement — cannot scroll", () => {
-        const scroll = makeScrollState();
-        expect(canScrollInDirection(scroll, 0, 0)).toBe(false);
-    });
-
-    test("dominant axis wins when diagonal", () => {
-        const scroll = makeScrollState({ scrollTop: 0 });
-
-        // More vertical than horizontal — uses vertical check
-        expect(canScrollInDirection(scroll, 3, 10)).toBe(false);
-
-        // More horizontal — uses horizontal check
-        expect(canScrollInDirection(scroll, 10, 3)).toBe(false);
-    });
-});
-
-// ── reduceTracker ───────────────────────────────────────────────
-
-describe("reduceTracker", () => {
-    describe("always-capture mode (no scroll state)", () => {
-        test("touch start → claimed immediately", () => {
-            const state = reduce(
-                emptyState(),
-                makeEvent("start", 1, { x: 0, y: 0 }),
-            );
-
-            expect(state.claimPhase).toBe("claimed");
-            expect(state.active.size).toBe(1);
-        });
-
-        test("mouse start → claimed immediately", () => {
-            const state = reduce(
-                emptyState(),
-                makeEvent("start", 1, { x: 0, y: 0 }, undefined, "mouse"),
-            );
-
-            expect(state.claimPhase).toBe("claimed");
-        });
-
-        test("second pointer during claimed stays claimed", () => {
-            let state = reduce(
-                emptyState(),
-                makeEvent("start", 1, { x: 0, y: 0 }),
-            );
-
-            state = reduce(
-                state,
-                makeEvent("start", 2, { x: 100, y: 0 }),
-            );
-
-            expect(state.claimPhase).toBe("claimed");
-            expect(state.active.size).toBe(2);
-        });
-
-        test("last pointer end → idle", () => {
-            let state = reduce(
-                emptyState(),
-                makeEvent("start", 1, { x: 0, y: 0 }),
-            );
-
-            state = reduce(
-                state,
-                makeEvent("end", 1, { x: 10, y: 10 }),
-            );
-
-            expect(state.claimPhase).toBe("idle");
-            expect(state.active.size).toBe(0);
-        });
-
-        test("one of two pointers ends — stays claimed", () => {
-            let state = reduce(
-                emptyState(),
-                makeEvent("start", 1, { x: 0, y: 0 }),
-            );
-
-            state = reduce(
-                state,
-                makeEvent("start", 2, { x: 100, y: 0 }),
-            );
-
-            state = reduce(
-                state,
-                makeEvent("end", 1, { x: 0, y: 0 }),
-            );
-
-            expect(state.claimPhase).toBe("claimed");
-            expect(state.active.size).toBe(1);
-        });
-    });
-
-    describe("scroll coexistence mode", () => {
-        const atTop = makeScrollState({ scrollTop: 0 });
-        const midScroll = makeScrollState({ scrollTop: 200 });
-
-        test("touch start → detecting", () => {
-            const state = reduce(
-                emptyState(),
-                makeEvent("start", 1, { x: 100, y: 100 }),
-                atTop,
-            );
-
-            expect(state.claimPhase).toBe("detecting");
-        });
-
-        test("mouse start → claimed (skips detection)", () => {
-            const state = reduce(
-                emptyState(),
-                makeEvent("start", 1, { x: 0, y: 0 }, undefined, "mouse"),
-                atTop,
-            );
-
-            expect(state.claimPhase).toBe("claimed");
-        });
-
-        test("move below threshold — stays detecting", () => {
-            let state = reduce(
-                emptyState(),
-                makeEvent("start", 1, { x: 100, y: 100 }),
-                atTop,
-            );
-
-            state = reduce(
-                state,
-                makeEvent("move", 1, { x: 100, y: 105 }, { x: 100, y: 100 }),
-                atTop,
-            );
-
-            expect(state.claimPhase).toBe("detecting");
-        });
-
-        test("move past threshold at boundary (overscroll direction) → claimed", () => {
-            let state = reduce(
-                emptyState(),
-                makeEvent("start", 1, { x: 100, y: 100 }),
-                atTop,
-            );
-
-            // Pull down at scrollTop=0 — can't scroll, so claim
-            state = reduce(
-                state,
-                makeEvent("move", 1, { x: 100, y: 115 }, { x: 100, y: 100 }),
-                atTop,
-            );
-
-            expect(state.claimPhase).toBe("claimed");
-        });
-
-        test("move past threshold in scrollable direction → released", () => {
-            let state = reduce(
-                emptyState(),
-                makeEvent("start", 1, { x: 100, y: 100 }),
-                atTop,
-            );
-
-            // Swipe up at scrollTop=0 — can scroll down, so release
-            state = reduce(
-                state,
-                makeEvent("move", 1, { x: 100, y: 85 }, { x: 100, y: 100 }),
-                atTop,
-            );
-
-            expect(state.claimPhase).toBe("released");
-        });
-
-        test("move past threshold mid-scroll — always released", () => {
-            let state = reduce(
-                emptyState(),
-                makeEvent("start", 1, { x: 100, y: 100 }),
-                midScroll,
-            );
-
-            // Either direction from mid-scroll: can scroll both ways
-            state = reduce(
-                state,
-                makeEvent("move", 1, { x: 100, y: 115 }, { x: 100, y: 100 }),
-                midScroll,
-            );
-
-            expect(state.claimPhase).toBe("released");
-        });
-
-        test("cancel during detecting → idle", () => {
-            let state = reduce(
-                emptyState(),
-                makeEvent("start", 1, { x: 100, y: 100 }),
-                atTop,
-            );
-
-            state = reduce(
-                state,
-                makeEvent("cancel", 1, { x: 100, y: 100 }),
-                atTop,
-            );
-
-            expect(state.claimPhase).toBe("idle");
-            expect(state.active.size).toBe(0);
-        });
-
-        test("previousClaimPhase tracks transitions", () => {
-            let state = reduce(
-                emptyState(),
-                makeEvent("start", 1, { x: 100, y: 100 }),
-                atTop,
-            );
-
-            expect(state.previousClaimPhase).toBe("idle");
-            expect(state.claimPhase).toBe("detecting");
-
-            state = reduce(
-                state,
-                makeEvent("move", 1, { x: 100, y: 115 }, { x: 100, y: 100 }),
-                atTop,
-            );
-
-            expect(state.previousClaimPhase).toBe("detecting");
-            expect(state.claimPhase).toBe("claimed");
-        });
-    });
-
-    describe("move updates position in active map", () => {
-        test("position updates on move", () => {
-            let state = reduce(
-                emptyState(),
-                makeEvent("start", 1, { x: 0, y: 0 }),
-            );
-
-            state = reduce(
-                state,
-                makeEvent("move", 1, { x: 50, y: 75 }),
-            );
-
-            const pointer = state.active.get(1);
-            expect(pointer?.position).toEqual({ x: 50, y: 75 });
-        });
+        expect(state.lastEvent.phase).toBe("move");
+        expect(state.lastEvent.pointer.position).toEqual({ x: 50, y: 50 });
     });
 });
 
@@ -381,7 +138,10 @@ describe("pointerLifecycle$", () => {
     test("emits start immediately", () => {
         const events: InternalEvent[] = [];
         const move$ = new Subject<Point>();
-        const end$ = new Subject<{ reason: "up" | "cancel"; position: Point }>();
+        const end$ = new Subject<{
+            reason: "up" | "cancel";
+            position: Point;
+        }>();
 
         const stream: PointerStream = {
             id: 1,
@@ -409,7 +169,10 @@ describe("pointerLifecycle$", () => {
     test("emits move events with updated position", () => {
         const events: InternalEvent[] = [];
         const move$ = new Subject<Point>();
-        const end$ = new Subject<{ reason: "up" | "cancel"; position: Point }>();
+        const end$ = new Subject<{
+            reason: "up" | "cancel";
+            position: Point;
+        }>();
 
         const stream: PointerStream = {
             id: 1,
@@ -441,7 +204,10 @@ describe("pointerLifecycle$", () => {
     test("emits end with final position", () => {
         const events: InternalEvent[] = [];
         const move$ = new Subject<Point>();
-        const end$ = new Subject<{ reason: "up" | "cancel"; position: Point }>();
+        const end$ = new Subject<{
+            reason: "up" | "cancel";
+            position: Point;
+        }>();
 
         const stream: PointerStream = {
             id: 1,
@@ -465,7 +231,10 @@ describe("pointerLifecycle$", () => {
     test("cancel reason maps to cancel phase", () => {
         const events: InternalEvent[] = [];
         const move$ = new Subject<Point>();
-        const end$ = new Subject<{ reason: "up" | "cancel"; position: Point }>();
+        const end$ = new Subject<{
+            reason: "up" | "cancel";
+            position: Point;
+        }>();
 
         const stream: PointerStream = {
             id: 1,
@@ -487,7 +256,10 @@ describe("pointerLifecycle$", () => {
     test("stream reference is preserved on all events", () => {
         const events: InternalEvent[] = [];
         const move$ = new Subject<Point>();
-        const end$ = new Subject<{ reason: "up" | "cancel"; position: Point }>();
+        const end$ = new Subject<{
+            reason: "up" | "cancel";
+            position: Point;
+        }>();
 
         const stream: PointerStream = {
             id: 42,
