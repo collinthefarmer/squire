@@ -18,7 +18,7 @@ import {
     gestures,
     drag,
     pinch,
-    delta,
+    subtract,
     velocity,
     pairMetrics,
     pairDelta,
@@ -561,29 +561,25 @@ export class GestureSandbox extends BaseComponent {
 
         if (phase === "move") {
             this.moveCount++;
-
-            if (prevPos) {
-                this.applyCanvasTransform(snapshot);
-            }
-
             this.previousPositions.set(changed.id, changed.position);
 
             if (snapshot.activeCount >= 2) {
                 this.previousPairMetrics = this.currentCanvasPairMetrics();
             }
 
-            if (this.moveCount % LOG_MOVE_THROTTLE === 0) {
-                const d = prevPos
-                    ? delta(prevPos, changed.position)
-                    : { x: 0, y: 0 };
-                const v = prevPos
-                    ? velocity(prevPos, changed.position, 16)
-                    : { x: 0, y: 0 };
-                this.addLogEntry(
-                    snapshot,
-                    `Δ(${d.x.toFixed(0)},${d.y.toFixed(0)}) vel(${v.x.toFixed(2)},${v.y.toFixed(2)})`,
-                    "canvas",
-                );
+            if (prevPos) {
+                this.applyCanvasTransform(snapshot);
+
+                if (this.moveCount % LOG_MOVE_THROTTLE === 0) {
+                    const d = subtract(changed.position, prevPos);
+                    const v = velocity(prevPos, changed.position, 16);
+
+                    this.addLogEntry(
+                        snapshot,
+                        `Δ(${d.x.toFixed(0)},${d.y.toFixed(0)}) vel(${v.x.toFixed(2)},${v.y.toFixed(2)})`,
+                        "canvas",
+                    );
+                }
             }
         }
 
@@ -614,7 +610,7 @@ export class GestureSandbox extends BaseComponent {
                 return;
             }
 
-            const d = delta(prevPos, snapshot.changed.position);
+            const d = subtract(snapshot.changed.position, prevPos);
             rect.x += d.x;
             rect.y += d.y;
             return;

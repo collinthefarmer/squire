@@ -8,7 +8,7 @@
 
 import { race, of, merge, combineLatest } from "rxjs";
 import { map, filter, take, takeUntil, share } from "rxjs/operators";
-import { distance, centroid, matchesDirection } from "../transform";
+import { subtract, magnitude, distance, centroid, matchesDirection } from "../transform";
 import type { Observable } from "rxjs";
 import type { PointerStream } from "../pointers";
 import type { Recognition, Recognizer } from "../gestures";
@@ -33,6 +33,12 @@ export type DragConfig = {
 
 const DEFAULT_THRESHOLD = 10;
 
+type DeltaEvent = {
+    position: Point;
+    delta: Point;
+    positions?: Point[];
+};
+
 export function drag(config?: DragConfig): Recognizer<DragEvent> {
     const threshold = config?.threshold ?? DEFAULT_THRESHOLD;
     const touches = config?.touches ?? 1;
@@ -56,7 +62,7 @@ export function drag(config?: DragConfig): Recognizer<DragEvent> {
             const delta$ = combinedDelta$(ptrs, origin);
 
             const thresholdCrossed$ = delta$.pipe(
-                filter((e) => Math.hypot(e.dx, e.dy) >= threshold),
+                filter((e) => magnitude(e.delta) >= threshold),
                 take(1),
                 map((first) =>
                     decideClaim(ptrs, delta$, origin, first, initialDist, config),
@@ -75,20 +81,15 @@ export function drag(config?: DragConfig): Recognizer<DragEvent> {
 
 // ── Combined delta stream ───────────────────────────────────────
 
-type DeltaEvent = { pos: Point; dx: number; dy: number; positions?: Point[] };
-
 function combinedDelta$(
     pointers: PointerStream[],
     origin: Point,
 ): Observable<DeltaEvent> {
     if (pointers.length === 1) {
-        const pointer = pointers[0]!;
-
-        return pointer.move$.pipe(
+        return pointers[0]!.move$.pipe(
             map((pos) => ({
-                pos,
-                dx: pos.x - origin.x,
-                dy: pos.y - origin.y,
+                position: pos,
+                delta: subtract(pos, origin),
             })),
             share(),
         );
@@ -99,9 +100,8 @@ function combinedDelta$(
             const pos = centroid(positions);
 
             return {
-                pos,
-                dx: pos.x - origin.x,
-                dy: pos.y - origin.y,
+                position: pos,
+                delta: subtract(pos, origin),
                 positions,
             };
         }),
@@ -119,10 +119,7 @@ function decideClaim(
     initialDist: number,
     config?: DragConfig,
 ): Recognition<DragEvent> {
-    if (
-        config?.direction &&
-        !matchesDirection(first.dx, first.dy, config.direction)
-    ) {
+    if (config?.direction && !matchesDirection(first.delta, config.direction)) {
         return { status: "reject" };
     }
 
@@ -130,7 +127,7 @@ function decideClaim(
         return { status: "reject" };
     }
 
-    const translation = Math.hypot(first.dx, first.dy);
+    const translation = magnitude(first.delta);
     let confidence = 1.0;
 
     if (pointers.length >= 2 && first.positions && initialDist > 0) {
@@ -146,9 +143,9 @@ function decideClaim(
         map(
             (e): DragEvent => ({
                 phase: "move",
-                position: e.pos,
+                position: e.position,
                 origin,
-                delta: { x: e.dx, y: e.dy },
+                delta: e.delta,
             }),
         ),
         takeUntil(anyEnd$),
@@ -160,10 +157,7 @@ function decideClaim(
                 phase: "end",
                 position: end.position,
                 origin,
-                delta: {
-                    x: end.position.x - origin.x,
-                    y: end.position.y - origin.y,
-                },
+                delta: subtract(end.position, origin),
             }),
         ),
     );

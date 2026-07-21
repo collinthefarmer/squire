@@ -1,122 +1,145 @@
 import { test, expect, describe } from "bun:test";
 import {
+    add,
+    subtract,
+    scale,
+    magnitude,
+    dot,
     distance,
-    midpoint,
+    centroid,
     angle,
-    delta,
     velocity,
+    dominantAxis,
+    matchesDirection,
     pairMetrics,
     pairDelta,
 } from "./transform";
 
-describe("transform", () => {
-    describe("distance", () => {
-        test("should compute distance between two points", () => {
-            expect(distance({ x: 0, y: 0 }, { x: 3, y: 4 })).toBe(5);
-        });
-
-        test("should return 0 for same point", () => {
-            expect(distance({ x: 5, y: 5 }, { x: 5, y: 5 })).toBe(0);
-        });
+describe("basic vector operations", () => {
+    test("add", () => {
+        expect(add({ x: 1, y: 2 }, { x: 3, y: 4 })).toEqual({ x: 4, y: 6 });
     });
 
-    describe("midpoint", () => {
-        test("should compute midpoint", () => {
-            const m = midpoint({ x: 0, y: 0 }, { x: 10, y: 20 });
-            expect(m).toEqual({ x: 5, y: 10 });
-        });
+    test("subtract", () => {
+        expect(subtract({ x: 10, y: 20 }, { x: 3, y: 5 })).toEqual({ x: 7, y: 15 });
     });
 
-    describe("angle", () => {
-        test("should return 0 for horizontal right", () => {
-            expect(angle({ x: 0, y: 0 }, { x: 10, y: 0 })).toBe(0);
-        });
-
-        test("should return PI/2 for vertical down", () => {
-            expect(angle({ x: 0, y: 0 }, { x: 0, y: 10 })).toBeCloseTo(
-                Math.PI / 2,
-            );
-        });
-
-        test("should return -PI/2 for vertical up", () => {
-            expect(angle({ x: 0, y: 0 }, { x: 0, y: -10 })).toBeCloseTo(
-                -Math.PI / 2,
-            );
-        });
+    test("scale", () => {
+        expect(scale({ x: 3, y: 4 }, 2)).toEqual({ x: 6, y: 8 });
     });
 
-    describe("delta", () => {
-        test("should compute displacement", () => {
-            expect(delta({ x: 10, y: 20 }, { x: 15, y: 18 })).toEqual({
-                x: 5,
-                y: -2,
-            });
-        });
+    test("magnitude", () => {
+        expect(magnitude({ x: 3, y: 4 })).toBe(5);
     });
 
-    describe("velocity", () => {
-        test("should compute px/ms", () => {
-            const v = velocity({ x: 0, y: 0 }, { x: 100, y: 0 }, 50);
-            expect(v).toEqual({ x: 2, y: 0 });
-        });
+    test("dot", () => {
+        expect(dot({ x: 1, y: 0 }, { x: 0, y: 1 })).toBe(0);
+        expect(dot({ x: 2, y: 3 }, { x: 4, y: 5 })).toBe(23);
+    });
+});
 
-        test("should return zero for zero time", () => {
-            expect(velocity({ x: 0, y: 0 }, { x: 100, y: 0 }, 0)).toEqual({
-                x: 0,
-                y: 0,
-            });
-        });
+describe("composed operations", () => {
+    test("distance", () => {
+        expect(distance({ x: 0, y: 0 }, { x: 3, y: 4 })).toBe(5);
+        expect(distance({ x: 5, y: 5 }, { x: 5, y: 5 })).toBe(0);
     });
 
-    describe("pairMetrics", () => {
-        test("should compute distance, midpoint, and angle", () => {
-            const m = pairMetrics({ x: 0, y: 0 }, { x: 6, y: 8 });
-            expect(m.distance).toBe(10);
-            expect(m.midpoint).toEqual({ x: 3, y: 4 });
-            expect(m.angle).toBeCloseTo(Math.atan2(8, 6));
-        });
+    test("centroid of empty array", () => {
+        expect(centroid([])).toEqual({ x: 0, y: 0 });
     });
 
-    describe("pairDelta", () => {
-        test("should compute scale ratio for pinch out", () => {
-            const prev = pairMetrics({ x: 0, y: 0 }, { x: 10, y: 0 });
-            const current = pairMetrics({ x: 0, y: 0 }, { x: 20, y: 0 });
-            const d = pairDelta(prev, current);
+    test("centroid of two points", () => {
+        expect(centroid([{ x: 0, y: 0 }, { x: 10, y: 20 }])).toEqual({ x: 5, y: 10 });
+    });
 
-            expect(d.scaleRatio).toBe(2);
-            expect(d.rotationDelta).toBe(0);
-        });
+    test("centroid of three points", () => {
+        const c = centroid([{ x: 0, y: 0 }, { x: 6, y: 0 }, { x: 0, y: 9 }]);
+        expect(c).toEqual({ x: 2, y: 3 });
+    });
 
-        test("should compute scale ratio for pinch in", () => {
-            const prev = pairMetrics({ x: 0, y: 0 }, { x: 20, y: 0 });
-            const current = pairMetrics({ x: 0, y: 0 }, { x: 10, y: 0 });
-            const d = pairDelta(prev, current);
+    test("angle horizontal right", () => {
+        expect(angle({ x: 0, y: 0 }, { x: 10, y: 0 })).toBe(0);
+    });
 
-            expect(d.scaleRatio).toBe(0.5);
-        });
+    test("angle vertical down", () => {
+        expect(angle({ x: 0, y: 0 }, { x: 0, y: 10 })).toBeCloseTo(Math.PI / 2);
+    });
 
-        test("should compute rotation delta", () => {
-            const prev = pairMetrics({ x: 0, y: 0 }, { x: 10, y: 0 });
-            const current = pairMetrics({ x: 0, y: 0 }, { x: 0, y: 10 });
-            const d = pairDelta(prev, current);
+    test("angle vertical up", () => {
+        expect(angle({ x: 0, y: 0 }, { x: 0, y: -10 })).toBeCloseTo(-Math.PI / 2);
+    });
 
-            expect(d.rotationDelta).toBeCloseTo(Math.PI / 2);
-        });
+    test("velocity computes px/ms", () => {
+        expect(velocity({ x: 0, y: 0 }, { x: 100, y: 0 }, 50)).toEqual({ x: 2, y: 0 });
+    });
 
-        test("should compute translation delta", () => {
-            const prev = pairMetrics({ x: 0, y: 0 }, { x: 10, y: 0 });
-            const current = pairMetrics({ x: 5, y: 5 }, { x: 15, y: 5 });
-            const d = pairDelta(prev, current);
+    test("velocity returns zero for zero time", () => {
+        expect(velocity({ x: 0, y: 0 }, { x: 100, y: 0 }, 0)).toEqual({ x: 0, y: 0 });
+    });
+});
 
-            expect(d.translationDelta).toEqual({ x: 5, y: 5 });
-        });
+describe("direction", () => {
+    test("dominantAxis", () => {
+        expect(dominantAxis({ x: 10, y: 3 })).toBe("x");
+        expect(dominantAxis({ x: 3, y: 10 })).toBe("y");
+        expect(dominantAxis({ x: 5, y: 5 })).toBe("y"); // equal defaults to y
+    });
 
-        test("should return scale 1 when prev distance is 0", () => {
-            const prev = pairMetrics({ x: 5, y: 5 }, { x: 5, y: 5 });
-            const current = pairMetrics({ x: 0, y: 0 }, { x: 10, y: 0 });
-            const d = pairDelta(prev, current);
+    test("matchesDirection — same direction and axis", () => {
+        expect(matchesDirection({ x: 0, y: 10 }, { x: 0, y: 1 })).toBe(true);
+    });
 
-            expect(d.scaleRatio).toBe(1);
-        });
+    test("matchesDirection — opposite direction", () => {
+        expect(matchesDirection({ x: 0, y: -10 }, { x: 0, y: 1 })).toBe(false);
+    });
+
+    test("matchesDirection — wrong dominant axis", () => {
+        expect(matchesDirection({ x: 10, y: 2 }, { x: 0, y: 1 })).toBe(false);
+    });
+});
+
+describe("pair metrics", () => {
+    test("computes distance, center, and angle", () => {
+        const m = pairMetrics({ x: 0, y: 0 }, { x: 6, y: 8 });
+        expect(m.distance).toBe(10);
+        expect(m.center).toEqual({ x: 3, y: 4 });
+        expect(m.angle).toBeCloseTo(Math.atan2(8, 6));
+    });
+
+    test("pairDelta — pinch out doubles scale", () => {
+        const prev = pairMetrics({ x: 0, y: 0 }, { x: 10, y: 0 });
+        const current = pairMetrics({ x: 0, y: 0 }, { x: 20, y: 0 });
+        const d = pairDelta(prev, current);
+
+        expect(d.scaleRatio).toBe(2);
+        expect(d.rotationDelta).toBe(0);
+    });
+
+    test("pairDelta — pinch in halves scale", () => {
+        const prev = pairMetrics({ x: 0, y: 0 }, { x: 20, y: 0 });
+        const current = pairMetrics({ x: 0, y: 0 }, { x: 10, y: 0 });
+
+        expect(pairDelta(prev, current).scaleRatio).toBe(0.5);
+    });
+
+    test("pairDelta — rotation", () => {
+        const prev = pairMetrics({ x: 0, y: 0 }, { x: 10, y: 0 });
+        const current = pairMetrics({ x: 0, y: 0 }, { x: 0, y: 10 });
+
+        expect(pairDelta(prev, current).rotationDelta).toBeCloseTo(Math.PI / 2);
+    });
+
+    test("pairDelta — translation", () => {
+        const prev = pairMetrics({ x: 0, y: 0 }, { x: 10, y: 0 });
+        const current = pairMetrics({ x: 5, y: 5 }, { x: 15, y: 5 });
+
+        expect(pairDelta(prev, current).translationDelta).toEqual({ x: 5, y: 5 });
+    });
+
+    test("pairDelta — zero distance returns scale 1", () => {
+        const prev = pairMetrics({ x: 5, y: 5 }, { x: 5, y: 5 });
+        const current = pairMetrics({ x: 0, y: 0 }, { x: 10, y: 0 });
+
+        expect(pairDelta(prev, current).scaleRatio).toBe(1);
     });
 });

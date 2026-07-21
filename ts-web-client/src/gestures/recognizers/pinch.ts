@@ -7,7 +7,7 @@
 
 import { race, of, merge, combineLatest } from "rxjs";
 import { map, filter, take, takeUntil, share } from "rxjs/operators";
-import { distance, centroid } from "../transform";
+import { distance, centroid, angle } from "../transform";
 import type { Observable } from "rxjs";
 import type { PointerStream } from "../pointers";
 import type { Recognition, Recognizer } from "../gestures";
@@ -47,27 +47,17 @@ export function pinch(config?: PinchConfig): Recognizer<PinchEvent> {
                 return of<Recognition<PinchEvent>>({ status: "reject" });
             }
 
-            const initialAngle = Math.atan2(
-                b.start.y - a.start.y,
-                b.start.x - a.start.x,
-            );
+            const initialAngle = angle(a.start, b.start);
             const initialCenter = centroid([a.start, b.start]);
-
             const anyEnd$ = merge(a.end$, b.end$).pipe(take(1));
 
             const metrics$ = combineLatest([a.move$, b.move$]).pipe(
-                map(([posA, posB]) => {
-                    const dist = distance(posA, posB);
-
-                    return {
-                        center: centroid([posA, posB]),
-                        scale: dist / initialDist,
-                        rotation:
-                            Math.atan2(posB.y - posA.y, posB.x - posA.x) -
-                            initialAngle,
-                        distance: dist,
-                    };
-                }),
+                map(([posA, posB]) => ({
+                    center: centroid([posA, posB]),
+                    scale: distance(posA, posB) / initialDist,
+                    rotation: angle(posA, posB) - initialAngle,
+                    distance: distance(posA, posB),
+                })),
                 share(),
             );
 
@@ -85,15 +75,7 @@ export function pinch(config?: PinchConfig): Recognizer<PinchEvent> {
                     );
 
                     const end$ = anyEnd$.pipe(
-                        map(
-                            (): PinchEvent => ({
-                                phase: "end",
-                                center: first.center,
-                                scale: first.scale,
-                                rotation: first.rotation,
-                                distance: first.distance,
-                            }),
-                        ),
+                        map((): PinchEvent => ({ phase: "end", ...first })),
                     );
 
                     return {

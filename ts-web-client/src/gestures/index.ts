@@ -15,8 +15,9 @@ export type { TrackedPointer, PointerSnapshot, PointerPhase } from "./pointer-tr
 
 // Geometry
 export {
-    distance, midpoint, angle, delta, velocity,
-    centroid, matchesDirection,
+    add, subtract, scale, magnitude, dot,
+    distance, centroid, angle, velocity,
+    dominantAxis, matchesDirection,
     pairMetrics, pairDelta,
 } from "./transform";
 export type { Point, PointerPairMetrics, PairDelta } from "./transform";
