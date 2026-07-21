@@ -101,7 +101,7 @@ export class AudioService {
 ## 4. Interface-Based Design
 
 - Define interfaces for core infrastructure: `IEventBus`, `IStateStore`, `IClientRegistry`
-- Place in `server/src/core/interfaces.ts`
+- Interfaces live in `server/src/types.ts` alongside other type definitions
 - Services depend on interface types, not concrete classes
 - Create interfaces when they add value (core infra, testing boundaries) — not for simple data structures
 
@@ -151,11 +151,11 @@ export function setAudioChannel(state: ApplicationState, channelId: string, chan
 
 ### 5.3 Shared Reducers
 
-When both display and master clients handle the same event types, extract state transformations into shared reducers in `shared/services/{domain}-state.ts`.
+When both display and master clients handle the same event types, extract state transformations into shared reducers in `ts-web-client/src/state/{domain}-state.ts` (aliased as `@state/`).
 
 **Convention:** `apply{Domain}{Action}(map, event) → map`
 
-Each reducer takes current `Map<string, State>` and a typed event, returns a new map. Uses immutable helpers (`setInMap`, `updateInMap`, `removeFromMap`).
+Each reducer takes current `Map<string, State>` and a typed event, returns a new map. Pure functions — no side effects, no service access.
 
 ---
 

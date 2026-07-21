@@ -4,105 +4,176 @@ Rules for writing client code (Display and Master). Use alongside `CODE_STANDARD
 
 ---
 
-## 1. Service-Driven State
+## 1. Service Architecture
 
-- Services own all state and business logic
-- Components are pure presentation — view only
-- State flows: Server → Services → Components → DOM
-- RxJS observables provide reactive updates
+No DI container on the client. Services are module-level singletons created in each client's `main.ts` and accessed via direct imports:
+
+```typescript
+// main.ts — creates and exports singletons
+const eventBus = new EventBus();
+const connection = new ConnectionService(SERVER_URL, "display");
+const store = new AppStore(eventBus, (event) => connection.send(event));
+connection.bindStore(store);
+export { store, eventBus, connection };
+
+// Components import directly
+import { store, eventBus } from "../main.ts";
+```
+
+**Rules:**
+- Create services in `main.ts` in dependency order
+- Export as named constants — never re-instantiate
+- Components never create service instances
+- State lives in services, not in components or `main.ts` handlers
+
+---
+
+## 2. AppStore
+
+`AppStore` (`@core/store.ts`) is the central reactive state container. It holds all domain state as `BehaviorSubject` observables and routes events to pure reducers in `@state/`.
+
+**Observables:** `channels$`, `layers$`, `clocks$`, `timeScale$`, `clientId$`
+**Sync getters:** `channels`, `layers`, `clocks`, `timeScale`, `clientId` (read `.value`)
+
+**Methods:**
+- `dispatch(event)` — apply locally + send to server (optimistic update)
+- `applyEvent(event)` — apply locally only (for incoming server events)
+- `applyReplay(events)` — batch state hydration from server replay
+- `reset()` — clear all state (called before replay)
 
 **Rules:**
 - `BehaviorSubject` for all stateful observables
 - Expose `.asObservable()` to consumers — never expose Subject directly
 - Name observables with `$` suffix: `channels$`, `layers$`
 - Immutable updates: `new Map(existing)` before mutation, then `.next(newMap)`
-- Provide sync getters alongside observables: `getChannel(id)` reads `.value`
+- Provide sync getters alongside observables for imperative reads
+
+---
+
+## 3. Shared Reducers
+
+When both clients handle the same event types, state transformation lives in `@state/{domain}-state.ts`.
+
+**Convention:** `apply{Domain}{Action}(map, event) → map`
+
+Each reducer takes a `Map<string, State>` and a typed event, returns a new map. Pure functions — no side effects, no service access.
 
 ```typescript
-export class AudioService {
-  private channels$ = new BehaviorSubject<Map<string, AudioChannelState>>(new Map());
-
-  getChannels$(): Observable<Map<string, AudioChannelState>> {
-    return this.channels$.asObservable();
-  }
-
-  getChannel(id: string): AudioChannelState | undefined {
-    return this.channels$.value.get(id);
-  }
+// @state/audio-channel-state.ts
+export function applyAudioStop(channels: Map<string, AudioChannelState>, event: AudioStopEvent): Map<string, AudioChannelState> {
+    const next = new Map(channels);
+    next.delete(event.payload.channel);
+    return next;
 }
+
+// AppStore routes events to these reducers
 ```
 
 ---
 
-## 2. Event-Driven Communication
+## 4. Event-Driven Communication
 
-- Server events: WebSocket → ConnectionService → EventBus → Services
-- Prefix server events with `server:` (`server:audio.play`)
-- Prefix client-only events with `client:` (`client:modal.open`)
-- Validate server messages with Zod before processing
-- Clean up subscriptions in `disconnectedCallback()`
-- Use wildcard patterns: `server:audio.*`
+### 4.1 EventBus
+
+Client-side `EventBus` (`@core/event-bus.ts`) uses RxJS Subject + filter for strongly typed pub/sub:
+
+- `on<T>(type)` — subscribe to a specific event type with full type narrowing
+- `onPrefix(prefix)` — subscribe to events by prefix (e.g., `"audio."`)
+- `all$()` — all events
+- `emit(event)` — broadcast locally
+
+### 4.2 ConnectionService
+
+`ConnectionService` (`@core/connection-service.ts`) manages the WebSocket lifecycle:
+
+- Exponential backoff reconnection (1s base, 2x multiplier, 30s max)
+- `state$` observable: `"disconnected" | "connecting" | "connected" | "reconnecting"`
+- Server protocol: `system.connected` → replay events (array) → live events (single objects)
+- Validates incoming events with Zod before processing
+- On reconnect, server sends full state — `store.reset()` then `store.applyReplay()`, not incremental merge
+
+**Rules:**
+- EventBus is local and WebSocket-independent — subscriptions survive disconnections
+- Never build reconnection logic in individual services or components
+- Never assume WebSocket is connected — check before sending
+
+### 4.3 EventBuilder
+
+`EventBuilder` (`@events/event-builder.ts`) provides static factory methods for type-safe event construction. All events include `metadata: { timestamp: Date.now(), source: "master-client" }`.
+
+```typescript
+// Static methods — no instantiation needed
+const event = EventBuilder.audioPlay({ channel: "music", source, volume: 0.8 });
+store.dispatch(event);
+```
 
 ---
 
-## 3. Web Components
+## 5. Web Components
 
-### 3.1 Lifecycle
+### 5.1 BaseComponent
 
-- Extend `BaseComponent` (not HTMLElement directly)
-- Call `super.connectedCallback()` and `super.disconnectedCallback()`
-- Create Shadow Root in constructor
-- Use `static observedAttributes` for reactive HTML attributes
-- Register components manually in `main.ts` with `customElements.define()`
-- Clean up in `disconnectedCallback()` — BaseComponent handles subscription cleanup automatically
+All components extend `BaseComponent` (`@core/base-component.ts`), which provides:
 
-### 3.2 BaseComponent
-
-Provides automatic RxJS cleanup via `takeUntil(destroy$)`:
+- Automatic Shadow DOM creation
+- `protected abstract template(): TemplateResult` — returns lit-html template
+- `protected update(): void` — renders template into shadow root
+- `protected subscribe<T>(obs$, handler): void` — auto-cleanup via `takeUntil(destroy$)`
+- `protected adoptStyles(...styles): void` — adopts CSS into shadow root
+- Automatic cleanup on disconnect via `destroy$` Subject
 
 ```typescript
-export class AudioPlayer extends BaseComponent {
-  connectedCallback(): void {
-    super.connectedCallback();
-    const service = ServiceRegistry.get<AudioService>('AudioService');
-    this.subscribe(service.getChannels$(), (channels) => this.render(channels));
-  }
+export class MyComponent extends BaseComponent {
+    connectedCallback(): void {
+        super.connectedCallback();
+        this.adoptStyles(STYLES);
+        this.subscribe(store.channels$, () => this.update());
+        this.update();
+    }
 
-  protected render(channels?: Map<string, AudioChannelState>): void {
-    if (!channels) return;
-    this.shadowRoot!.innerHTML = `<div>Channels: ${channels.size}</div>`;
-  }
+    protected template(): TemplateResult {
+        return html`<div>Channels: ${store.channels.size}</div>`;
+    }
 }
 ```
 
-Use `this.subscribe()` — never subscribe to observables manually without cleanup.
+**Rules:**
+- Extend `BaseComponent`, never `HTMLElement` directly
+- Always call `super.connectedCallback()` and `super.disconnectedCallback()`
+- Use `this.subscribe()` for all observable subscriptions — never subscribe manually
+- Register components in `main.ts` with `customElements.define()`
 
-### 3.3 Shadow DOM vs Light DOM
+### 5.2 Component Responsibilities
 
-- Shadow DOM for reusable components (buttons, cards, modals)
-- Light DOM for layout components (page containers, grids)
+- Components are pure presentation — view logic only
+- State flows: Server → AppStore → Components → DOM
+- No business logic in components — delegate to services or dispatch events
+
+### 5.3 Component Communication
+
+- HTML attributes for string props (kebab-case)
+- JavaScript properties for complex data (camelCase)
+- `CustomEvent` with `{ bubbles: true, composed: true }` for child → parent
+- AppStore for shared state — avoid deep prop drilling
+- Slots for flexible composition
+- Never access child component internals directly
+
+### 5.4 Container + Child Pattern
+
+- **Container** (e.g., `AudioControls`): coordinates children, aggregates state, dispatches events via `store.dispatch()`
+- **Child** (e.g., `VolumeControl`): single-responsibility UI, emits CustomEvents upward
 
 ---
 
-## 4. ServiceRegistry
+## 6. Observable Patterns
 
-- Services are singletons registered in `ServiceRegistry`
-- Resolve with `ServiceRegistry.get<T>(key)` — type-safe with generics
-- Initialize in `main.ts` in dependency order (EventBus first)
-- Constructor injection for service dependencies
-- Never create service instances in components
-
----
-
-## 5. Observable Patterns
-
-### 5.1 Subject Types
+### 6.1 Subject Types
 
 - `BehaviorSubject<T>` for state with initial value (channels, layers, connection status)
 - `Subject<T>` for one-shot events with no "current value" (actions, notifications)
-- Never `ReplaySubject` unless you specifically need N-value replay (no current use case)
+- Never `ReplaySubject` unless you specifically need N-value replay
 
-### 5.2 Derived Observables
+### 6.2 Derived Observables
 
 Create as `private readonly` class fields — not inside getter methods. A getter creates a new pipeline per call, causing unbounded subscriptions:
 
@@ -118,7 +189,7 @@ getActiveChannels$(): Observable<AudioChannelState[]> {
 }
 ```
 
-### 5.3 Reactive Pipelines
+### 6.3 Reactive Pipelines
 
 For stateful event processing (pointer tracking, gesture recognition, animation), prefer composed functions returning Observables over imperative classes with mutable fields.
 
@@ -128,8 +199,6 @@ For stateful event processing (pointer tracking, gesture recognition, animation)
 - `tap` for side effects — isolated from the pure reduction
 - `map` to project internal state to the public type
 - Pure reducer functions, testable in isolation without DOM
-
-**Why:** A class with switch/case handlers and mutable state hides the data flow. A pipeline makes each transformation visible and composable. State in `scan` is replaced, not mutated. Side effects in `tap` are explicit, not scattered through method bodies.
 
 ```typescript
 // Good — composed pipeline, state in scan, effects in tap
@@ -142,36 +211,24 @@ function trackedPointers$(element: HTMLElement): Observable<PointerSnapshot> {
         share(),
     );
 }
-
-// Avoid — imperative class wrapping an Observable
-class PointerTracker {
-    private state = ClaimState.IDLE;
-    private readonly activePointers = new Map();
-    readonly events$: Observable<PointerSnapshot>;
-    // switch/case in every handler, side effects mixed with state updates
-}
 ```
 
 **When classes are appropriate:** Services that manage long-lived subscriptions, expose `BehaviorSubject` state, and need explicit lifecycle (`ConnectionService`, `AppStore`). The distinction: services are stateful singletons; pipelines are data transformations.
 
-**Code should mirror the shape of the concept it implements.**
-
-- Start from the consumer's contract. Write the public surface first, then work backward into internals.
+**Code should mirror the shape of the concept it implements:**
+- Start from the consumer's contract. Write the public surface first, then work backward.
 - If the concept is a sequence of stages, the code should be a chain — not functions calling each other imperatively.
-- If the concept tracks one winner, track one winner — don't collect all candidates then reduce.
-- Each step in a chain does one job. If it branches into two concerns, split it. If two steps are never useful apart, merge them.
-- Flatten nested scopes by attaching context to the value flowing through (`{ result, context }`), not by closing over variables. Each step receives what it needs from the data, not the call stack.
-- Separate transformations from side effects. If the next step consumes the output, it's a transformation. If it just needs the step to have happened, it's a side effect — make that distinction visible.
-- Eliminate anything that exists only for mechanical reasons: wrappers around single fields, collections that only exist to be reduced, manual lifecycle tracking the runtime already handles.
-- Name and extract steps last, after the structure has stabilized. Name the *what*, type the *shape*.
+- Each step in a chain does one job. If it branches into two concerns, split it.
+- Flatten nested scopes by attaching context to the value flowing through (`{ result, context }`), not by closing over variables.
+- Separate transformations from side effects — make the distinction visible.
 - The top-level chain should read as the full design. If understanding it requires reading the internals, the boundaries are wrong.
 
-### 5.4 Error Boundaries
+### 6.4 Error Boundaries
 
 A thrown error in an RxJS `Subject.next()` subscriber terminates the Subject permanently. Wrap every EventBus subscription handler in try/catch:
 
 ```typescript
-this.eventBus.on('server:audio.*', (event: AudioEvent) => {
+eventBus.on('audio.play').subscribe((event) => {
     try {
         this.handleAudioEvent(event);
     } catch (error) {
@@ -182,53 +239,38 @@ this.eventBus.on('server:audio.*', (event: AudioEvent) => {
 
 ---
 
-## 6. Connection Resilience
+## 7. CSS
 
-- ConnectionService handles reconnection with exponential backoff
-- EventBus is local and WebSocket-independent — subscriptions survive disconnections
-- On reconnect, server sends full state sync — services accept as fresh replacement, not incremental merge
-- Never build reconnection logic in individual services
-- Never assume WebSocket is connected — check before sending
+### 7.1 Strategy
 
----
+Inline CSS strings passed to `adoptStyles()`:
 
-## 7. Component Communication
+```typescript
+const STYLES = `
+:host { display: block; width: 100%; }
+.container { padding: var(--spacing-md); }
+`;
 
-- HTML attributes for string props (kebab-case)
-- JavaScript properties for complex data (camelCase)
-- `CustomEvent` with `{ bubbles: true, composed: true }` for child→parent
-- Services for shared state — avoid deep prop drilling
-- Slots for flexible composition
-- Never access child component internals directly
+connectedCallback(): void {
+    super.connectedCallback();
+    this.adoptStyles(STYLES);
+}
+```
 
----
+For larger stylesheets, extract to an adjacent `.css` file and import:
 
-## 8. TypeScript
+```typescript
+import componentCss from "./my-component.css" with { type: "text" };
+this.adoptStyles(componentCss);
+```
 
-- `strict: true` in tsconfig
-- `import type` for types and interfaces
-- No `any` — use `unknown` for truly dynamic
-- Branded types for domain IDs: `type ChannelId = Brand<string, 'ChannelId'>`
-- For typed dispatch maps in event handlers with 4+ cases, see `CODE_STANDARDS.md` §6.3
-
----
-
-## 9. CSS
-
-### 9.1 Strategy
-
-- External `.css` file when styles exceed ~20 lines — adjacent to component: `my-component.css`
-- `getStyles()` method for <20 lines
-- Never mix both in one component
-
-### 9.2 Theme
+### 7.2 Theme
 
 - CSS custom properties for all values — never hardcode colors or spacing
-- Adopt `common.css` via `cssSheet(commonCss)` for shared form/button styles
-- `common.css` covers: buttons, selects, range sliders, checkboxes, text inputs, layout helpers, typography
-- For computed alpha: use `alpha()` helper from `theme.ts`
+- Shadow DOM for reusable components (buttons, cards, modals)
+- Light DOM for layout components (page containers, grids)
 
-### 9.3 Accessibility
+### 7.3 Accessibility
 
 - Semantic HTML elements (header, nav, main, section)
 - ARIA labels for custom controls
@@ -239,45 +281,54 @@ this.eventBus.on('server:audio.*', (event: AudioEvent) => {
 
 ---
 
-## 10. Component Creation Workflow
+## 8. TypeScript
 
-### 10.1 Planning
+- `strict: true` in tsconfig
+- `import type` for types and interfaces
+- No `any` — use `unknown` for truly dynamic, type guards to narrow
+- Branded types for domain IDs: `type ChannelId = Brand<string, 'ChannelId'>` (defined in server types, re-exported via `@types`)
+- For typed dispatch maps in event handlers with 4+ cases, see `CODE_STANDARDS.md` §6.3
+
+---
+
+## 9. Component Creation Workflow
 
 Before writing code:
 1. What domain? (audio, image, timing)
 2. Container or presentational?
-3. What state does it manage? (local UI vs service subscriptions)
-4. What events does it emit/listen for?
-5. Document component API: attributes, events emitted, slots
+3. What state does it need from AppStore?
+4. What events does it emit/dispatch?
 
-### 10.2 Container + Child Pattern
+**Steps:**
+1. Create component file in `{client}/components/{domain}/`
+2. Extend `BaseComponent`, implement `template()`
+3. Subscribe to AppStore observables in `connectedCallback()`
+4. Register in `main.ts` with `customElements.define()`
+5. If new server events needed: types in `server/src/types.ts`, schemas in `server/src/schemas.ts`, add to `eventSchema`, add `EventBuilder` method
 
-- **Container** (e.g., `AudioControls`): coordinates children, aggregates state, sends server events via EventBuilder
-- **Child** (e.g., `VolumeControl`): single-responsibility UI, emits CustomEvents upward
+---
 
-### 10.3 Registration
+## 10. Code Organization
 
-Add to appropriate `main.ts`:
-```typescript
-import { MyComponent } from "./components/{domain}/{component-name}";
-customElements.define("my-component", MyComponent);
+```
+ts-web-client/src/
+├── core/               # BaseComponent, EventBus, AppStore, ConnectionService
+├── state/              # Shared reducers: audio-channel-state, layer-state, clock-state
+├── events/             # EventBuilder
+├── effects/            # Effect chain, definitions, presets
+├── gestures/           # Pointer tracking, recognizers (drag, pinch)
+├── scene/              # Scene types
+├── constants/          # Display, drag, layer constants
+├── utils/              # Logger, audio helpers
+├── display/            # Display client entry point + components
+└── master/             # Master client entry point + components
 ```
 
-### 10.4 Style Integration
-
-```typescript
-import commonCss from "@styles/common.css" with { type: "text" };
-import componentCss from "./my-component.css" with { type: "text" };
-this.adoptStyles(cssSheet(commonCss), cssSheet(componentCss));
-```
-
-### 10.5 Server-Side Integration
-
-When a new component needs new server events:
-1. Types in `server/src/types.ts` — payload interface + event type + domain union
-2. Schemas in `server/src/schemas.ts` — payload schema + event schema + add to `eventSchema`
-3. Server service if needed
-4. EventBuilder method in client
+- Kebab-case files, PascalCase classes, camelCase functions
+- One component per file
+- Files under 500 lines
+- Co-locate tests: `foo.ts` → `foo.test.ts`
+- Group imports: external → `@core` → `@state`/`@events`/etc. → types (with `import type`)
 
 ---
 
@@ -285,57 +336,12 @@ When a new component needs new server events:
 
 When reviewing code for cleanup, address in this order:
 1. **Correctness bugs** — logic errors, lost state
-2. **Architectural violations** — shared components importing domain code
+2. **Architectural violations** — shared code importing domain code
 3. **Duplicated logic** — same event handler logic in display and master
 4. **Missing abstractions** — inline CSS, hardcoded values
-5. **Naming/consistency** — import order, JSDoc
+5. **Naming/consistency** — import order, naming conventions
 
-### 11.1 Dependency Direction
+### Dependency Direction
 
-- `shared/components/` must never import from `@master/*` or `@display/*`
-- Pass domain data into shared components via attributes
-- Data flows downward: service → domain component → attribute → shared component
-
-### 11.2 Shared Reducers
-
-When both clients handle the same event type, state transformation **must** live in `shared/services/{domain}-state.ts`:
-
-```typescript
-// shared/services/audio-channel-state.ts
-export function applyAudioStop(channels, channel, trackId) { /* once */ }
-
-// Both services delegate:
-this.channels$.next(applyAudioStop(this.channels$.value, channel, trackId));
-```
-
-### 11.3 Canvas Overlay Integration
-
-To make a new object type interactive on the canvas:
-1. Service exposes `getCanvasObjects$(): Observable<CanvasObject[]>`
-2. Add observable to `combineLatest` merge in `canvas-overlay.ts`
-3. Add transform routing in `handleMouseUp`
-
----
-
-## 12. Code Organization
-
-```
-ts-web-client/src/
-├── shared/
-│   ├── components/base/     # BaseComponent
-│   ├── services/            # EventBus, ConnectionService, reducers
-│   ├── utils/               # State helpers
-│   └── styles/              # Theme, common.css
-├── display/
-│   ├── components/          # audio-player, visual-renderer, clock-renderer
-│   └── services/            # AudioService, VisualService, ClockService
-└── master/
-    ├── components/          # audio/, image/, clock/, scene/, canvas/
-    └── services/            # EventBuilder, AssetService, domain services
-```
-
-- Kebab-case files, PascalCase classes, camelCase functions
-- One component per file
-- Files under 500 lines
-- Co-locate tests
-- Group imports: external → core → utils → types (with `import type`)
+- `core/`, `state/`, `events/`, `effects/` must never import from `master/` or `display/`
+- Data flows downward: AppStore → domain component → attribute → shared component
