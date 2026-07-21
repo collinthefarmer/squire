@@ -143,13 +143,63 @@ export class MyComponent extends BaseComponent {
 - Use `this.subscribe()` for all observable subscriptions — never subscribe manually
 - Register components in `main.ts` with `customElements.define()`
 
-### 5.2 Component Boundaries
+### 5.2 Templates and Rendering
+
+This project uses lit-html as a rendering library, not a framework. There are no reactive properties, no automatic re-renders, no lifecycle decorators. You call `this.update()` when something changes, and `template()` returns what the component should look like *right now*.
+
+This means the template is a pure function of the component's current state. It runs, produces DOM, and is done. If you find yourself caching DOM references inside `template()` or branching on what changed since last render, you're fighting the model. Describe the end state. Let lit-html diff it.
+
+**Keep `template()` shallow.** The top-level template should read as an outline of the component — the major regions, not their contents. Extract non-trivial conditionals, loops, and repeated structures into private render methods. Each sub-template is a pure function of its arguments, returning `TemplateResult`.
+
+```typescript
+// Good — template reads as structure, details are one click away
+protected template(): TemplateResult {
+    return html`
+        <div class="layout">
+            ${this.headerTemplate()}
+            ${this.channelListTemplate(store.channels)}
+            ${when(this.selectedChannel, (ch) => this.detailTemplate(ch))}
+        </div>
+    `;
+}
+
+private channelListTemplate(channels: Map<string, ChannelState>): TemplateResult {
+    return html`
+        <ul class="channel-list">
+            ${repeat(channels.entries(), ([id]) => id, ([id, ch]) =>
+                this.channelItemTemplate(id, ch)
+            )}
+        </ul>
+    `;
+}
+```
+
+When a sub-template grows complex enough to have its own state or lifecycle, it's time to promote it to a standalone component.
+
+**Prefer lit-html directives over manual equivalents.** Directives express intent more clearly than raw JavaScript and let lit-html optimize updates:
+
+- `when(condition, trueCase, falseCase)` over ternaries — reads as intent, not syntax
+- `nothing` for "render nothing here" — not empty strings or `undefined`
+- `repeat(items, keyFn, template)` for keyed lists — gives lit-html stable identity for efficient DOM reuse
+- `map(items, template)` for simple, unkeyed iteration
+- `classMap({ active: isActive, disabled })` over string interpolation for conditional classes
+- `styleMap({ left: `${x}px`, top: `${y}px` })` over style string building for dynamic inline styles
+- `choose(value, cases, defaultCase)` for multi-branch rendering — cleaner than chained ternaries
+- `ref(callback)` for element references — prefer over `shadowRoot.querySelector()` in templates
+- `guard(deps, () => template)` to skip re-rendering expensive subtrees when dependencies haven't changed
+- `ifDefined(value)` to conditionally set an attribute — omits it entirely when `undefined`
+
+**When to call `update()`:** After any state change that should be visible. Observable subscriptions typically end with `() => this.update()`. Event handlers that mutate local state call `this.update()` at the end. If multiple state changes happen synchronously, one `update()` at the end is enough — lit-html's `render()` is synchronous and idempotent.
+
+**What doesn't belong in `template()`:** Side effects, subscriptions, DOM queries, or anything that should only happen once. Those belong in `connectedCallback()`. The template runs every render — it should be fast, pure, and boring.
+
+### 5.3 Component Boundaries
 
 A component exists to own a piece of the screen. If you can point at a region and say "that updates as a unit," it's a component. If two regions update independently, they're two components — even if they sit next to each other visually.
 
 The question isn't "is this complex enough to extract?" It's "does this have its own lifecycle?" A volume slider that emits change events has a lifecycle. A label that displays a channel name does not — it's part of its parent's template.
 
-### 5.3 Containers and Presentational Components
+### 5.4 Containers and Presentational Components
 
 The split is about who knows what.
 
@@ -159,7 +209,7 @@ A **presentational component** knows the user. It renders data it receives throu
 
 The test: "would this still work if I deleted the server?" Presentational components would. Containers wouldn't.
 
-### 5.4 Composition
+### 5.5 Composition
 
 A component with five boolean flags that toggle different layouts is three components wearing a trench coat. When you find yourself adding modes or switches, split instead.
 
@@ -171,7 +221,7 @@ A component with five boolean flags that toggle different layouts is three compo
 
 **Never reach into a child's internals.** No `querySelector` into a child's shadow DOM, no calling methods on child elements. The component boundary is a contract — communicate through attributes, properties, events, and slots.
 
-### 5.5 What Belongs in a Component vs a Service
+### 5.6 What Belongs in a Component vs a Service
 
 Components answer "what does the user see?" Services answer "what is true?"
 
