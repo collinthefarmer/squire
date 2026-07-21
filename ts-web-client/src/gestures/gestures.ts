@@ -7,11 +7,12 @@
  * competition, unsubscribing withdraws.
  *
  * On pointer-down, concurrent pointers are buffered within a
- * short window (~100ms) then fanned to recognizers matching the
- * touch count. Recognizers race — first to claim wins. The source
- * captures the pointers and forwards the winner's gesture stream.
- * If all reject, pointers are released and the browser handles
- * the interaction (scroll, zoom, etc).
+ * short window (~50ms) then fanned to all eligible recognizers.
+ * Each recognizer claims with a confidence value or rejects.
+ * Once all have decided, the highest confidence wins — weighted
+ * by pointer utilization (recognizers that explain more of the
+ * input are preferred). If all reject, pointers are released
+ * and the browser handles the interaction (scroll, zoom, etc).
  *
  * The gate mechanism (non-passive touchmove preventDefault) is
  * owned by pointers$ — it holds during the competition window

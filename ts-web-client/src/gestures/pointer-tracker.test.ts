@@ -123,12 +123,12 @@ describe("gather", () => {
             makeEvent("start", 1, { x: 0, y: 0 }),
         );
 
-        expect(state.lastEvent.phase).toBe("start");
+        expect(state.lastEvent?.phase).toBe("start");
 
         state = gather(state, makeEvent("move", 1, { x: 50, y: 50 }));
 
-        expect(state.lastEvent.phase).toBe("move");
-        expect(state.lastEvent.pointer.position).toEqual({ x: 50, y: 50 });
+        expect(state.lastEvent?.phase).toBe("move");
+        expect(state.lastEvent?.pointer.position).toEqual({ x: 50, y: 50 });
     });
 });
 

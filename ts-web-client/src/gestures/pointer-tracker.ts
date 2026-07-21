@@ -15,7 +15,7 @@
  */
 
 import { of, merge } from "rxjs";
-import { mergeMap, scan, map, share } from "rxjs/operators";
+import { mergeMap, scan, filter, map, share } from "rxjs/operators";
 import type { PointerStream } from "./pointers";
 import type { Point } from "./transform";
 import type { Observable } from "rxjs";
@@ -51,6 +51,9 @@ export function trackedPointers$(
                 gather(state, event),
             emptyState(),
         ),
+        filter((state): state is GathererState & { lastEvent: InternalEvent } =>
+            state.lastEvent !== undefined,
+        ),
         map(toSnapshot),
         share(),
     );
@@ -66,7 +69,7 @@ export type InternalEvent = {
 
 export type GathererState = {
     active: Map<number, TrackedPointer>;
-    lastEvent: InternalEvent;
+    lastEvent: InternalEvent | undefined;
 };
 
 // ── Lifecycle flattening ────────────────────────────────────────
@@ -114,21 +117,9 @@ export function pointerLifecycle$(
 // ── Gatherer ────────────────────────────────────────────────────
 
 export function emptyState(): GathererState {
-    const noop: InternalEvent = {
-        phase: "start",
-        stream: null as unknown as PointerStream,
-        pointer: {
-            id: -1,
-            position: { x: 0, y: 0 },
-            startPosition: { x: 0, y: 0 },
-            startTime: 0,
-            pointerType: "mouse",
-        },
-    };
-
     return {
         active: new Map(),
-        lastEvent: noop,
+        lastEvent: undefined,
     };
 }
 
@@ -155,7 +146,7 @@ export function gather(
 
 // ── Projection ──────────────────────────────────────────────────
 
-function toSnapshot(state: GathererState): PointerSnapshot {
+function toSnapshot(state: GathererState & { lastEvent: InternalEvent }): PointerSnapshot {
     return {
         phase: state.lastEvent.phase,
         changed: state.lastEvent.pointer,
