@@ -1,32 +1,36 @@
 /**
- * Pointer event normalization and tracking.
+ * Multi-pointer tracker composed from per-pointer lifecycle streams.
  *
- * Normalizes mouse, touch, and pen PointerEvents into a single
- * typed RxJS stream. Tracks all active pointers with position,
- * start position, and timing data.
+ * trackedPointers$ gathers concurrent pointer streams into a single
+ * observable of PointerSnapshots — each emission carries the full
+ * set of active pointers, the pointer that changed, and (when
+ * coexisting with scroll) the current claim state.
  *
- * Optional claim window: when configured, the element starts with
- * the browser's default touch-action (e.g. pan-y for scroll).
- * Pointer events are tracked passively until a claim condition is
- * met (e.g. second finger arrives), at which point the tracker
- * claims ownership by calling preventDefault on all subsequent
- * events. If no condition is met, the browser handles the
- * interaction normally (scroll, zoom, etc).
+ * Pipeline:
+ *   pointers$
+ *     → mergeMap(pointerLifecycle$)
+ *     → scan(reduceTracker)
+ *     → tap(applyClaimEffects)
+ *     → map(toSnapshot)
+ *     → share()
  *
- * Gated scroll detection: when gate is true, a non-passive
- * touchmove listener blocks browser scroll during a detection
- * window. Pointer events fire normally while the gate is active.
- * If a claim condition matches, the pointer is captured for JS.
- * If the pointer moves past detectionThresholdPx without a claim,
- * the gate releases and the browser handles scroll natively —
- * firing pointercancel as it takes over. The gate persists through
- * captured gestures to suppress OS gesture interference.
+ * Scroll coexistence: when { scroll: true }, the tracker gates
+ * browser scroll during a detection window (~10px). At the
+ * threshold it reads the element's DOM scroll state and checks
+ * whether movement conflicts with available scroll room. If the
+ * element can scroll in that direction, the gate releases and
+ * the browser handles natively. If not, the tracker claims the
+ * pointer for an overscroll gesture.
  */
 
-import { Subject, merge, fromEvent, type Observable } from "rxjs";
-import { map, filter, takeUntil, share } from "rxjs/operators";
+import { of, merge } from "rxjs";
+import { mergeMap, scan, tap, map, share } from "rxjs/operators";
+import { pointers$ } from "./pointers";
+import type { PointerStream } from "./pointers";
 import type { Point } from "./transform";
-import type { ClaimCondition } from "./claim-conditions";
+import type { Observable } from "rxjs";
+
+// ── Public types ────────────────────────────────────────────────
 
 export type PointerPhase = "start" | "move" | "end" | "cancel";
 
@@ -43,327 +47,268 @@ export interface PointerSnapshot {
     changed: TrackedPointer;
     active: ReadonlyMap<number, TrackedPointer>;
     activeCount: number;
-    timestamp: number;
-    originalEvent: PointerEvent;
-    /** Present only when claim window is configured. */
     claimState?: "detecting" | "claimed" | "released";
 }
 
-export type TouchActionFallback = "pan-y" | "pan-x" | "auto";
+export type TrackerOptions = {
+    scroll?: boolean;
+};
 
-export interface ClaimWindowConfig {
-    /** Claim conditions — any one matching triggers a claim (OR logic). */
-    conditions?: ClaimCondition[];
-    /** The touch-action CSS value for the element. */
-    fallbackTouchAction: TouchActionFallback;
-    /**
-     * When true, installs a non-passive touchmove listener that
-     * blocks browser scroll during the detection window. If a
-     * claim condition matches, the pointer is captured. If the
-     * pointer moves past detectionThresholdPx without a claim,
-     * the gate releases and the browser handles scroll natively.
-     */
-    gate?: boolean;
-    /** Pixels of movement before releasing to browser (default: 10). */
-    detectionThresholdPx?: number;
+// ── Public entry point ──────────────────────────────────────────
+
+export function trackedPointers$(
+    element: HTMLElement,
+    options?: TrackerOptions,
+): Observable<PointerSnapshot> {
+    const scroll = options?.scroll ?? false;
+
+    return pointers$(element, { gate: scroll }).pipe(
+        mergeMap((stream) => pointerLifecycle$(stream)),
+        scan(
+            (state: TrackerState, event: InternalEvent) =>
+                reduceTracker(state, event, scroll ? readScrollState(element) : null),
+            emptyState(),
+        ),
+        tap(applyClaimEffects),
+        map(toSnapshot),
+        share(),
+    );
 }
 
-const DEFAULT_DETECTION_THRESHOLD = 10;
+// ── Internal types ──────────────────────────────────────────────
 
-const enum ClaimState {
-    IDLE,
-    DETECTING,
-    CLAIMED,
-    RELEASED,
+type InternalEvent = {
+    phase: PointerPhase;
+    stream: PointerStream;
+    pointer: TrackedPointer;
+};
+
+type ClaimPhase = "idle" | "detecting" | "claimed" | "released";
+
+type TrackerState = {
+    active: Map<number, TrackedPointer>;
+    streams: Map<number, PointerStream>;
+    claimPhase: ClaimPhase;
+    previousClaimPhase: ClaimPhase;
+    lastEvent: InternalEvent;
+};
+
+type ScrollState = {
+    scrollTop: number;
+    scrollHeight: number;
+    clientHeight: number;
+    scrollLeft: number;
+    scrollWidth: number;
+    clientWidth: number;
+};
+
+// ── Lifecycle flattening ────────────────────────────────────────
+
+function pointerLifecycle$(stream: PointerStream): Observable<InternalEvent> {
+    const base: TrackedPointer = {
+        id: stream.id,
+        position: stream.start,
+        startPosition: stream.start,
+        startTime: stream.startTime,
+        pointerType: stream.pointerType,
+    };
+
+    return merge(
+        of<InternalEvent>({
+            phase: "start",
+            stream,
+            pointer: base,
+        }),
+
+        stream.move$.pipe(
+            map(
+                (position): InternalEvent => ({
+                    phase: "move",
+                    stream,
+                    pointer: { ...base, position },
+                }),
+            ),
+        ),
+
+        stream.end$.pipe(
+            map(
+                (end): InternalEvent => ({
+                    phase: end.reason === "cancel" ? "cancel" : "end",
+                    stream,
+                    pointer: { ...base, position: end.position },
+                }),
+            ),
+        ),
+    );
 }
 
-export class PointerTracker {
-    private readonly activePointers = new Map<number, TrackedPointer>();
-    private readonly destroy$ = new Subject<void>();
-    private readonly claimConfig: ClaimWindowConfig | null;
-    private readonly detectionThreshold: number;
+// ── Reducer ─────────────────────────────────────────────────────
 
-    private claimState = ClaimState.IDLE;
+const DETECTION_THRESHOLD = 10;
 
-    // Touchmove gate for scroll detection
-    private gateActive = false;
-    private readonly touchMoveGate: ((e: TouchEvent) => void) | null = null;
+function emptyState(): TrackerState {
+    const noop: InternalEvent = {
+        phase: "start",
+        stream: null as unknown as PointerStream,
+        pointer: {
+            id: -1,
+            position: { x: 0, y: 0 },
+            startPosition: { x: 0, y: 0 },
+            startTime: 0,
+            pointerType: "mouse",
+        },
+    };
 
-    readonly events$: Observable<PointerSnapshot>;
+    return {
+        active: new Map(),
+        streams: new Map(),
+        claimPhase: "idle",
+        previousClaimPhase: "idle",
+        lastEvent: noop,
+    };
+}
 
-    constructor(
-        private readonly element: HTMLElement,
-        claimWindow?: ClaimWindowConfig,
-    ) {
-        this.claimConfig = claimWindow ?? null;
-        this.detectionThreshold =
-            claimWindow?.detectionThresholdPx ?? DEFAULT_DETECTION_THRESHOLD;
+function reduceTracker(
+    state: TrackerState,
+    event: InternalEvent,
+    scrollState: ScrollState | null,
+): TrackerState {
+    const previousClaimPhase = state.claimPhase;
+    const active = new Map(state.active);
+    const streams = new Map(state.streams);
+    let claimPhase = state.claimPhase;
 
-        element.style.touchAction = claimWindow
-            ? claimWindow.fallbackTouchAction
-            : "none";
+    switch (event.phase) {
+        case "start": {
+            active.set(event.pointer.id, event.pointer);
+            streams.set(event.stream.id, event.stream);
 
-        if (claimWindow?.gate) {
-            element.style.overscrollBehavior = "contain";
-
-            this.touchMoveGate = (e: TouchEvent) => {
-                if (this.gateActive) e.preventDefault();
-            };
-
-            element.addEventListener("touchmove", this.touchMoveGate, {
-                passive: false,
-            });
-        }
-
-        const down$ = fromEvent<PointerEvent>(element, "pointerdown").pipe(
-            map((e) => this.handleDown(e)),
-            filter((s): s is PointerSnapshot => s !== null),
-        );
-
-        const move$ = fromEvent<PointerEvent>(document, "pointermove").pipe(
-            filter((e) => this.activePointers.has(e.pointerId)),
-            map((e) => this.handleMove(e)),
-            filter((s): s is PointerSnapshot => s !== null),
-        );
-
-        const up$ = fromEvent<PointerEvent>(document, "pointerup").pipe(
-            filter((e) => this.activePointers.has(e.pointerId)),
-            map((e) => this.handleUp(e)),
-        );
-
-        const cancel$ = fromEvent<PointerEvent>(
-            document,
-            "pointercancel",
-        ).pipe(
-            filter((e) => this.activePointers.has(e.pointerId)),
-            map((e) => this.handleCancel(e)),
-        );
-
-        this.events$ = merge(down$, move$, up$, cancel$).pipe(
-            takeUntil(this.destroy$),
-            share(),
-        );
-    }
-
-    destroy(): void {
-        if (this.touchMoveGate) {
-            this.element.removeEventListener("touchmove", this.touchMoveGate);
-        }
-
-        this.destroy$.next();
-        this.destroy$.complete();
-        this.activePointers.clear();
-        this.claimState = ClaimState.IDLE;
-        this.gateActive = false;
-    }
-
-    // -- Handlers --
-
-    private handleDown(e: PointerEvent): PointerSnapshot | null {
-        const pointer = this.createPointer(e);
-        this.activePointers.set(e.pointerId, pointer);
-
-        if (!this.claimConfig) {
-            e.preventDefault();
-            this.element.setPointerCapture(e.pointerId);
-            return this.snapshot("start", pointer, e);
-        }
-
-        if (e.pointerType === "mouse") {
-            e.preventDefault();
-            this.element.setPointerCapture(e.pointerId);
-            this.claimState = ClaimState.CLAIMED;
-            return this.snapshot("start", pointer, e);
-        }
-
-        switch (this.claimState) {
-            case ClaimState.IDLE: {
-                this.claimState = ClaimState.DETECTING;
-                this.gateActive = true;
-                const snap = this.snapshot("start", pointer, e);
-                this.evaluateClaimConditions(snap, e);
-                return snap;
+            if (event.stream.pointerType === "mouse" || !scrollState) {
+                claimPhase = "claimed";
+            } else if (claimPhase === "idle") {
+                claimPhase = "detecting";
             }
 
-            case ClaimState.DETECTING: {
-                const snap = this.snapshot("start", pointer, e);
-                this.evaluateClaimConditions(snap, e);
-                return snap;
-            }
-
-            case ClaimState.CLAIMED: {
-                e.preventDefault();
-                this.element.setPointerCapture(e.pointerId);
-                return this.snapshot("start", pointer, e);
-            }
-
-            case ClaimState.RELEASED:
-                return this.snapshot("start", pointer, e);
-        }
-    }
-
-    private handleMove(e: PointerEvent): PointerSnapshot | null {
-        const existing = this.activePointers.get(e.pointerId);
-        if (!existing) {
-            return null;
+            break;
         }
 
-        const updated: TrackedPointer = {
-            ...existing,
-            position: { x: e.clientX, y: e.clientY },
-        };
-        this.activePointers.set(e.pointerId, updated);
+        case "move": {
+            active.set(event.pointer.id, event.pointer);
 
-        if (!this.claimConfig) {
-            e.preventDefault();
-            return this.snapshot("move", updated, e);
-        }
+            if (claimPhase === "detecting" && scrollState) {
+                const dx = event.pointer.position.x - event.pointer.startPosition.x;
+                const dy = event.pointer.position.y - event.pointer.startPosition.y;
 
-        switch (this.claimState) {
-            case ClaimState.DETECTING: {
-                const snap = this.snapshot("move", updated, e);
-                this.evaluateClaimConditions(snap, e);
-
-                // Still detecting? Check if past the detection window.
-                if (
-                    this.claimState === ClaimState.DETECTING &&
-                    this.pastDetectionThreshold(updated)
-                ) {
-                    this.claimState = ClaimState.RELEASED;
-                    this.gateActive = false;
+                if (Math.hypot(dx, dy) >= DETECTION_THRESHOLD) {
+                    claimPhase = canScrollInDirection(scrollState, dx, dy)
+                        ? "released"
+                        : "claimed";
                 }
-
-                return snap;
             }
 
-            case ClaimState.CLAIMED:
-                e.preventDefault();
-                return this.snapshot("move", updated, e);
+            break;
+        }
 
-            case ClaimState.RELEASED:
-                return this.snapshot("move", updated, e);
+        case "end":
+        case "cancel": {
+            active.delete(event.pointer.id);
+            streams.delete(event.stream.id);
 
-            default:
-                return null;
+            if (active.size === 0) {
+                claimPhase = "idle";
+            }
+
+            break;
         }
     }
 
-    private handleUp(e: PointerEvent): PointerSnapshot {
-        const pointer = this.activePointers.get(e.pointerId);
-        const updated: TrackedPointer = pointer
-            ? { ...pointer, position: { x: e.clientX, y: e.clientY } }
-            : this.createPointer(e);
+    return {
+        active,
+        streams,
+        claimPhase,
+        previousClaimPhase,
+        lastEvent: event,
+    };
+}
 
-        this.activePointers.delete(e.pointerId);
-        const snap = this.snapshot("end", updated, e);
+// ── Scroll boundary detection ───────────────────────────────────
 
-        if (this.activePointers.size === 0) {
-            this.resetToIdle();
+function readScrollState(element: HTMLElement): ScrollState {
+    return {
+        scrollTop: element.scrollTop,
+        scrollHeight: element.scrollHeight,
+        clientHeight: element.clientHeight,
+        scrollLeft: element.scrollLeft,
+        scrollWidth: element.scrollWidth,
+        clientWidth: element.clientWidth,
+    };
+}
+
+function canScrollInDirection(
+    scroll: ScrollState,
+    dx: number,
+    dy: number,
+): boolean {
+    const vertical = Math.abs(dy) >= Math.abs(dx);
+
+    if (vertical) {
+        if (dy < 0) {
+            return scroll.scrollTop + scroll.clientHeight < scroll.scrollHeight - 1;
         }
 
-        return snap;
+        if (dy > 0) {
+            return scroll.scrollTop > 0;
+        }
+    } else {
+        if (dx < 0) {
+            return scroll.scrollLeft + scroll.clientWidth < scroll.scrollWidth - 1;
+        }
+
+        if (dx > 0) {
+            return scroll.scrollLeft > 0;
+        }
     }
 
-    private handleCancel(e: PointerEvent): PointerSnapshot {
-        const pointer =
-            this.activePointers.get(e.pointerId) ?? this.createPointer(e);
-        this.activePointers.delete(e.pointerId);
-        const snap = this.snapshot("cancel", pointer, e);
+    return false;
+}
 
-        if (this.activePointers.size === 0) {
-            this.resetToIdle();
-        }
+// ── Side effects ────────────────────────────────────────────────
 
-        return snap;
-    }
+function applyClaimEffects(state: TrackerState): void {
+    const { previousClaimPhase, claimPhase, lastEvent } = state;
 
-    // -- Claim logic --
+    if (claimPhase === "claimed") {
+        const transitioned = previousClaimPhase !== "claimed";
+        const newPointerWhileClaimed =
+            previousClaimPhase === "claimed" && lastEvent.phase === "start";
 
-    private evaluateClaimConditions(
-        snapshot: PointerSnapshot,
-        currentEvent: PointerEvent,
-    ): void {
-        if (this.claimState !== ClaimState.DETECTING || !this.claimConfig) {
-            return;
-        }
-
-        const conditions = this.claimConfig.conditions ?? [];
-        const claimed = conditions.some((condition) => condition(snapshot));
-
-        if (claimed) {
-            this.claim(currentEvent);
-        }
-    }
-
-    private claim(triggerEvent: PointerEvent | null): void {
-        this.claimState = ClaimState.CLAIMED;
-
-        if (triggerEvent) {
-            triggerEvent.preventDefault();
-        }
-
-        // Gate stays active to suppress OS gesture interference.
-        // Pointer capture ensures all events reach this element.
-        for (const pointerId of this.activePointers.keys()) {
-            try {
-                this.element.setPointerCapture(pointerId);
-            } catch {
-                // Pointer may already be gone
+        if (transitioned || newPointerWhileClaimed) {
+            for (const stream of state.streams.values()) {
+                stream.capture();
             }
         }
     }
 
-    private pastDetectionThreshold(pointer: TrackedPointer): boolean {
-        const dx = pointer.position.x - pointer.startPosition.x;
-        const dy = pointer.position.y - pointer.startPosition.y;
-        return Math.hypot(dx, dy) >= this.detectionThreshold;
-    }
-
-    private resetToIdle(): void {
-        this.claimState = ClaimState.IDLE;
-        this.gateActive = false;
-    }
-
-    // -- Helpers --
-
-    private createPointer(e: PointerEvent): TrackedPointer {
-        return {
-            id: e.pointerId,
-            position: { x: e.clientX, y: e.clientY },
-            startPosition: { x: e.clientX, y: e.clientY },
-            startTime: e.timeStamp,
-            pointerType: e.pointerType as TrackedPointer["pointerType"],
-        };
-    }
-
-    private snapshot(
-        phase: PointerPhase,
-        changed: TrackedPointer,
-        originalEvent: PointerEvent,
-    ): PointerSnapshot {
-        const snap: PointerSnapshot = {
-            phase,
-            changed,
-            active: new Map(this.activePointers),
-            activeCount: this.activePointers.size,
-            timestamp: originalEvent.timeStamp,
-            originalEvent,
-        };
-
-        if (this.claimConfig) {
-            switch (this.claimState) {
-                case ClaimState.DETECTING:
-                    snap.claimState = "detecting";
-                    break;
-                case ClaimState.CLAIMED:
-                    snap.claimState = "claimed";
-                    break;
-                case ClaimState.RELEASED:
-                    snap.claimState = "released";
-                    break;
-            }
+    if (previousClaimPhase === "detecting" && claimPhase === "released") {
+        for (const stream of state.streams.values()) {
+            stream.release();
         }
-
-        return snap;
     }
+}
+
+// ── Projection ──────────────────────────────────────────────────
+
+function toSnapshot(state: TrackerState): PointerSnapshot {
+    const snap: PointerSnapshot = {
+        phase: state.lastEvent.phase,
+        changed: state.lastEvent.pointer,
+        active: state.active,
+        activeCount: state.active.size,
+    };
+
+    if (state.claimPhase !== "idle") {
+        snap.claimState = state.claimPhase;
+    }
+
+    return snap;
 }

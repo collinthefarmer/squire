@@ -3,20 +3,19 @@
  *
  * Two zones side by side:
  * - Canvas (left): always-capture mode. Drag/pinch rects freely.
- * - Scroll zone (right): gated claim window mode. One finger scrolls
- *   natively, pull down at top claims for overscroll gesture.
+ * - Scroll zone (right): scroll coexistence mode. One finger scrolls
+ *   natively, overscroll at boundary claims for pull gesture.
  *
  * Both zones share the same pointer data panel and event log.
  */
 
 import { html, nothing, type TemplateResult } from "lit-html";
 import { BaseComponent } from "@core/base-component";
-import { PointerTracker } from "@gestures/pointer-tracker";
+import { trackedPointers$ } from "@gestures/pointer-tracker";
 import type {
     PointerSnapshot,
     TrackedPointer,
 } from "@gestures/pointer-tracker";
-import { scrollBoundaryPull } from "@gestures/claim-conditions";
 import {
     delta,
     velocity,
@@ -50,8 +49,6 @@ interface LogEntry {
 const MAX_LOG_ENTRIES = 40;
 const LOG_MOVE_THROTTLE = 5;
 const PULL_REFRESH_THRESHOLD = 60;
-const BOUNDARY_PULL_THRESHOLD = 5;
-const DETECTION_THRESHOLD = 12;
 
 const SCROLL_ITEMS = Array.from({ length: 40 }, (_, i) => ({
     id: i,
@@ -135,6 +132,8 @@ const STYLES = `
     flex: 1;
     overflow: hidden;
     cursor: crosshair;
+    touch-action: none;
+    user-select: none;
 }
 
 .rect {
@@ -179,6 +178,8 @@ const STYLES = `
     flex: 1;
     overflow-y: auto;
     position: relative;
+    touch-action: pan-y;
+    overscroll-behavior: contain;
 }
 
 .scroll-list {
@@ -256,16 +257,14 @@ const STYLES = `
 `;
 
 export class GestureSandbox extends BaseComponent {
-    // Canvas zone (always-capture)
-    private canvasTracker: PointerTracker | null = null;
+    // Canvas zone
     private canvasPointers: ReadonlyMap<number, TrackedPointer> = new Map();
     private canvasEl: HTMLDivElement | null = null;
     private previousPairMetrics: PointerPairMetrics | null = null;
     private dragTarget: SandboxRect | null = null;
     private previousPositions = new Map<number, Point>();
 
-    // Scroll zone (gated claim window)
-    private scrollTracker: PointerTracker | null = null;
+    // Scroll zone
     private scrollPointers: ReadonlyMap<number, TrackedPointer> = new Map();
     private scrollEl: HTMLDivElement | null = null;
     private scrollClaimState: string = "idle";
@@ -320,40 +319,19 @@ export class GestureSandbox extends BaseComponent {
             this.scrollEl = this.shadowRoot!.querySelector(".scroll-area");
 
             if (this.canvasEl) {
-                this.canvasTracker = new PointerTracker(this.canvasEl);
-
-                this.subscribe(this.canvasTracker.events$, (snap) => {
-                    this.handleCanvasEvent(snap);
-                });
+                this.subscribe(
+                    trackedPointers$(this.canvasEl),
+                    (snap) => this.handleCanvasEvent(snap),
+                );
             }
 
             if (this.scrollEl) {
-                this.scrollTracker = new PointerTracker(this.scrollEl, {
-                    fallbackTouchAction: "pan-y",
-                    gate: true,
-                    detectionThresholdPx: DETECTION_THRESHOLD,
-                    conditions: [
-                        scrollBoundaryPull(
-                            this.scrollEl,
-                            "down",
-                            BOUNDARY_PULL_THRESHOLD,
-                        ),
-                    ],
-                });
-
-                this.subscribe(this.scrollTracker.events$, (snap) => {
-                    this.handleScrollEvent(snap);
-                });
+                this.subscribe(
+                    trackedPointers$(this.scrollEl, { scroll: true }),
+                    (snap) => this.handleScrollEvent(snap),
+                );
             }
         });
-    }
-
-    override disconnectedCallback(): void {
-        this.canvasTracker?.destroy();
-        this.scrollTracker?.destroy();
-        this.canvasTracker = null;
-        this.scrollTracker = null;
-        super.disconnectedCallback();
     }
 
     protected template(): TemplateResult {
@@ -445,7 +423,7 @@ export class GestureSandbox extends BaseComponent {
 
                     <div class="scroll-zone">
                         <div class="zone-header">
-                            <span>Scroll (gated boundary pull)</span>
+                            <span>Scroll (boundary detect)</span>
                             ${this.refreshing
                                 ? html`<span class="claim-badge claim-claimed"
                                       >Refreshing...</span
@@ -561,7 +539,7 @@ export class GestureSandbox extends BaseComponent {
         `;
     }
 
-    // -- Canvas zone handlers (always-capture, same as before) --
+    // -- Canvas zone handlers --
 
     private handleCanvasEvent(snapshot: PointerSnapshot): void {
         this.canvasPointers = snapshot.active;
@@ -695,7 +673,7 @@ export class GestureSandbox extends BaseComponent {
         return { x: rect.left, y: rect.top };
     }
 
-    // -- Scroll zone handlers (gated claim window) --
+    // -- Scroll zone handlers --
 
     private handleScrollEvent(snapshot: PointerSnapshot): void {
         this.scrollPointers = snapshot.active;
