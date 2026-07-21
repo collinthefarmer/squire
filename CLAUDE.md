@@ -10,8 +10,9 @@ Squire is an event-driven D&D campaign application built with Bun and TypeScript
 
 - `/docs/ARCHITECTURE.md` — System overview (start here)
 - `/docs/FEATURE_STATUS.md` — What's built, what's planned
-- `/docs/standards/CODE_STANDARDS.md` — Server and general coding rules
-- `/docs/standards/CLIENT_STANDARDS.md` — Client coding rules and component patterns
+- `/docs/standards/CODE_STYLE.md` — Shared coding rules (TypeScript, naming, functions, errors, logging, testing)
+- `/docs/standards/SERVER_STANDARDS.md` — Server-specific rules (events, DI, services, state, Zod)
+- `/docs/standards/CLIENT_STANDARDS.md` — Client-specific rules (AppStore, components, observables, CSS)
 
 **All code must follow `/docs/standards/`.** Review the relevant standards doc before making significant changes.
 
@@ -153,7 +154,7 @@ Static assets served from `server/public/audio/` and `server/public/images/`.
 
 ## Code Style
 
-See `/docs/standards/CODE_STANDARDS.md` for full rules. Principles that apply everywhere:
+See `/docs/standards/CODE_STYLE.md` for full rules. Principles that apply everywhere:
 
 - Early returns and guard clauses — keep happy path at lowest indentation
 - White-space is meaningful — bookend related code between empty lines to convey grouping and importance

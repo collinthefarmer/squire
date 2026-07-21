@@ -1,6 +1,6 @@
 # Client Standards
 
-Rules for writing client code (Display and Master). Use alongside `CODE_STANDARDS.md`.
+Rules for writing client code (Display and Master). Use alongside `CODE_STYLE.md` (shared rules) and `SERVER_STANDARDS.md` (server rules).
 
 ---
 
@@ -281,17 +281,7 @@ this.adoptStyles(componentCss);
 
 ---
 
-## 8. TypeScript
-
-- `strict: true` in tsconfig
-- `import type` for types and interfaces
-- No `any` — use `unknown` for truly dynamic, type guards to narrow
-- Branded types for domain IDs: `type ChannelId = Brand<string, 'ChannelId'>` (defined in server types, re-exported via `@types`)
-- For typed dispatch maps in event handlers with 4+ cases, see `CODE_STANDARDS.md` §6.3
-
----
-
-## 9. Component Creation Workflow
+## 8. Component Creation Workflow
 
 Before writing code:
 1. What domain? (audio, image, timing)
@@ -308,7 +298,7 @@ Before writing code:
 
 ---
 
-## 10. Code Organization
+## 9. Code Organization
 
 ```
 ts-web-client/src/
@@ -332,7 +322,7 @@ ts-web-client/src/
 
 ---
 
-## 11. Refactoring Priorities
+## 10. Refactoring Priorities
 
 When reviewing code for cleanup, address in this order:
 1. **Correctness bugs** — logic errors, lost state

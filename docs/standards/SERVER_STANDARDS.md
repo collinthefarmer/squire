@@ -1,6 +1,6 @@
-# Code Standards
+# Server Standards
 
-Rules for writing server-side (and general) code in Squire. For client-specific standards, see `CLIENT_STANDARDS.md`.
+Rules for writing server-side code in Squire. Use alongside `CODE_STYLE.md` (shared rules) and `CLIENT_STANDARDS.md` (client rules).
 
 ---
 
@@ -65,7 +65,6 @@ Services follow this template: constructor injection → `setupEventListeners()`
 - Keep handlers focused: validate → update state → broadcast
 - Extract complex state transformations to helpers
 - Return early for invalid states or no-op conditions
-- Use Logger instance — no direct `console.*` calls
 
 ```typescript
 export class AudioService {
@@ -132,12 +131,6 @@ state.audio.channels.set(channel, channelState);
 
 Place all helpers in `server/src/utils/state-helpers.ts`. Pure functions, no side effects.
 
-**Strict naming prefixes:**
-- `get*` — read operations
-- `set*` — create/replace operations
-- `update*` — transform operations
-- `remove*` — delete operations
-
 Build complex operations from simple primitives:
 
 ```typescript
@@ -159,18 +152,7 @@ Each reducer takes current `Map<string, State>` and a typed event, returns a new
 
 ---
 
-## 6. Type Safety
-
-### 6.1 TypeScript
-
-- All types in `server/src/types.ts`
-- `type` for discriminated unions and aliases, `interface` for object shapes
-- `import type` for types to avoid circular dependencies
-- Strict mode enabled — no `any`, use `unknown` for truly dynamic types
-- No type assertions (`as`) unless absolutely necessary
-- Type all parameters and return values explicitly
-
-### 6.2 Zod Validation
+## 6. Zod Validation
 
 - All schemas in `server/src/schemas.ts`
 - Use `z.discriminatedUnion` for the event schema
@@ -178,29 +160,9 @@ Each reducer takes current `Map<string, State>` and a typed event, returns a new
 - Add validation constraints (`.min()`, `.max()`, etc.)
 - Only validate external input (WebSocket messages), not internal events
 
-### 6.3 Typed Dispatch Maps
-
-For event handlers with 4+ cases, prefer a typed dispatch map over switch/case to get compiler-enforced exhaustiveness:
-
-```typescript
-type HandlerMap<U extends { type: string }> = {
-    [K in U["type"]]: (event: Extract<U, { type: K }>) => void;
-};
-
-const handlers: HandlerMap<ClockEvent> = {
-    "ui.clock.create": (e) => this.handleCreate(e),
-    "ui.clock.start":  (e) => this.handleStart(e),
-    // Compiler errors if a type is missing
-};
-```
-
-For 2-3 cases, switch/case with cast is fine.
-
 ---
 
-## 7. Code Organization
-
-### 7.1 File Structure
+## 7. File Structure
 
 ```
 server/src/
@@ -213,77 +175,10 @@ server/src/
 ```
 
 - One service per domain: `services/{domain}/{domain}-service.ts`
-- Max 3-4 levels of nesting
-- Files under 500 lines — split if larger
-- Co-locate tests: `foo.ts` → `foo.test.ts`
-
-### 7.2 Naming
-
-- **Files:** kebab-case (`audio-service.ts`)
-- **Classes:** PascalCase (`AudioService`)
-- **Interfaces/Types:** PascalCase (`AudioChannelState`, `IEventBus`)
-- **Functions/Methods:** camelCase (`handlePlay`, `getChannel`)
-- **Constants:** SCREAMING_SNAKE_CASE (`TOKENS`, `PUBLIC_DIR`)
-- **Event types:** dot.notation (`audio.play`, `visual.image.set`)
-- **Private members:** `private` keyword, no underscore prefix
-
-### 7.3 Imports
-
-Group in order, sort alphabetically within groups:
-1. External packages (Bun, Zod)
-2. Internal core infrastructure
-3. Internal utilities
-4. Internal types (`import type`)
-5. Relative imports
-
-Use `import type` for types. Avoid deep relative paths — use path aliases.
 
 ---
 
-## 8. Functions
-
-- Single responsibility — each function does one thing
-- Early returns for error cases and guard clauses — keep happy path at lowest indentation
-- `continue` in loops to skip early rather than nesting
-- Max 3-4 parameters — use object parameter for more
-- Prefer returning values over void + mutation
-- Return `undefined` for "not found" (not `null`)
-- Keep nesting to 2-3 levels max
-
----
-
-## 9. Error Handling
-
-- Try-catch for external I/O (WebSocket, file system, parsing)
-- Keep try blocks sparse — only wrap code that could throw
-- Validate user input with Zod — don't trust external data
-- Log all caught errors with context using Logger
-- Wrap event subscription callbacks in try/catch — a thrown error in an RxJS Subject terminates it permanently
-- Use `Promise.allSettled()` for multiple async operations
-- No empty catch blocks, no generic error messages without context
-
----
-
-## 10. Logging
-
-Use Logger class for all logging — no direct `console.*` calls.
-
-```typescript
-private logger = new Logger("AudioService");
-
-this.logger.info("Playing audio", { channel, source: source.ref });
-this.logger.error("Failed to process event", { error, channel });
-```
-
-**Levels:**
-- `debug` — development diagnostics
-- `info` — state transitions, significant events
-- `warn` — recoverable issues, unexpected states
-- `error` — failures and exceptions
-
----
-
-## 11. Adding New Event Types
+## 8. Adding New Event Types
 
 Step-by-step:
 
@@ -298,20 +193,7 @@ Non-breaking changes: add optional fields (`.optional()`). Breaking changes: cre
 
 ---
 
-## 12. Testing
-
-- Use `bun test` with Bun's built-in runner
-- Import from `bun:test`
-- Co-locate tests: `foo.ts` → `foo.test.ts`
-- Test state helpers in isolation (pure functions)
-- Use shared test data factories: `make{Entity}(overrides?)` convention
-- Descriptive names: `test("should pause channel when audio.pause received")`
-- Group with `describe()`
-- Don't test implementation details — test behavior
-
----
-
-## 13. Bun-Specific
+## 9. Bun-Specific
 
 - Use `Bun.serve()` for HTTP/WebSocket
 - Use `Bun.file()` for file operations
