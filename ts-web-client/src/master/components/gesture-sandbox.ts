@@ -12,23 +12,25 @@
 import { html, nothing, type TemplateResult } from "lit-html";
 import { tap } from "rxjs/operators";
 import { BaseComponent } from "@core/base-component";
-import { pointers$ } from "@gestures/pointers";
-import { trackedPointers$ } from "@gestures/pointer-tracker";
-import { gestures } from "@gestures/gestures";
-import { drag, pinch } from "@gestures/recognizers";
-import type { DragEvent, PinchEvent } from "@gestures/recognizers";
-import type {
-    PointerSnapshot,
-    TrackedPointer,
-} from "@gestures/pointer-tracker";
 import {
+    pointers$,
+    trackedPointers$,
+    gestures,
+    drag,
+    pinch,
     delta,
     velocity,
     pairMetrics,
     pairDelta,
-    type Point,
-    type PointerPairMetrics,
-} from "@gestures/transform";
+} from "@gestures";
+import type {
+    PointerSnapshot,
+    TrackedPointer,
+    DragEvent,
+    PinchEvent,
+    Point,
+    PointerPairMetrics,
+} from "@gestures";
 
 interface SandboxRect {
     id: string;

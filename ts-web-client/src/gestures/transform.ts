@@ -57,6 +57,39 @@ export function pairMetrics(a: Point, b: Point): PointerPairMetrics {
     };
 }
 
+export function centroid(points: Point[]): Point {
+    const n = points.length;
+    if (n === 0) return { x: 0, y: 0 };
+
+    let x = 0;
+    let y = 0;
+
+    for (const p of points) {
+        x += p.x;
+        y += p.y;
+    }
+
+    return { x: x / n, y: y / n };
+}
+
+export function matchesDirection(
+    dx: number,
+    dy: number,
+    direction: Point,
+): boolean {
+    const dot = dx * direction.x + dy * direction.y;
+    if (dot <= 0) return false;
+
+    const moveDominant =
+        Math.abs(dy) >= Math.abs(dx) ? ("y" as const) : ("x" as const);
+    const dirDominant =
+        Math.abs(direction.y) >= Math.abs(direction.x)
+            ? ("y" as const)
+            : ("x" as const);
+
+    return moveDominant === dirDominant;
+}
+
 export function pairDelta(
     prev: PointerPairMetrics,
     current: PointerPairMetrics,
