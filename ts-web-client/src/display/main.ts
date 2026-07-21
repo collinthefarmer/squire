@@ -12,7 +12,7 @@ import { Logger } from "@utils/logger";
 
 const logger = new Logger("Display");
 
-const SERVER_URL = `ws://${window.location.hostname}:3000/ws`;
+const SERVER_URL = `wss://${window.location.hostname}:3000/ws`;
 
 const eventBus = new EventBus();
 const connection = new ConnectionService(SERVER_URL, "display");

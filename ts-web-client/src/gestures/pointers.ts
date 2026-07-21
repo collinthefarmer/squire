@@ -13,20 +13,27 @@
  */
 
 import { Observable, fromEvent, merge } from "rxjs";
-import { filter, take, map, takeUntil, share, shareReplay } from "rxjs/operators";
-import type { Point } from "./transform";
+import {
+    filter,
+    take,
+    map,
+    takeUntil,
+    share,
+    shareReplay,
+} from "rxjs/operators";
+import type { Point as Vector2 } from "./transform";
 
 export type PointerEnd = {
     reason: "up" | "cancel";
-    position: Point;
+    position: Vector2;
 };
 
 export type PointerStream = {
     id: number;
-    start: Point;
+    start: Vector2;
     startTime: number;
     pointerType: "mouse" | "touch" | "pen";
-    move$: Observable<Point>;
+    move$: Observable<Vector2>;
     end$: Observable<PointerEnd>;
     capture: () => void;
     release: () => void;
@@ -113,7 +120,7 @@ export function pointers$(
         }
 
         const onPointerDown = (e: PointerEvent): void => {
-            const start: Point = { x: e.clientX, y: e.clientY };
+            const start: Vector2 = { x: e.clientX, y: e.clientY };
             let captured = false;
             let gated = !!options?.gate;
 
@@ -171,7 +178,7 @@ export function pointers$(
 
             const move$ = fromEvent<PointerEvent>(document, "pointermove").pipe(
                 filter((ev) => ev.pointerId === e.pointerId),
-                map((ev): Point => ({ x: ev.clientX, y: ev.clientY })),
+                map((ev): Vector2 => ({ x: ev.clientX, y: ev.clientY })),
                 takeUntil(end$),
                 share(),
             );

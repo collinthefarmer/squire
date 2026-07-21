@@ -325,9 +325,7 @@ export class GestureSandbox extends BaseComponent {
             if (this.canvasEl) {
                 this.subscribe(
                     trackedPointers$(
-                        pointers$(this.canvasEl).pipe(
-                            tap((s) => s.capture()),
-                        ),
+                        pointers$(this.canvasEl).pipe(tap((s) => s.capture())),
                     ),
                     (snap) => this.handleCanvasEvent(snap),
                 );
@@ -347,15 +345,11 @@ export class GestureSandbox extends BaseComponent {
                     (e) => this.handlePullDrag(e),
                 );
 
-                this.subscribe(
-                    input.on(drag({ touches: 2 })),
-                    (e) => this.handleTwoFingerDrag(e),
+                this.subscribe(input.on(drag({ touches: 2 })), (e) =>
+                    this.handleTwoFingerDrag(e),
                 );
 
-                this.subscribe(
-                    input.on(pinch()),
-                    (e) => this.handlePinch(e),
-                );
+                this.subscribe(input.on(pinch()), (e) => this.handlePinch(e));
             }
         });
     }
@@ -456,25 +450,30 @@ export class GestureSandbox extends BaseComponent {
                                       ${this.pinchScale.toFixed(2)}x</span
                                   >`
                                 : this.twoFingerDelta
-                                  ? html`<span
-                                        class="claim-badge claim-claimed"
+                                  ? html`<span class="claim-badge claim-claimed"
                                         >2-finger:
-                                        (${Math.round(this.twoFingerDelta.x)},${Math.round(this.twoFingerDelta.y)})</span
+                                        (${Math.round(
+                                            this.twoFingerDelta.x,
+                                        )},${Math.round(
+                                            this.twoFingerDelta.y,
+                                        )})</span
                                     >`
                                   : this.refreshing
-                                  ? html`<span class="claim-badge claim-claimed"
-                                        >Refreshing...</span
-                                    >`
-                                  : this.pullDistance > 0
                                     ? html`<span
                                           class="claim-badge claim-claimed"
-                                          >Pull:
-                                          ${Math.round(this.pullDistance)}px</span
+                                          >Refreshing...</span
                                       >`
-                                    : html`<span class="data-label"
-                                          >1-finger pull / 2-finger
-                                          drag</span
-                                      >`}
+                                    : this.pullDistance > 0
+                                      ? html`<span
+                                            class="claim-badge claim-claimed"
+                                            >Pull:
+                                            ${Math.round(
+                                                this.pullDistance,
+                                            )}px</span
+                                        >`
+                                      : html`<span class="data-label"
+                                            >1-finger pull / 2-finger drag</span
+                                        >`}
                         </div>
                         <div class="scroll-area">
                             ${this.pullDistance > 0

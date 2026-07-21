@@ -1,10 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { Subject, EMPTY } from "rxjs";
-import {
-    gather,
-    emptyState,
-    pointerLifecycle$,
-} from "./pointer-tracker";
+import { gather, emptyState, pointerLifecycle$ } from "./pointer-tracker";
 import type { InternalEvent } from "./pointer-tracker";
 import type { TrackedPointer } from "./pointer-tracker";
 import type { PointerStream } from "./pointers";
@@ -69,10 +65,7 @@ describe("gather", () => {
     });
 
     test("move updates position in active map", () => {
-        let state = gather(
-            emptyState(),
-            makeEvent("start", 1, { x: 0, y: 0 }),
-        );
+        let state = gather(emptyState(), makeEvent("start", 1, { x: 0, y: 0 }));
 
         state = gather(state, makeEvent("move", 1, { x: 50, y: 75 }));
 
@@ -80,10 +73,7 @@ describe("gather", () => {
     });
 
     test("end removes pointer from active map", () => {
-        let state = gather(
-            emptyState(),
-            makeEvent("start", 1, { x: 0, y: 0 }),
-        );
+        let state = gather(emptyState(), makeEvent("start", 1, { x: 0, y: 0 }));
 
         state = gather(state, makeEvent("end", 1, { x: 10, y: 10 }));
 
@@ -91,10 +81,7 @@ describe("gather", () => {
     });
 
     test("cancel removes pointer from active map", () => {
-        let state = gather(
-            emptyState(),
-            makeEvent("start", 1, { x: 0, y: 0 }),
-        );
+        let state = gather(emptyState(), makeEvent("start", 1, { x: 0, y: 0 }));
 
         state = gather(state, makeEvent("cancel", 1, { x: 0, y: 0 }));
 
@@ -102,10 +89,7 @@ describe("gather", () => {
     });
 
     test("multiple pointers tracked concurrently", () => {
-        let state = gather(
-            emptyState(),
-            makeEvent("start", 1, { x: 0, y: 0 }),
-        );
+        let state = gather(emptyState(), makeEvent("start", 1, { x: 0, y: 0 }));
 
         state = gather(state, makeEvent("start", 2, { x: 100, y: 0 }));
 
@@ -118,10 +102,7 @@ describe("gather", () => {
     });
 
     test("lastEvent tracks the most recent event", () => {
-        let state = gather(
-            emptyState(),
-            makeEvent("start", 1, { x: 0, y: 0 }),
-        );
+        let state = gather(emptyState(), makeEvent("start", 1, { x: 0, y: 0 }));
 
         expect(state.lastEvent?.phase).toBe("start");
 

@@ -1,16 +1,16 @@
 /**
  * Pinch recognizer — two-finger scale/rotation gesture.
  *
- * Recognition: race scale-change threshold against early pointer
- * end. Confidence is based on spread vs translation ratio.
+ * Recognition: the decide function watches scale change until
+ * it crosses threshold. Confidence is based on spread vs
+ * translation ratio.
  */
 
-import { race, of, merge, combineLatest } from "rxjs";
-import { map, filter, take, takeUntil, share } from "rxjs/operators";
+import { combineLatest } from "rxjs";
+import { map } from "rxjs/operators";
 import { distance, centroid, angle } from "../transform";
-import type { Observable } from "rxjs";
-import type { PointerStream } from "../pointers";
-import type { Recognition, Recognizer } from "../gestures";
+import { defineRecognizer, describe } from "../harness";
+import type { Recognizer } from "../recognizer";
 import type { Point } from "../transform";
 
 export type PinchEvent = {
@@ -26,71 +26,75 @@ export type PinchConfig = {
     threshold?: number;
 };
 
-const DEFAULT_THRESHOLD = 0.05;
+const DEFAULT_PINCH_THRESHOLD = 0.05;
 
 export function pinch(config?: PinchConfig): Recognizer<PinchEvent> {
-    const threshold = config?.threshold ?? DEFAULT_THRESHOLD;
+    const threshold = config?.threshold ?? DEFAULT_PINCH_THRESHOLD;
 
-    return {
-        touches: 2,
-        recognize(
-            pointers: PointerStream[],
-        ): Observable<Recognition<PinchEvent>> {
-            if (pointers.length < 2) {
-                return of<Recognition<PinchEvent>>({ status: "reject" });
-            }
+    return defineRecognizer(2, (pointers) => {
+        const [a, b] = [pointers[0]!, pointers[1]!];
 
-            const [a, b] = [pointers[0]!, pointers[1]!];
-            const initialDist = distance(a.start, b.start);
+        const initialSpacing = distance(a.start, b.start);
+        if (initialSpacing === 0) return null;
 
-            if (initialDist === 0) {
-                return of<Recognition<PinchEvent>>({ status: "reject" });
-            }
+        const initialAngle = angle(a.start, b.start);
+        const initialCenter = centroid([a.start, b.start]);
 
-            const initialAngle = angle(a.start, b.start);
-            const initialCenter = centroid([a.start, b.start]);
-            const anyEnd$ = merge(a.end$, b.end$).pipe(take(1));
+        return describe(
+            combineLatest([a.move$, b.move$]).pipe(
+                map(mapPinchMetrics(initialSpacing, initialAngle)),
+            ),
+            {
+                decide(m) {
+                    if (Math.abs(m.scale - 1.0) < threshold) return null;
 
-            const metrics$ = combineLatest([a.move$, b.move$]).pipe(
-                map(([posA, posB]) => ({
-                    center: centroid([posA, posB]),
-                    scale: distance(posA, posB) / initialDist,
-                    rotation: angle(posA, posB) - initialAngle,
-                    distance: distance(posA, posB),
-                })),
-                share(),
-            );
-
-            const thresholdCrossed$ = metrics$.pipe(
-                filter((m) => Math.abs(m.scale - 1.0) >= threshold),
-                take(1),
-                map((first): Recognition<PinchEvent> => {
-                    const spread = Math.abs(first.distance - initialDist);
-                    const translation = distance(first.center, initialCenter);
-                    const confidence = spread / (spread + translation + 1);
-
-                    const moves$ = metrics$.pipe(
-                        map((m): PinchEvent => ({ phase: "move", ...m })),
-                        takeUntil(anyEnd$),
+                    return pinchConfidence(
+                        m.distance,
+                        initialSpacing,
+                        m.center,
+                        initialCenter,
                     );
+                },
 
-                    const end$ = anyEnd$.pipe(
-                        map((): PinchEvent => ({ phase: "end", ...first })),
-                    );
+                toEvent: (m): PinchEvent => ({ phase: "move", ...m }),
+                toEnd: (_end, last): PinchEvent => ({ ...last, phase: "end" }),
+            },
+        );
+    });
+}
 
-                    return {
-                        status: "claim",
-                        gesture$: merge(moves$, end$),
-                        confidence,
-                    };
-                }),
-            );
+type PinchMetrics = {
+    center: Point;
+    scale: number;
+    rotation: number;
+    distance: number;
+};
 
-            const ended$ = anyEnd$.pipe(
-                map((): Recognition<PinchEvent> => ({ status: "reject" })),
-            );
+function mapPinchMetrics(
+    initialDist: number,
+    initialAngle: number,
+): (points: [Point, Point]) => PinchMetrics {
+    return ([posA, posB]) => ({
+        center: centroid([posA, posB]),
+        scale: distance(posA, posB) / initialDist,
+        rotation: angle(posA, posB) - initialAngle,
+        distance: distance(posA, posB),
+    });
+}
 
-            return race(thresholdCrossed$, ended$);
-        },
-    };
+/**
+ * Ratio of finger spread to centroid translation. A pure pinch
+ * (fingers diverging/converging in place) scores high; fingers
+ * translating together score low.
+ */
+function pinchConfidence(
+    currentDist: number,
+    initialDist: number,
+    center: Point,
+    initialCenter: Point,
+): number {
+    const spread = Math.abs(currentDist - initialDist);
+    const translation = distance(center, initialCenter);
+
+    return spread / (spread + translation + 1);
 }

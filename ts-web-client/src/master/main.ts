@@ -13,7 +13,7 @@ import { GestureSandbox } from "./components/gesture-sandbox";
 
 const logger = new Logger("Master");
 
-const SERVER_URL = `ws://${window.location.hostname}:3000/ws`;
+const SERVER_URL = `wss://${window.location.hostname}:3000/ws`;
 
 const eventBus = new EventBus();
 const connection = new ConnectionService(SERVER_URL, "master");

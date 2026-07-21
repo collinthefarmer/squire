@@ -51,8 +51,9 @@ export function trackedPointers$(
                 gather(state, event),
             emptyState(),
         ),
-        filter((state): state is GathererState & { lastEvent: InternalEvent } =>
-            state.lastEvent !== undefined,
+        filter(
+            (state): state is GathererState & { lastEvent: InternalEvent } =>
+                state.lastEvent !== undefined,
         ),
         map(toSnapshot),
         share(),
@@ -146,7 +147,9 @@ export function gather(
 
 // ── Projection ──────────────────────────────────────────────────
 
-function toSnapshot(state: GathererState & { lastEvent: InternalEvent }): PointerSnapshot {
+function toSnapshot(
+    state: GathererState & { lastEvent: InternalEvent },
+): PointerSnapshot {
     return {
         phase: state.lastEvent.phase,
         changed: state.lastEvent.pointer,

@@ -72,14 +72,29 @@ export function velocity(prev: Point, current: Point, dtMs: number): Point {
     return scale(subtract(current, prev), 1 / dtMs);
 }
 
-export function dominantAxis(p: Point): "x" | "y" {
-    return Math.abs(p.y) >= Math.abs(p.x) ? "y" : "x";
+/**
+ * Cosine similarity between two vectors, clamped to [-1, 1].
+ * Returns 1 for parallel, 0 for perpendicular, -1 for opposite.
+ */
+export function cosineAngle(a: Point, b: Point): number {
+    const denom = magnitude(a) * magnitude(b);
+    if (denom === 0) return 0;
+
+    return dot(a, b) / denom;
 }
 
-export function matchesDirection(movement: Point, direction: Point): boolean {
-    if (dot(movement, direction) <= 0) return false;
+const DEFAULT_DIRECTION_THRESHOLD = Math.cos(Math.PI / 4);
 
-    return dominantAxis(movement) === dominantAxis(direction);
+/**
+ * Whether movement aligns with a direction within a cone.
+ * Threshold is the minimum cosine similarity (default cos(45°) ≈ 0.707).
+ */
+export function matchesDirection(
+    movement: Point,
+    direction: Point,
+    threshold = DEFAULT_DIRECTION_THRESHOLD,
+): boolean {
+    return cosineAngle(movement, direction) >= threshold;
 }
 
 // ── Pair metrics ────────────────────────────────────────────────

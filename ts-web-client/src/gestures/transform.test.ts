@@ -9,7 +9,7 @@ import {
     centroid,
     angle,
     velocity,
-    dominantAxis,
+    cosineAngle,
     matchesDirection,
     pairMetrics,
     pairDelta,
@@ -79,22 +79,44 @@ describe("composed operations", () => {
 });
 
 describe("direction", () => {
-    test("dominantAxis", () => {
-        expect(dominantAxis({ x: 10, y: 3 })).toBe("x");
-        expect(dominantAxis({ x: 3, y: 10 })).toBe("y");
-        expect(dominantAxis({ x: 5, y: 5 })).toBe("y"); // equal defaults to y
+    test("cosineAngle — parallel vectors", () => {
+        expect(cosineAngle({ x: 0, y: 5 }, { x: 0, y: 1 })).toBeCloseTo(1);
     });
 
-    test("matchesDirection — same direction and axis", () => {
+    test("cosineAngle — perpendicular vectors", () => {
+        expect(cosineAngle({ x: 10, y: 0 }, { x: 0, y: 1 })).toBeCloseTo(0);
+    });
+
+    test("cosineAngle — opposite vectors", () => {
+        expect(cosineAngle({ x: 0, y: -5 }, { x: 0, y: 1 })).toBeCloseTo(-1);
+    });
+
+    test("cosineAngle — zero vector returns 0", () => {
+        expect(cosineAngle({ x: 0, y: 0 }, { x: 0, y: 1 })).toBe(0);
+    });
+
+    test("matchesDirection — aligned within default cone", () => {
         expect(matchesDirection({ x: 0, y: 10 }, { x: 0, y: 1 })).toBe(true);
+        expect(matchesDirection({ x: 3, y: 10 }, { x: 0, y: 1 })).toBe(true);
     });
 
     test("matchesDirection — opposite direction", () => {
         expect(matchesDirection({ x: 0, y: -10 }, { x: 0, y: 1 })).toBe(false);
     });
 
-    test("matchesDirection — wrong dominant axis", () => {
+    test("matchesDirection — outside default cone", () => {
         expect(matchesDirection({ x: 10, y: 2 }, { x: 0, y: 1 })).toBe(false);
+    });
+
+    test("matchesDirection — custom threshold narrows cone", () => {
+        const tight = Math.cos(Math.PI / 8); // 22.5°
+        expect(matchesDirection({ x: 3, y: 10 }, { x: 0, y: 1 }, tight)).toBe(true);
+        expect(matchesDirection({ x: 5, y: 5 }, { x: 0, y: 1 }, tight)).toBe(false);
+    });
+
+    test("matchesDirection — custom threshold widens cone", () => {
+        const wide = Math.cos(Math.PI / 3); // 60°
+        expect(matchesDirection({ x: 8, y: 10 }, { x: 0, y: 1 }, wide)).toBe(true);
     });
 });
 

@@ -1,17 +1,22 @@
 /**
  * Drag recognizer — single or multi-touch directional drag.
  *
- * Recognition: race threshold crossing against early pointer end.
- * At threshold, evaluates direction match and guard predicate.
- * Confidence for multi-touch is based on translation vs spread.
+ * Recognition: the decide function watches centroid displacement
+ * until it crosses threshold, then checks direction and guard.
+ * Multi-touch confidence is based on translation vs spread.
  */
 
-import { race, of, merge, combineLatest } from "rxjs";
-import { map, filter, take, takeUntil, share } from "rxjs/operators";
-import { subtract, magnitude, distance, centroid, matchesDirection } from "../transform";
-import type { Observable } from "rxjs";
-import type { PointerStream } from "../pointers";
-import type { Recognition, Recognizer } from "../gestures";
+import { combineLatest } from "rxjs";
+import { map } from "rxjs/operators";
+import {
+    subtract,
+    magnitude,
+    distance,
+    centroid,
+    matchesDirection,
+} from "../transform";
+import { defineRecognizer, describe } from "../harness";
+import type { Recognizer } from "../recognizer";
 import type { Point } from "../transform";
 
 export type DragEvent = {
@@ -31,140 +36,88 @@ export type DragConfig = {
     when?: () => boolean;
 };
 
-const DEFAULT_THRESHOLD = 10;
-
-type DeltaEvent = {
-    position: Point;
-    delta: Point;
-    positions?: Point[];
-};
+const DEFAULT_DRAG_THRESHOLD = 10;
 
 export function drag(config?: DragConfig): Recognizer<DragEvent> {
-    const threshold = config?.threshold ?? DEFAULT_THRESHOLD;
-    const touches = config?.touches ?? 1;
+    const threshold = config?.threshold ?? DEFAULT_DRAG_THRESHOLD;
 
-    return {
-        touches,
-        recognize(
-            pointers: PointerStream[],
-        ): Observable<Recognition<DragEvent>> {
-            if (pointers.length < touches) {
-                return of<Recognition<DragEvent>>({ status: "reject" });
-            }
+    return defineRecognizer(config?.touches ?? 1, (pointers) => {
+        const origin = centroid(pointers.map((p) => p.start));
+        const initialSpacing =
+            pointers.length >= 2
+                ? distance(pointers[0]!.start, pointers[1]!.start)
+                : 0;
 
-            const ptrs = pointers.slice(0, touches);
-            const origin = centroid(ptrs.map((p) => p.start));
-            const initialDist =
-                ptrs.length >= 2
-                    ? distance(ptrs[0]!.start, ptrs[1]!.start)
-                    : 0;
+        return describe(
+            combineLatest(pointers.map((p) => p.move$)).pipe(
+                map(mapDragMetrics(origin)),
+            ),
+            {
+                decide(m) {
+                    if (magnitude(m.delta) < threshold) return null;
 
-            const delta$ = combinedDelta$(ptrs, origin);
+                    if (
+                        (config?.direction &&
+                            !matchesDirection(m.delta, config.direction)) ||
+                        (config?.when && !config.when())
+                    ) {
+                        return false;
+                    }
 
-            const thresholdCrossed$ = delta$.pipe(
-                filter((e) => magnitude(e.delta) >= threshold),
-                take(1),
-                map((first) =>
-                    decideClaim(ptrs, delta$, origin, first, initialDist, config),
-                ),
-            );
+                    return dragConfidence(m.delta, m.positions, initialSpacing);
+                },
 
-            const anyEnded$ = merge(...ptrs.map((p) => p.end$)).pipe(
-                take(1),
-                map((): Recognition<DragEvent> => ({ status: "reject" })),
-            );
+                toEvent: (m): DragEvent => ({
+                    phase: "move",
+                    position: m.position,
+                    origin,
+                    delta: m.delta,
+                }),
 
-            return race(thresholdCrossed$, anyEnded$);
-        },
-    };
-}
-
-// ── Combined delta stream ───────────────────────────────────────
-
-function combinedDelta$(
-    pointers: PointerStream[],
-    origin: Point,
-): Observable<DeltaEvent> {
-    if (pointers.length === 1) {
-        return pointers[0]!.move$.pipe(
-            map((pos) => ({
-                position: pos,
-                delta: subtract(pos, origin),
-            })),
-            share(),
+                toEnd: (end): DragEvent => ({
+                    phase: "end",
+                    position: end.position,
+                    origin,
+                    delta: subtract(end.position, origin),
+                }),
+            },
         );
-    }
-
-    return combineLatest(pointers.map((p) => p.move$)).pipe(
-        map((positions) => {
-            const pos = centroid(positions);
-
-            return {
-                position: pos,
-                delta: subtract(pos, origin),
-                positions,
-            };
-        }),
-        share(),
-    );
+    });
 }
 
-// ── Claim decision ──────────────────────────────────────────────
+type DragMetrics = {
+    position: Point;
+    delta: Point;
+    positions: Point[];
+};
 
-function decideClaim(
-    pointers: PointerStream[],
-    delta$: Observable<DeltaEvent>,
-    origin: Point,
-    first: DeltaEvent,
-    initialDist: number,
-    config?: DragConfig,
-): Recognition<DragEvent> {
-    if (config?.direction && !matchesDirection(first.delta, config.direction)) {
-        return { status: "reject" };
-    }
+function mapDragMetrics(origin: Point): (positions: Point[]) => DragMetrics {
+    return (positions) => {
+        const position = centroid(positions);
 
-    if (config?.when && !config.when()) {
-        return { status: "reject" };
-    }
-
-    const translation = magnitude(first.delta);
-    let confidence = 1.0;
-
-    if (pointers.length >= 2 && first.positions && initialDist > 0) {
-        const currentDist = distance(first.positions[0]!, first.positions[1]!);
-        const spread = Math.abs(currentDist - initialDist);
-
-        confidence = translation / (translation + spread + 1);
-    }
-
-    const anyEnd$ = merge(...pointers.map((p) => p.end$)).pipe(take(1));
-
-    const moves$ = delta$.pipe(
-        map(
-            (e): DragEvent => ({
-                phase: "move",
-                position: e.position,
-                origin,
-                delta: e.delta,
-            }),
-        ),
-        takeUntil(anyEnd$),
-    );
-
-    const end$ = anyEnd$.pipe(
-        map(
-            (end): DragEvent => ({
-                phase: "end",
-                position: end.position,
-                origin,
-                delta: subtract(end.position, origin),
-            }),
-        ),
-    );
-
-    return {
-        status: "claim",
-        gesture$: merge(moves$, end$),
-        confidence,
+        return {
+            position,
+            delta: subtract(position, origin),
+            positions,
+        };
     };
+}
+
+/**
+ * Single-touch: full confidence. Multi-touch: ratio of centroid
+ * translation to finger spread. A pure drag (fingers moving
+ * together) scores high; diverging fingers score low.
+ */
+function dragConfidence(
+    delta: Point,
+    positions: Point[],
+    initialSpacing: number,
+): number {
+    if (positions.length < 2 || initialSpacing === 0) return 1.0;
+
+    const translation = magnitude(delta);
+    const currentDist = distance(positions[0]!, positions[1]!);
+    const spread = Math.abs(currentDist - initialSpacing);
+
+    return translation / (translation + spread + 1);
 }
