@@ -143,25 +143,41 @@ export class MyComponent extends BaseComponent {
 - Use `this.subscribe()` for all observable subscriptions — never subscribe manually
 - Register components in `main.ts` with `customElements.define()`
 
-### 5.2 Component Responsibilities
+### 5.2 Component Boundaries
 
-- Components are pure presentation — view logic only
-- State flows: Server → AppStore → Components → DOM
-- No business logic in components — delegate to services or dispatch events
+A component exists to own a piece of the screen. If you can point at a region and say "that updates as a unit," it's a component. If two regions update independently, they're two components — even if they sit next to each other visually.
 
-### 5.3 Component Communication
+The question isn't "is this complex enough to extract?" It's "does this have its own lifecycle?" A volume slider that emits change events has a lifecycle. A label that displays a channel name does not — it's part of its parent's template.
 
-- HTML attributes for string props (kebab-case)
-- JavaScript properties for complex data (camelCase)
-- `CustomEvent` with `{ bubbles: true, composed: true }` for child → parent
-- AppStore for shared state — avoid deep prop drilling
-- Slots for flexible composition
-- Never access child component internals directly
+### 5.3 Containers and Presentational Components
 
-### 5.4 Container + Child Pattern
+The split is about who knows what.
 
-- **Container** (e.g., `AudioControls`): coordinates children, aggregates state, dispatches events via `store.dispatch()`
-- **Child** (e.g., `VolumeControl`): single-responsibility UI, emits CustomEvents upward
+A **container** knows the system. It subscribes to AppStore observables, dispatches events, and coordinates its children. It doesn't render detailed UI itself — it assembles the components that do. Name containers for what they coordinate: `AudioControls`, `LayerPanel`.
+
+A **presentational component** knows the user. It renders data it receives through attributes or properties and signals user intent upward through `CustomEvent`. It never imports `store` or dispatches domain events. Name presentational components for what they display: `VolumeSlider`, `LayerCard`, `TrackList`.
+
+The test: "would this still work if I deleted the server?" Presentational components would. Containers wouldn't.
+
+### 5.4 Composition
+
+A component with five boolean flags that toggle different layouts is three components wearing a trench coat. When you find yourself adding modes or switches, split instead.
+
+**Slots** let parents assemble children without children knowing about each other. Prefer slots over configuration props whenever a component's content varies by context.
+
+**Parent positions children.** A child component never sets its own margin, position, or placement within a layout. It fills the space its parent gives it — the parent decides where that space is. `:host` styles on a child should describe the child's own display behavior (`display: block`, `overflow: hidden`), not its relationship to siblings.
+
+**Data flows down, intent flows up.** Pass data into children through HTML attributes (strings, kebab-case) or JavaScript properties (complex data, camelCase). Children signal back through `CustomEvent` with `{ bubbles: true, composed: true }`. If a component needs to know about its siblings, that knowledge belongs in the parent.
+
+**Never reach into a child's internals.** No `querySelector` into a child's shadow DOM, no calling methods on child elements. The component boundary is a contract — communicate through attributes, properties, events, and slots.
+
+### 5.5 What Belongs in a Component vs a Service
+
+Components answer "what does the user see?" Services answer "what is true?"
+
+A component that computes derived state from raw observables is doing a service's job. If you find a `pipe(map(...), filter(...))` chain in a component that other components might need, move it to the service and expose a new observable. Components should subscribe to data that's already in the shape they need.
+
+Conversely, a service that knows about DOM structure or visual layout has crossed the line. Services produce state. Components consume it and render.
 
 ---
 
@@ -241,60 +257,42 @@ eventBus.on('audio.play').subscribe((event) => {
 
 ## 7. CSS
 
-### 7.1 Strategy
-
-Inline CSS strings passed to `adoptStyles()`:
+Styles are strings passed to `adoptStyles()`. For small components, define a `STYLES` constant in the same file. For larger stylesheets, extract to an adjacent `.css` file and import with `with { type: "text" }`.
 
 ```typescript
+// Inline for small components
 const STYLES = `
 :host { display: block; width: 100%; }
 .container { padding: var(--spacing-md); }
 `;
 
-connectedCallback(): void {
-    super.connectedCallback();
-    this.adoptStyles(STYLES);
-}
-```
-
-For larger stylesheets, extract to an adjacent `.css` file and import:
-
-```typescript
+// External for larger ones
 import componentCss from "./my-component.css" with { type: "text" };
-this.adoptStyles(componentCss);
+
+// Either way, adopt in connectedCallback
+this.adoptStyles(STYLES);
 ```
 
-### 7.2 Theme
+Use CSS custom properties for all visual values — never hardcode colors, spacing, or font sizes. The theme is the single source of truth for how things look. A component that hardcodes `color: #3a3a3a` will break the moment the theme changes.
 
-- CSS custom properties for all values — never hardcode colors or spacing
-- Shadow DOM for reusable components (buttons, cards, modals)
-- Light DOM for layout components (page containers, grids)
+**Shadow DOM vs Light DOM:** Shadow DOM isolates styles and structure — use it for reusable components (buttons, cards, sliders). Light DOM inherits the page's styles — use it for layout containers (page shells, grids) where isolation would fight the cascade.
 
-### 7.3 Accessibility
-
-- Semantic HTML elements (header, nav, main, section)
-- ARIA labels for custom controls
-- 4.5:1 color contrast minimum
-- Keyboard navigation (Tab, Enter, Escape)
-- Focus indicators for interactive elements
-- No div buttons — use `<button>`
+**Accessibility is structure, not decoration.** Use semantic elements (`button`, `nav`, `section`) — they carry meaning a `div` never will. Custom controls need ARIA labels. Interactive elements need visible focus indicators and keyboard handling (Tab, Enter, Escape). Minimum 4.5:1 color contrast.
 
 ---
 
-## 8. Component Creation Workflow
+## 8. Building a New Component
 
-Before writing code:
-1. What domain? (audio, image, timing)
-2. Container or presentational?
-3. What state does it need from AppStore?
-4. What events does it emit/dispatch?
+Start from what the user sees, then work backward.
 
-**Steps:**
-1. Create component file in `{client}/components/{domain}/`
+What region of the screen is this? What data does it show, and what can the user do with it? That tells you whether it's a container (subscribes to AppStore, dispatches events) or presentational (receives props, emits intent). Most new components are one of these — rarely both.
+
+Once you know the shape:
+1. Create the file in `{client}/components/{domain}/`
 2. Extend `BaseComponent`, implement `template()`
-3. Subscribe to AppStore observables in `connectedCallback()`
+3. Containers subscribe to AppStore in `connectedCallback()`. Presentational components receive data through attributes or properties.
 4. Register in `main.ts` with `customElements.define()`
-5. If new server events needed: types in `server/src/types.ts`, schemas in `server/src/schemas.ts`, add to `eventSchema`, add `EventBuilder` method
+5. If the component needs new server events: define types in `server/src/types.ts`, schemas in `server/src/schemas.ts`, add to the `eventSchema` union, and add an `EventBuilder` method
 
 ---
 
