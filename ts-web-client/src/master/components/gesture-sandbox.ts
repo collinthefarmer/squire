@@ -1,9 +1,12 @@
 /**
  * Gesture sandbox — pointer data exploration component.
  *
- * Visualizes raw pointer data, geometric relationships between
- * pointers, and lets you interact with draggable/scalable objects.
- * No gesture classification — just data and direct manipulation.
+ * Two zones side by side:
+ * - Canvas (left): always-capture mode. Drag/pinch rects freely.
+ * - Scroll zone (right): gated claim window mode. One finger scrolls
+ *   natively, pull down at top claims for overscroll gesture.
+ *
+ * Both zones share the same pointer data panel and event log.
  */
 
 import { html, nothing, type TemplateResult } from "lit-html";
@@ -13,6 +16,7 @@ import type {
     PointerSnapshot,
     TrackedPointer,
 } from "@gestures/pointer-tracker";
+import { scrollBoundaryPull } from "@gestures/claim-conditions";
 import {
     delta,
     velocity,
@@ -40,10 +44,20 @@ interface LogEntry {
     pointerType: string;
     detail: string;
     time: string;
+    source: "canvas" | "scroll";
 }
 
-const MAX_LOG_ENTRIES = 30;
+const MAX_LOG_ENTRIES = 40;
 const LOG_MOVE_THROTTLE = 5;
+const PULL_REFRESH_THRESHOLD = 60;
+const BOUNDARY_PULL_THRESHOLD = 5;
+const DETECTION_THRESHOLD = 12;
+
+const SCROLL_ITEMS = Array.from({ length: 40 }, (_, i) => ({
+    id: i,
+    label: `Item ${i + 1}`,
+    color: `hsl(${i * 9}, 50%, 25%)`,
+}));
 
 const STYLES = `
 :host {
@@ -59,7 +73,7 @@ const STYLES = `
 
 .layout {
     display: grid;
-    grid-template-rows: auto 1fr auto;
+    grid-template-rows: auto 1fr auto auto;
     height: 100%;
 }
 
@@ -74,16 +88,51 @@ const STYLES = `
     align-items: center;
 }
 
-.data-label {
-    color: #7f8c9b;
+.data-label { color: #7f8c9b; }
+.data-value { color: #e94560; }
+.pair-data { color: #bd93f9; }
+
+.zones {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: #0f3460;
+    overflow: hidden;
 }
 
-.data-value {
-    color: #e94560;
+.zone-header {
+    padding: 4px 8px;
+    background: #16213e;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.zone-header .claim-badge {
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: bold;
+}
+
+.claim-detecting { background: #f1fa8c; color: #1a1a2e; }
+.claim-claimed { background: #50fa7b; color: #1a1a2e; }
+.claim-released { background: #ff5555; color: #fff; }
+
+/* Canvas zone (left) */
+.canvas-zone {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: #1a1a2e;
 }
 
 .canvas-area {
     position: relative;
+    flex: 1;
     overflow: hidden;
     cursor: crosshair;
 }
@@ -115,10 +164,55 @@ const STYLES = `
     justify-content: center;
     font-size: 10px;
     color: #fff;
+    z-index: 100;
 }
 
+/* Scroll zone (right) */
+.scroll-zone {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: #1a1a2e;
+}
+
+.scroll-area {
+    flex: 1;
+    overflow-y: auto;
+    position: relative;
+}
+
+.scroll-list {
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.scroll-item {
+    padding: 16px 12px;
+    border-radius: 4px;
+    color: #e0e0e0;
+    font-size: 14px;
+    user-select: none;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+}
+
+.pull-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #1e3a5f;
+    color: #50fa7b;
+    font-size: 13px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+/* Log panel */
 .log-panel {
-    height: 160px;
+    height: 140px;
     overflow-y: auto;
     background: #0f0f23;
     border-top: 1px solid #0f3460;
@@ -141,6 +235,12 @@ const STYLES = `
 .log-phase-move { color: #6272a4; }
 .log-phase-cancel { color: #ffb86c; }
 
+.log-source {
+    display: inline-block;
+    width: 50px;
+    color: #44475a;
+}
+
 .log-time {
     float: right;
     color: #44475a;
@@ -153,55 +253,62 @@ const STYLES = `
     display: flex;
     gap: 24px;
 }
-
-.pair-data {
-    color: #bd93f9;
-}
 `;
 
 export class GestureSandbox extends BaseComponent {
-    private tracker: PointerTracker | null = null;
-    private activePointers: ReadonlyMap<number, TrackedPointer> = new Map();
+    // Canvas zone (always-capture)
+    private canvasTracker: PointerTracker | null = null;
+    private canvasPointers: ReadonlyMap<number, TrackedPointer> = new Map();
+    private canvasEl: HTMLDivElement | null = null;
     private previousPairMetrics: PointerPairMetrics | null = null;
+    private dragTarget: SandboxRect | null = null;
+    private previousPositions = new Map<number, Point>();
+
+    // Scroll zone (gated claim window)
+    private scrollTracker: PointerTracker | null = null;
+    private scrollPointers: ReadonlyMap<number, TrackedPointer> = new Map();
+    private scrollEl: HTMLDivElement | null = null;
+    private scrollClaimState: string = "idle";
+    private pullDistance = 0;
+    private pullStartY: number | null = null;
+    private refreshing = false;
+
+    // Shared
     private log: LogEntry[] = [];
     private moveCount = 0;
-    private canvasEl: HTMLDivElement | null = null;
 
     private rects: SandboxRect[] = [
         {
             id: "A",
-            x: 80,
-            y: 100,
-            width: 120,
-            height: 90,
+            x: 20,
+            y: 40,
+            width: 100,
+            height: 75,
             scale: 1,
             rotation: 0,
             color: "rgba(233, 69, 96, 0.5)",
         },
         {
             id: "B",
-            x: 300,
-            y: 150,
-            width: 100,
-            height: 100,
+            x: 150,
+            y: 80,
+            width: 80,
+            height: 80,
             scale: 1,
             rotation: 0,
             color: "rgba(80, 250, 123, 0.5)",
         },
         {
             id: "C",
-            x: 520,
-            y: 120,
-            width: 140,
-            height: 80,
+            x: 60,
+            y: 180,
+            width: 110,
+            height: 60,
             scale: 1,
             rotation: 0,
             color: "rgba(98, 114, 164, 0.5)",
         },
     ];
-
-    private dragTarget: SandboxRect | null = null;
-    private previousPositions = new Map<number, Point>();
 
     override connectedCallback(): void {
         super.connectedCallback();
@@ -210,103 +317,214 @@ export class GestureSandbox extends BaseComponent {
 
         requestAnimationFrame(() => {
             this.canvasEl = this.shadowRoot!.querySelector(".canvas-area");
+            this.scrollEl = this.shadowRoot!.querySelector(".scroll-area");
 
             if (this.canvasEl) {
-                this.tracker = new PointerTracker(this.canvasEl);
+                this.canvasTracker = new PointerTracker(this.canvasEl);
 
-                this.subscribe(this.tracker.events$, (snapshot) => {
-                    this.handlePointerEvent(snapshot);
+                this.subscribe(this.canvasTracker.events$, (snap) => {
+                    this.handleCanvasEvent(snap);
+                });
+            }
+
+            if (this.scrollEl) {
+                this.scrollTracker = new PointerTracker(this.scrollEl, {
+                    fallbackTouchAction: "pan-y",
+                    gate: true,
+                    detectionThresholdPx: DETECTION_THRESHOLD,
+                    conditions: [
+                        scrollBoundaryPull(
+                            this.scrollEl,
+                            "down",
+                            BOUNDARY_PULL_THRESHOLD,
+                        ),
+                    ],
+                });
+
+                this.subscribe(this.scrollTracker.events$, (snap) => {
+                    this.handleScrollEvent(snap);
                 });
             }
         });
     }
 
     override disconnectedCallback(): void {
-        this.tracker?.destroy();
-        this.tracker = null;
+        this.canvasTracker?.destroy();
+        this.scrollTracker?.destroy();
+        this.canvasTracker = null;
+        this.scrollTracker = null;
         super.disconnectedCallback();
     }
 
     protected template(): TemplateResult {
-        const pointers = [...this.activePointers.values()];
-        const pairValues =
-            pointers.length >= 2 ? this.currentPairMetrics() : null;
+        const canvasPointerList = [...this.canvasPointers.values()];
+        const scrollPointerList = [...this.scrollPointers.values()];
+        const allPointers = [...canvasPointerList, ...scrollPointerList];
+
+        const canvasPair =
+            canvasPointerList.length >= 2
+                ? pairMetrics(
+                      canvasPointerList[0]!.position,
+                      canvasPointerList[1]!.position,
+                  )
+                : null;
 
         return html`
             <div class="layout">
                 <div class="data-panel">
                     <span>
-                        <span class="data-label">Active:</span>
-                        <span class="data-value">${pointers.length}</span>
+                        <span class="data-label">Total pointers:</span>
+                        <span class="data-value">${allPointers.length}</span>
                     </span>
-                    ${pointers.map(
+                    ${allPointers.map(
                         (p) => html`
                             <span>
                                 <span class="data-label">#${p.id}:</span>
                                 <span class="data-value"
-                                    >(${Math.round(p.position.x)},
-                                    ${Math.round(p.position.y)})</span
+                                    >(${Math.round(p.position.x)},${Math.round(
+                                        p.position.y,
+                                    )})</span
                                 >
                                 <span class="data-label">${p.pointerType}</span>
                             </span>
                         `,
                     )}
-                    ${pairValues
+                    ${canvasPair
                         ? html`
                               <span class="pair-data">
-                                  <span class="data-label">Pair:</span>
-                                  dist=${Math.round(pairValues.distance)}
-                                  angle=${pairValues.angle.toFixed(2)}rad
-                                  mid=(${Math.round(
-                                      pairValues.midpoint.x,
-                                  )},${Math.round(pairValues.midpoint.y)})
+                                  dist=${Math.round(canvasPair.distance)}
+                                  angle=${canvasPair.angle.toFixed(2)}rad
                               </span>
                           `
                         : nothing}
                 </div>
 
-                <div class="canvas-area">
-                    ${this.rects.map(
-                        (r) => html`
-                            <div
-                                class="rect"
-                                style="
-                                    left: ${r.x}px;
-                                    top: ${r.y}px;
-                                    width: ${r.width}px;
-                                    height: ${r.height}px;
-                                    background: ${r.color};
-                                    transform: scale(${r.scale}) rotate(${r.rotation}rad);
-                                    transform-origin: center center;
-                                "
+                <div class="zones">
+                    <div class="canvas-zone">
+                        <div class="zone-header">
+                            <span>Canvas (always capture)</span>
+                            <span class="data-value"
+                                >${canvasPointerList.length} ptr</span
                             >
-                                ${r.id}
+                        </div>
+                        <div class="canvas-area">
+                            ${this.rects.map(
+                                (r) => html`
+                                    <div
+                                        class="rect"
+                                        style="
+                                        left: ${r.x}px; top: ${r.y}px;
+                                        width: ${r.width}px; height: ${r.height}px;
+                                        background: ${r.color};
+                                        transform: scale(${r.scale}) rotate(${r.rotation}rad);
+                                    "
+                                    >
+                                        ${r.id}
+                                    </div>
+                                `,
+                            )}
+                            ${canvasPointerList.map(
+                                (p) => html`
+                                    <div
+                                        class="touch-dot"
+                                        style="
+                                        left: ${p.position.x -
+                                        this.canvasOffset().x}px;
+                                        top: ${p.position.y -
+                                        this.canvasOffset().y}px;
+                                        background: hsl(${(p.id * 137) %
+                                        360}, 70%, 50%);
+                                    "
+                                    >
+                                        ${p.id}
+                                    </div>
+                                `,
+                            )}
+                        </div>
+                    </div>
+
+                    <div class="scroll-zone">
+                        <div class="zone-header">
+                            <span>Scroll (gated boundary pull)</span>
+                            ${this.refreshing
+                                ? html`<span class="claim-badge claim-claimed"
+                                      >Refreshing...</span
+                                  >`
+                                : this.scrollClaimState === "claimed"
+                                  ? html`<span class="claim-badge claim-claimed"
+                                        >Pull:
+                                        ${Math.round(this.pullDistance)}px</span
+                                    >`
+                                  : this.scrollClaimState === "detecting"
+                                    ? html`<span
+                                          class="claim-badge claim-detecting"
+                                          >detecting</span
+                                      >`
+                                    : this.scrollClaimState === "released"
+                                      ? html`<span
+                                            class="claim-badge claim-released"
+                                            >released</span
+                                        >`
+                                      : html`<span class="data-label"
+                                            >pull down at top to
+                                            refresh</span
+                                        >`}
+                        </div>
+                        <div class="scroll-area">
+                            ${this.pullDistance > 0
+                                ? html`
+                                      <div
+                                          class="pull-indicator"
+                                          style="height: ${Math.min(
+                                              this.pullDistance,
+                                              120,
+                                          )}px"
+                                      >
+                                          ${this.pullDistance >
+                                          PULL_REFRESH_THRESHOLD
+                                              ? "Release to refresh"
+                                              : "Pull down..."}
+                                      </div>
+                                  `
+                                : nothing}
+                            <div class="scroll-list">
+                                ${SCROLL_ITEMS.map(
+                                    (item) => html`
+                                        <div
+                                            class="scroll-item"
+                                            style="background: ${item.color}"
+                                        >
+                                            ${item.label}
+                                        </div>
+                                    `,
+                                )}
                             </div>
-                        `,
-                    )}
-                    ${pointers.map(
-                        (p) => html`
-                            <div
-                                class="touch-dot"
-                                style="
-                                    left: ${p.position.x -
-                                this.canvasOffset().x}px;
-                                    top: ${p.position.y -
-                                this.canvasOffset().y}px;
-                                    background: hsl(${(p.id * 137) %
-                                360}, 70%, 50%);
-                                "
-                            >
-                                ${p.id}
-                            </div>
-                        `,
-                    )}
+                            ${scrollPointerList.map(
+                                (p) => html`
+                                    <div
+                                        class="touch-dot"
+                                        style="
+                                        left: ${p.position.x -
+                                        this.scrollOffset().x}px;
+                                        top: ${p.position.y -
+                                        this.scrollOffset().y}px;
+                                        background: hsl(${(p.id * 137) %
+                                        360}, 70%, 50%);
+                                    "
+                                    >
+                                        ${p.id}
+                                    </div>
+                                `,
+                            )}
+                        </div>
+                    </div>
                 </div>
 
                 <div class="log-panel">
                     ${this.log.map(
                         (entry) => html`
                             <div class="log-entry">
+                                <span class="log-source">${entry.source}</span>
                                 <span class="log-phase log-phase-${entry.phase}"
                                     >${entry.phase}</span
                                 >
@@ -323,13 +541,19 @@ export class GestureSandbox extends BaseComponent {
 
                 <div class="status-bar">
                     <span>
-                        <span class="data-label">Pointers:</span>
-                        <span class="data-value">${pointers.length}</span>
-                    </span>
-                    <span>
-                        <span class="data-label">Drag target:</span>
+                        <span class="data-label">Canvas drag:</span>
                         <span class="data-value"
                             >${this.dragTarget?.id ?? "none"}</span
+                        >
+                    </span>
+                    <span>
+                        <span class="data-label">Scroll claim:</span>
+                        <span class="data-value">${this.scrollClaimState}</span>
+                    </span>
+                    <span>
+                        <span class="data-label">Pull:</span>
+                        <span class="data-value"
+                            >${Math.round(this.pullDistance)}px</span
                         >
                     </span>
                 </div>
@@ -337,8 +561,10 @@ export class GestureSandbox extends BaseComponent {
         `;
     }
 
-    private handlePointerEvent(snapshot: PointerSnapshot): void {
-        this.activePointers = snapshot.active;
+    // -- Canvas zone handlers (always-capture, same as before) --
+
+    private handleCanvasEvent(snapshot: PointerSnapshot): void {
+        this.canvasPointers = snapshot.active;
 
         const { phase, changed } = snapshot;
         const prevPos = this.previousPositions.get(changed.id);
@@ -348,23 +574,23 @@ export class GestureSandbox extends BaseComponent {
             this.dragTarget = this.hitTest(changed.position);
 
             if (snapshot.activeCount >= 2) {
-                this.previousPairMetrics = this.currentPairMetrics();
+                this.previousPairMetrics = this.currentCanvasPairMetrics();
             }
 
-            this.addLogEntry(snapshot, "");
+            this.addLogEntry(snapshot, "", "canvas");
         }
 
         if (phase === "move") {
             this.moveCount++;
 
             if (prevPos) {
-                this.applyTransform(snapshot);
+                this.applyCanvasTransform(snapshot);
             }
 
             this.previousPositions.set(changed.id, changed.position);
 
             if (snapshot.activeCount >= 2) {
-                this.previousPairMetrics = this.currentPairMetrics();
+                this.previousPairMetrics = this.currentCanvasPairMetrics();
             }
 
             if (this.moveCount % LOG_MOVE_THROTTLE === 0) {
@@ -377,6 +603,7 @@ export class GestureSandbox extends BaseComponent {
                 this.addLogEntry(
                     snapshot,
                     `Δ(${d.x.toFixed(0)},${d.y.toFixed(0)}) vel(${v.x.toFixed(2)},${v.y.toFixed(2)})`,
+                    "canvas",
                 );
             }
         }
@@ -389,13 +616,13 @@ export class GestureSandbox extends BaseComponent {
                 this.previousPairMetrics = null;
             }
 
-            this.addLogEntry(snapshot, "");
+            this.addLogEntry(snapshot, "", "canvas");
         }
 
         this.update();
     }
 
-    private applyTransform(snapshot: PointerSnapshot): void {
+    private applyCanvasTransform(snapshot: PointerSnapshot): void {
         if (!this.dragTarget) {
             return;
         }
@@ -415,13 +642,12 @@ export class GestureSandbox extends BaseComponent {
         }
 
         if (snapshot.activeCount >= 2 && this.previousPairMetrics) {
-            const currentMetrics = this.currentPairMetrics();
+            const currentMetrics = this.currentCanvasPairMetrics();
             if (!currentMetrics) {
                 return;
             }
 
             const pd = pairDelta(this.previousPairMetrics, currentMetrics);
-
             rect.x += pd.translationDelta.x;
             rect.y += pd.translationDelta.y;
             rect.scale *= pd.scaleRatio;
@@ -450,8 +676,8 @@ export class GestureSandbox extends BaseComponent {
         return null;
     }
 
-    private currentPairMetrics(): PointerPairMetrics | null {
-        const pointers = [...this.activePointers.values()];
+    private currentCanvasPairMetrics(): PointerPairMetrics | null {
+        const pointers = [...this.canvasPointers.values()];
 
         if (pointers.length < 2) {
             return null;
@@ -469,7 +695,91 @@ export class GestureSandbox extends BaseComponent {
         return { x: rect.left, y: rect.top };
     }
 
-    private addLogEntry(snapshot: PointerSnapshot, detail: string): void {
+    // -- Scroll zone handlers (gated claim window) --
+
+    private handleScrollEvent(snapshot: PointerSnapshot): void {
+        this.scrollPointers = snapshot.active;
+        this.scrollClaimState = snapshot.claimState ?? "idle";
+
+        const { phase, changed } = snapshot;
+
+        if (phase === "start") {
+            this.pullStartY = changed.position.y;
+            this.addLogEntry(
+                snapshot,
+                snapshot.claimState ? `[${snapshot.claimState}]` : "",
+                "scroll",
+            );
+        }
+
+        if (phase === "move" && snapshot.claimState === "claimed") {
+            if (this.pullStartY !== null) {
+                this.pullDistance = Math.max(
+                    0,
+                    changed.position.y - this.pullStartY,
+                );
+            }
+
+            this.moveCount++;
+
+            if (this.moveCount % LOG_MOVE_THROTTLE === 0) {
+                this.addLogEntry(
+                    snapshot,
+                    `[pull] ${Math.round(this.pullDistance)}px`,
+                    "scroll",
+                );
+            }
+        }
+
+        if (phase === "end" || phase === "cancel") {
+            if (snapshot.activeCount === 0) {
+                if (
+                    snapshot.claimState === "claimed" &&
+                    this.pullDistance > PULL_REFRESH_THRESHOLD
+                ) {
+                    this.refreshing = true;
+                    this.pullDistance = 0;
+                    this.addLogEntry(snapshot, "[refresh triggered]", "scroll");
+
+                    setTimeout(() => {
+                        this.refreshing = false;
+                        this.update();
+                    }, 1000);
+                } else {
+                    this.pullDistance = 0;
+                    this.addLogEntry(
+                        snapshot,
+                        snapshot.claimState === "released"
+                            ? "[released to browser]"
+                            : "",
+                        "scroll",
+                    );
+                }
+
+                this.scrollClaimState = "idle";
+                this.pullStartY = null;
+            }
+        }
+
+        this.update();
+    }
+
+    private scrollOffset(): Point {
+        if (!this.scrollEl) {
+            return { x: 0, y: 0 };
+        }
+
+        const rect = this.scrollEl.getBoundingClientRect();
+        return { x: rect.left, y: rect.top };
+    }
+
+    // -- Shared --
+
+    private addLogEntry(
+        snapshot: PointerSnapshot,
+        detail: string,
+        source: "canvas" | "scroll",
+    ): void {
         const now = new Date();
         const time = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}:${now.getSeconds().toString().padStart(2, "0")}`;
 
@@ -480,6 +790,7 @@ export class GestureSandbox extends BaseComponent {
             pointerType: snapshot.changed.pointerType,
             detail,
             time,
+            source,
         });
 
         if (this.log.length > MAX_LOG_ENTRIES) {
