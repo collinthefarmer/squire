@@ -18,6 +18,7 @@
     "baseUrl": ".",
     "paths": {
       "@core/*": ["./src/core/*"],
+      "@gestures/*": ["./src/gestures/*"],
       "@state/*": ["./src/state/*"],
       "@effects/*": ["./src/effects/*"],
       "@events/*": ["./src/events/*"],
