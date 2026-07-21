@@ -17,6 +17,7 @@
         "typescript": "^5"
     },
     "dependencies": {
+        "lit-html": "^3.3.3",
         "rxjs": "^7.8.2"
     }
 }

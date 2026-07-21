@@ -57,7 +57,9 @@ export class EffectChain {
         for (const effect of effects) {
             const definition = getEffectDefinition(effect.type);
             if (!definition) {
-                logger.warn("Unknown effect type, skipping", { type: effect.type });
+                logger.warn("Unknown effect type, skipping", {
+                    type: effect.type,
+                });
                 continue;
             }
 

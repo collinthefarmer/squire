@@ -15,6 +15,9 @@ import type {
     AudioTrackState,
     AudioPlayEvent,
     AudioStopEvent,
+    AudioPauseEvent,
+    AudioResumeEvent,
+    AudioLoopEvent,
     AudioVolumeEvent,
     AudioChannelEffectsEvent,
     ChannelId,
@@ -30,7 +33,8 @@ export function applyAudioPlay(
     channels: Map<ChannelId, AudioChannelState>,
     event: AudioPlayEvent,
 ): Map<ChannelId, AudioChannelState> {
-    const { channel, source, volume, loop, effects, respectTimeScale } = event.payload;
+    const { channel, source, volume, loop, effects, respectTimeScale } =
+        event.payload;
     const resolvedTrackId = event.payload.trackId ?? generateTrackId();
     const existing = channels.get(channel);
 
@@ -68,7 +72,11 @@ export function applyAudioStop(
     event: AudioStopEvent,
 ): Map<ChannelId, AudioChannelState> {
     if (event.payload.trackId) {
-        return applyAudioStopTrack(channels, event.payload.channel, event.payload.trackId);
+        return applyAudioStopTrack(
+            channels,
+            event.payload.channel,
+            event.payload.trackId,
+        );
     }
 
     return applyAudioStopChannel(channels, event.payload.channel);
@@ -131,6 +139,54 @@ function updateMatchingTracks(
 
         return { ...ch, tracks };
     });
+}
+
+/**
+ * Apply an audio.pause event.
+ *
+ * Sets matching tracks to playing=false.
+ */
+export function applyAudioPause(
+    channels: Map<ChannelId, AudioChannelState>,
+    event: AudioPauseEvent,
+): Map<ChannelId, AudioChannelState> {
+    const { channel, trackId } = event.payload;
+    return updateMatchingTracks(channels, channel, trackId, (t) => ({
+        ...t,
+        playing: false,
+    }));
+}
+
+/**
+ * Apply an audio.resume event.
+ *
+ * Sets matching tracks to playing=true.
+ */
+export function applyAudioResume(
+    channels: Map<ChannelId, AudioChannelState>,
+    event: AudioResumeEvent,
+): Map<ChannelId, AudioChannelState> {
+    const { channel, trackId } = event.payload;
+    return updateMatchingTracks(channels, channel, trackId, (t) => ({
+        ...t,
+        playing: true,
+    }));
+}
+
+/**
+ * Apply an audio.loop event.
+ *
+ * Sets the track's loop flag.
+ */
+export function applyAudioLoop(
+    channels: Map<ChannelId, AudioChannelState>,
+    event: AudioLoopEvent,
+): Map<ChannelId, AudioChannelState> {
+    const { channel, trackId, loop } = event.payload;
+    return updateMatchingTracks(channels, channel, trackId, (t) => ({
+        ...t,
+        loop,
+    }));
 }
 
 /**

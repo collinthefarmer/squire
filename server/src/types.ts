@@ -147,6 +147,13 @@ export interface AudioState {
 }
 
 /**
+ * Union of all domain event types.
+ *
+ * Used by the store's routeToReducer for exhaustive type narrowing.
+ */
+export type DomainEvent = AudioEvent | ImageEvent | ClockEvent | TimeEvent;
+
+/**
  * System events — server-originated, not validated through eventSchema
  */
 export interface SystemConnectedPayload {
@@ -157,6 +164,9 @@ export interface ClientInfo {
     id: string;
     type: "master" | "display";
 }
+
+export type SystemConnectedEvent = Event<"system.connected", SystemConnectedPayload>;
+export type SystemClientListEvent = Event<"system.client_list", SystemClientListPayload>;
 
 export interface SystemClientListPayload {
     displays: ClientInfo[];

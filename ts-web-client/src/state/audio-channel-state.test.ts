@@ -2,10 +2,18 @@ import { test, expect, describe } from "bun:test";
 import {
     applyAudioPlay,
     applyAudioStop,
+    applyAudioPause,
+    applyAudioResume,
+    applyAudioLoop,
     applyAudioVolume,
     applyAudioChannelEffects,
 } from "./audio-channel-state";
-import type { AudioChannelState, AudioTrackState, ChannelId, TrackId } from "@types";
+import type {
+    AudioChannelState,
+    AudioTrackState,
+    ChannelId,
+    TrackId,
+} from "@types";
 import { channelId, trackId } from "@types";
 import { makeChannels, makeMetadata, makeTrack } from "../test-utils/factories";
 
@@ -26,7 +34,10 @@ function playEvent(overrides?: {
         payload: {
             channel: overrides?.channel ?? CH_MUSIC,
             trackId: overrides?.trackId ?? T1,
-            source: { type: "file" as const, ref: overrides?.source ?? "a.mp3" },
+            source: {
+                type: "file" as const,
+                ref: overrides?.source ?? "a.mp3",
+            },
             volume: overrides?.volume ?? 1.0,
             loop: overrides?.loop ?? false,
             effects: undefined,
@@ -39,12 +50,15 @@ function playEvent(overrides?: {
 describe("audio-channel-state reducers", () => {
     describe("applyAudioPlay", () => {
         test("should create channel and track", () => {
-            const result = applyAudioPlay(new Map(), playEvent({
-                source: "song.mp3",
-                volume: 0.8,
-                loop: true,
-                respectTimeScale: false,
-            }));
+            const result = applyAudioPlay(
+                new Map(),
+                playEvent({
+                    source: "song.mp3",
+                    volume: 0.8,
+                    loop: true,
+                    respectTimeScale: false,
+                }),
+            );
 
             const ch = result.get(CH_MUSIC)!;
             expect(ch.volume).toBe(0.8);
@@ -89,8 +103,20 @@ describe("audio-channel-state reducers", () => {
 
         test("should remove specific track", () => {
             const tracks = new Map<TrackId, AudioTrackState>([
-                [T1, makeTrack({ id: T1, source: { type: "file", ref: "a.mp3" } })],
-                [T2, makeTrack({ id: T2, source: { type: "file", ref: "b.mp3" } })],
+                [
+                    T1,
+                    makeTrack({
+                        id: T1,
+                        source: { type: "file", ref: "a.mp3" },
+                    }),
+                ],
+                [
+                    T2,
+                    makeTrack({
+                        id: T2,
+                        source: { type: "file", ref: "b.mp3" },
+                    }),
+                ],
             ]);
             const channels = makeChannels([CH_MUSIC, { tracks }]);
 
@@ -131,6 +157,73 @@ describe("audio-channel-state reducers", () => {
         });
     });
 
+    describe("applyAudioPause", () => {
+        test("should set track to not playing", () => {
+            const channels = applyAudioPlay(new Map(), playEvent());
+
+            const result = applyAudioPause(channels, {
+                type: "audio.pause",
+                payload: { channel: CH_MUSIC, trackId: T1 },
+                metadata: makeMetadata(),
+            });
+
+            expect(result.get(CH_MUSIC)!.tracks.get(T1)!.playing).toBe(false);
+        });
+
+        test("should pause all tracks when no trackId", () => {
+            let channels = applyAudioPlay(new Map(), playEvent());
+            channels = applyAudioPlay(
+                channels,
+                playEvent({ trackId: T2, source: "b.mp3" }),
+            );
+
+            const result = applyAudioPause(channels, {
+                type: "audio.pause",
+                payload: { channel: CH_MUSIC },
+                metadata: makeMetadata(),
+            });
+
+            expect(result.get(CH_MUSIC)!.tracks.get(T1)!.playing).toBe(false);
+            expect(result.get(CH_MUSIC)!.tracks.get(T2)!.playing).toBe(false);
+        });
+    });
+
+    describe("applyAudioResume", () => {
+        test("should set track to playing", () => {
+            let channels = applyAudioPlay(new Map(), playEvent());
+            channels = applyAudioPause(channels, {
+                type: "audio.pause",
+                payload: { channel: CH_MUSIC, trackId: T1 },
+                metadata: makeMetadata(),
+            });
+
+            const result = applyAudioResume(channels, {
+                type: "audio.resume",
+                payload: { channel: CH_MUSIC, trackId: T1 },
+                metadata: makeMetadata(),
+            });
+
+            expect(result.get(CH_MUSIC)!.tracks.get(T1)!.playing).toBe(true);
+        });
+    });
+
+    describe("applyAudioLoop", () => {
+        test("should set loop flag on track", () => {
+            const channels = applyAudioPlay(
+                new Map(),
+                playEvent({ loop: false }),
+            );
+
+            const result = applyAudioLoop(channels, {
+                type: "audio.loop",
+                payload: { channel: CH_MUSIC, trackId: T1, loop: true },
+                metadata: makeMetadata(),
+            });
+
+            expect(result.get(CH_MUSIC)!.tracks.get(T1)!.loop).toBe(true);
+        });
+    });
+
     describe("applyAudioVolume", () => {
         test("should update channel volume", () => {
             const channels = makeChannels([CH_MUSIC, { volume: 1.0 }]);
@@ -160,7 +253,9 @@ describe("audio-channel-state reducers", () => {
     describe("applyAudioChannelEffects", () => {
         test("should set channel effects", () => {
             const channels = makeChannels([CH_MUSIC, {}]);
-            const effects = [{ type: "reverb" as const, params: { decay: 3, mix: 0.5 } }];
+            const effects = [
+                { type: "reverb" as const, params: { decay: 3, mix: 0.5 } },
+            ];
 
             const result = applyAudioChannelEffects(channels, {
                 type: "audio.channel_effects",
@@ -171,5 +266,4 @@ describe("audio-channel-state reducers", () => {
             expect(result.get(CH_MUSIC)!.effects).toEqual(effects);
         });
     });
-
 });

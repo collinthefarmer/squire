@@ -45,7 +45,10 @@ export const EFFECT_PRESETS: Record<string, EffectPreset> = {
     megaphone: {
         label: "Megaphone",
         effects: [
-            { type: "distortion", params: { amount: 30, tone: 2000, mix: 0.4 } },
+            {
+                type: "distortion",
+                params: { amount: 30, tone: 2000, mix: 0.4 },
+            },
         ],
     },
 };

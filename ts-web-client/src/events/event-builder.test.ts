@@ -95,7 +95,9 @@ describe("EventBuilder", () => {
         });
 
         test("audioChannelEffects should include effects array", () => {
-            const effects = [{ type: "reverb" as const, params: { decay: 3, mix: 0.5 } }];
+            const effects = [
+                { type: "reverb" as const, params: { decay: 3, mix: 0.5 } },
+            ];
             const event = EventBuilder.audioChannelEffects({
                 channel: "music",
                 effects,

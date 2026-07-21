@@ -69,7 +69,10 @@ describe("state-helpers", () => {
 
     describe("removeFromMap", () => {
         test("should remove existing key", () => {
-            const map = new Map([["a", 1], ["b", 2]]);
+            const map = new Map([
+                ["a", 1],
+                ["b", 2],
+            ]);
             const result = removeFromMap(map, "a");
 
             expect(result.has("a")).toBe(false);
@@ -86,7 +89,11 @@ describe("state-helpers", () => {
 
     describe("getAllFromMap", () => {
         test("should return all values as array", () => {
-            const map = new Map([["a", 1], ["b", 2], ["c", 3]]);
+            const map = new Map([
+                ["a", 1],
+                ["b", 2],
+                ["c", 3],
+            ]);
             const result = getAllFromMap(map);
 
             expect(result).toEqual([1, 2, 3]);

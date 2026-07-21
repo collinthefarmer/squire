@@ -56,15 +56,16 @@ export type {
     TimeScaleChangedEvent,
     TimeScaleChangedPayload,
     TimeEvent,
+    DomainEvent,
+    SystemConnectedEvent,
+    SystemConnectedPayload,
+    SystemClientListEvent,
+    SystemClientListPayload,
+    ClientInfo,
 } from "../../server/src/types";
 
 // Re-export branded ID creator functions
-export {
-    channelId,
-    layerId,
-    trackId,
-    clockId,
-} from "../../server/src/types";
+export { channelId, layerId, trackId, clockId } from "../../server/src/types";
 
 /**
  * Client-specific types

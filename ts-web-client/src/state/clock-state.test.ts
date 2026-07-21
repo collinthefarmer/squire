@@ -27,7 +27,9 @@ describe("clock-state computation helpers", () => {
                 { duration: 60000, running: true, startedAt: 1000 },
             ]);
             // now=11000, real elapsed=10000, scale=1 → remaining = 60000 - 0 - 10000 = 50000
-            expect(getRemainingTime(clocks.get(clockId("t1"))!, 11000)).toBe(50000);
+            expect(getRemainingTime(clocks.get(clockId("t1"))!, 11000)).toBe(
+                50000,
+            );
         });
 
         test("should apply time scale to running clock", () => {
@@ -43,7 +45,9 @@ describe("clock-state computation helpers", () => {
             ]);
             // now=11000, real elapsed=10000, scale=2 → game elapsed=20000
             // remaining = 60000 - 0 - 20000 = 40000
-            expect(getRemainingTime(clocks.get(clockId("t1"))!, 11000)).toBe(40000);
+            expect(getRemainingTime(clocks.get(clockId("t1"))!, 11000)).toBe(
+                40000,
+            );
         });
 
         test("should return 0 for completed clock", () => {
@@ -57,7 +61,9 @@ describe("clock-state computation helpers", () => {
                 { duration: 1000, running: true, startedAt: 0 },
             ]);
             // now=999999 → way past duration
-            expect(getRemainingTime(clocks.get(clockId("t1"))!, 999999)).toBe(0);
+            expect(getRemainingTime(clocks.get(clockId("t1"))!, 999999)).toBe(
+                0,
+            );
         });
     });
 
@@ -129,7 +135,11 @@ describe("clock-state event reducers", () => {
                 new Map(),
                 {
                     type: "ui.clock.create",
-                    payload: { id: clockId("t1"), duration: 60000, autoStart: true },
+                    payload: {
+                        id: clockId("t1"),
+                        duration: 60000,
+                        autoStart: true,
+                    },
                     metadata: makeMetadata(5000),
                 },
                 2.0, // currentScale

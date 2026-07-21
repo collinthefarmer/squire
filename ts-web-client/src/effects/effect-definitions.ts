@@ -27,7 +27,10 @@ export interface EffectDefinition {
     type: AudioEffectType;
     label: string;
     defaultParams: Record<string, number>;
-    paramRanges: Record<string, { min: number; max: number; step: number; unit: string }>;
+    paramRanges: Record<
+        string,
+        { min: number; max: number; step: number; unit: string }
+    >;
     createNodes(ctx: AudioContext): EffectNodes;
     applyParams(nodes: EffectNodes, params: Record<string, unknown>): void;
 }
@@ -45,7 +48,9 @@ export function createEffectFromDefinition(
     def: EffectDefinition,
     params?: Record<string, number>,
 ): AudioEffect {
-    const merged = params ? { ...def.defaultParams, ...params } : { ...def.defaultParams };
+    const merged = params
+        ? { ...def.defaultParams, ...params }
+        : { ...def.defaultParams };
 
     // The definition's type field is an AudioEffectType literal,
     // and the merged params structurally match the expected shape.
@@ -140,7 +145,11 @@ const chorusDefinition: EffectDefinition = {
     },
 
     applyParams(nodes: EffectNodes, params: Record<string, unknown>): void {
-        const [delay, lfo, lfoGain] = nodes.effectNodes as [DelayNode, OscillatorNode, GainNode];
+        const [delay, lfo, lfoGain] = nodes.effectNodes as [
+            DelayNode,
+            OscillatorNode,
+            GainNode,
+        ];
 
         const rate = (params.rate as number) ?? 1.5;
         const depth = (params.depth as number) ?? 7;
@@ -163,7 +172,8 @@ function makeDistortionCurve(amount: number): Float32Array<ArrayBuffer> {
 
     for (let i = 0; i < samples; i++) {
         const x = (i * 2) / samples - 1;
-        curve[i] = ((3 + k) * x * 20 * (Math.PI / 180)) / (Math.PI + k * Math.abs(x));
+        curve[i] =
+            ((3 + k) * x * 20 * (Math.PI / 180)) / (Math.PI + k * Math.abs(x));
     }
 
     return curve;
@@ -195,11 +205,19 @@ const distortionDefinition: EffectDefinition = {
         // Wet path: waveshaper → tone filter
         waveshaper.connect(toneFilter);
 
-        return { effectNodes: [waveshaper, toneFilter], wetGain, dryGain, merger };
+        return {
+            effectNodes: [waveshaper, toneFilter],
+            wetGain,
+            dryGain,
+            merger,
+        };
     },
 
     applyParams(nodes: EffectNodes, params: Record<string, unknown>): void {
-        const [waveshaper, toneFilter] = nodes.effectNodes as [WaveShaperNode, BiquadFilterNode];
+        const [waveshaper, toneFilter] = nodes.effectNodes as [
+            WaveShaperNode,
+            BiquadFilterNode,
+        ];
 
         const amount = (params.amount as number) ?? 50;
         const tone = (params.tone as number) ?? 3000;
@@ -220,7 +238,9 @@ const definitions = new Map<string, EffectDefinition>([
     ["distortion", distortionDefinition],
 ]);
 
-export function getEffectDefinition(type: string): EffectDefinition | undefined {
+export function getEffectDefinition(
+    type: string,
+): EffectDefinition | undefined {
     return definitions.get(type);
 }
 

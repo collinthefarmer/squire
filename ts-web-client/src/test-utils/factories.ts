@@ -18,15 +18,15 @@ import type { ClockState } from "../state/clock-state";
  * with optional partial overrides.
  */
 
-export function makeMetadata(
-    timestamp: number = Date.now(),
-): EventMetadata {
+export function makeMetadata(timestamp: number = Date.now()): EventMetadata {
     return { timestamp, source: "test" };
 }
 
 // -- Audio --
 
-export function makeTrack(overrides?: Partial<AudioTrackState>): AudioTrackState {
+export function makeTrack(
+    overrides?: Partial<AudioTrackState>,
+): AudioTrackState {
     return {
         id: trackId("t1"),
         source: { type: "file", ref: "track.mp3" },
@@ -40,7 +40,9 @@ export function makeTrack(overrides?: Partial<AudioTrackState>): AudioTrackState
     };
 }
 
-export function makeChannel(overrides?: Partial<AudioChannelState>): AudioChannelState {
+export function makeChannel(
+    overrides?: Partial<AudioChannelState>,
+): AudioChannelState {
     return {
         id: channelId("music"),
         tracks: new Map<TrackId, AudioTrackState>(),
@@ -64,7 +66,9 @@ export function makeChannels(
 
 // -- Image --
 
-export function makeLayer(overrides?: Partial<ImageLayerState>): ImageLayerState {
+export function makeLayer(
+    overrides?: Partial<ImageLayerState>,
+): ImageLayerState {
     return {
         id: layerId("bg"),
         imageRef: "default.png",
