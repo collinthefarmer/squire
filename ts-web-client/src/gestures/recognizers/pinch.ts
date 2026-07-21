@@ -10,7 +10,7 @@ import { combineLatest } from "rxjs";
 import { map } from "rxjs/operators";
 import { distance, centroid, angle } from "../transform";
 import { defineRecognizer, describe } from "../harness";
-import type { Recognizer } from "../recognizer";
+import type { Recognizer } from "./recognizer";
 import type { Point } from "../transform";
 
 export type PinchEvent = {

@@ -8,7 +8,7 @@
  */
 
 import type { Observable } from "rxjs";
-import type { PointerStream } from "./pointers";
+import type { PointerStream } from "../pointers";
 
 export type Recognition<T> =
     | { claimed: true; confidence: number; gesture$: Observable<T> }

@@ -154,6 +154,18 @@ class PointerTracker {
 
 **When classes are appropriate:** Services that manage long-lived subscriptions, expose `BehaviorSubject` state, and need explicit lifecycle (`ConnectionService`, `AppStore`). The distinction: services are stateful singletons; pipelines are data transformations.
 
+**Code should mirror the shape of the concept it implements.**
+
+- Start from the consumer's contract. Write the public surface first, then work backward into internals.
+- If the concept is a sequence of stages, the code should be a chain — not functions calling each other imperatively.
+- If the concept tracks one winner, track one winner — don't collect all candidates then reduce.
+- Each step in a chain does one job. If it branches into two concerns, split it. If two steps are never useful apart, merge them.
+- Flatten nested scopes by attaching context to the value flowing through (`{ result, context }`), not by closing over variables. Each step receives what it needs from the data, not the call stack.
+- Separate transformations from side effects. If the next step consumes the output, it's a transformation. If it just needs the step to have happened, it's a side effect — make that distinction visible.
+- Eliminate anything that exists only for mechanical reasons: wrappers around single fields, collections that only exist to be reduced, manual lifecycle tracking the runtime already handles.
+- Name and extract steps last, after the structure has stabilized. Name the *what*, type the *shape*.
+- The top-level chain should read as the full design. If understanding it requires reading the internals, the boundaries are wrong.
+
 ### 5.4 Error Boundaries
 
 A thrown error in an RxJS `Subject.next()` subscriber terminates the Subject permanently. Wrap every EventBus subscription handler in try/catch:

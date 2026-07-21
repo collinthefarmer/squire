@@ -16,7 +16,7 @@ import {
     matchesDirection,
 } from "../transform";
 import { defineRecognizer, describe } from "../harness";
-import type { Recognizer } from "../recognizer";
+import type { Recognizer } from "./recognizer";
 import type { Point } from "../transform";
 
 export type DragEvent = {

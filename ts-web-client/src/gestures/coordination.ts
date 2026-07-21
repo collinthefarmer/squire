@@ -19,161 +19,239 @@
  * and releases when pointers are captured or released.
  */
 
-import { Observable, Subject, merge } from "rxjs";
-import type { Subscription } from "rxjs";
-import { buffer, debounceTime, filter, map, scan, share, take } from "rxjs/operators";
+import { EMPTY, Observable, merge, pipe } from "rxjs";
+import type { OperatorFunction } from "rxjs";
+import {
+    buffer,
+    catchError,
+    debounceTime,
+    filter,
+    finalize,
+    map,
+    mergeMap,
+    scan,
+    share,
+    take,
+    tap,
+} from "rxjs/operators";
 import { pointers$ } from "./pointers";
 import type { PointerStream } from "./pointers";
-import type { Recognizer, Recognition, GestureSource } from "./recognizer";
+import type {
+    Recognizer,
+    Recognition,
+    GestureSource,
+} from "./recognizers/recognizer";
 
-// ── Constants ───────────────────────────────────────────────────
+// ── Constants ──────────────────────────────────────────────────
 
 const CONCURRENT_WINDOW_MS = 50;
 const CONFIDENCE_THRESHOLD = 0.5;
 
-// ── Internal types ──────────────────────────────────────────────
-
-type Registration = {
-    recognizer: Recognizer<unknown>;
-    subject: Subject<unknown>;
-};
+// ── Internal types ─────────────────────────────────────────────
 
 type ScoredClaim = {
-    candidate: Registration;
+    recognizer: Recognizer<unknown>;
     recognition: Recognition<unknown> & { claimed: true };
     score: number;
 };
 
 type CompetitionState = {
     pending: number;
-    claims: ScoredClaim[];
+    winner: ScoredClaim | null;
+    settled: boolean;
 };
 
-// ── Factory ─────────────────────────────────────────────────────
+type PointerGroup = {
+    pointers: PointerStream[];
+    candidates: Recognizer<unknown>[];
+};
+
+type CompetitionResult = {
+    winner: ScoredClaim | null;
+    pointers: PointerStream[];
+};
+
+type ResolvedResult = {
+    winner: ScoredClaim;
+    pointers: PointerStream[];
+};
+
+// ── Public API ─────────────────────────────────────────────────
 
 export function gestures(element: HTMLElement): GestureSource {
-    const registrations: Registration[] = [];
-    let sourceSubscription: Subscription | null = null;
+    const recognizers: Recognizer<unknown>[] = [];
 
     const pointerSource$ = pointers$(element, { gate: true }).pipe(share());
-
-    function ensureListening(): void {
-        if (sourceSubscription) return;
-
-        const grouped$ = pointerSource$.pipe(
-            buffer(pointerSource$.pipe(debounceTime(CONCURRENT_WINDOW_MS))),
-            filter((group) => group.length > 0),
-        );
-
-        sourceSubscription = grouped$.subscribe((group) => {
-            runCompetition(group, registrations);
-        });
-    }
-
-    function stopListening(): void {
-        sourceSubscription?.unsubscribe();
-        sourceSubscription = null;
-    }
+    const competition$ = pointerSource$.pipe(
+        buffer(pointerSource$.pipe(debounceTime(CONCURRENT_WINDOW_MS))),
+        filter((group) => group.length > 0),
+        matchCandidates(recognizers),
+        raceRecognizers(),
+        resolveWinner(),
+        share(),
+    );
 
     return {
         on<T>(recognizer: Recognizer<T>): Observable<T> {
-            return new Observable<T>((subscriber) => {
-                const subject = new Subject<unknown>();
-                const entry: Registration = {
-                    recognizer: recognizer as Recognizer<unknown>,
-                    subject,
-                };
+            recognizers.push(recognizer);
 
-                registrations.push(entry);
-                ensureListening();
-
-                const sub = subject.subscribe({
-                    next: (value) => subscriber.next(value as T),
-                    error: (err) => subscriber.error(err),
-                });
-
-                return () => {
-                    sub.unsubscribe();
-                    subject.complete();
-
-                    const idx = registrations.indexOf(entry);
-                    if (idx >= 0) registrations.splice(idx, 1);
-
-                    if (registrations.length === 0) stopListening();
-                };
-            });
+            return competition$.pipe(
+                claimGesture(recognizer),
+                unregisterOnTeardown(recognizer, recognizers),
+            );
         },
     };
 }
 
-// ── Competition ─────────────────────────────────────────────────
+// ── Operators ──────────────────────────────────────────────────
 
-function runCompetition(
-    ptrs: PointerStream[],
-    registrations: Registration[],
-): void {
-    const candidates = registrations.filter(
-        (r) => r.recognizer.touches <= ptrs.length,
+/**
+ * Filters competition results to wins for this recognizer
+ * and flattens the winning gesture stream into typed events.
+ */
+function claimGesture<T>(
+    recognizer: Recognizer<T>,
+): OperatorFunction<ResolvedResult, T> {
+    return pipe(
+        filter(
+            ({ winner }: ResolvedResult) => winner.recognizer === recognizer,
+        ),
+        mergeMap(
+            ({ winner }: ResolvedResult) =>
+                winner.recognition.gesture$ as Observable<T>,
+        ),
     );
+}
 
-    if (candidates.length === 0) {
-        for (const p of ptrs) p.release();
-        return;
-    }
+/**
+ * Removes a recognizer from the active list when the
+ * subscriber unsubscribes.
+ */
+function unregisterOnTeardown<T>(
+    recognizer: Recognizer<T>,
+    recognizers: Recognizer<unknown>[],
+): OperatorFunction<T, T> {
+    return finalize(() => {
+        const idx = recognizers.indexOf(recognizer);
+        if (idx >= 0) recognizers.splice(idx, 1);
+    });
+}
 
-    const recognitions$ = candidates.map((candidate) => {
-        const given = ptrs.slice(0, candidate.recognizer.touches);
+/**
+ * Filters registered recognizers to those eligible for the current
+ * pointer count. Releases pointers if no recognizers qualify.
+ */
+function matchCandidates(
+    recognizers: Recognizer<unknown>[],
+): OperatorFunction<PointerStream[], PointerGroup> {
+    return pipe(
+        map((pointers: PointerStream[]) => ({
+            pointers,
+            candidates: recognizers.filter((r) => r.touches <= pointers.length),
+        })),
+        tap(({ pointers, candidates }) => {
+            if (candidates.length === 0) releaseAll(pointers);
+        }),
+        filter(({ candidates }) => candidates.length > 0),
+    );
+}
 
-        return candidate.recognizer.recognize(given).pipe(
+/**
+ * Fans out to all candidate recognizers in parallel, accumulates
+ * scored claims, and emits the winner (or null) once settled.
+ */
+function raceRecognizers(): OperatorFunction<PointerGroup, CompetitionResult> {
+    return mergeMap(({ pointers, candidates }) => {
+        // Each recognizer receives the first N pointers it needs.
+        // Multiple recognizers may compete over the same pointers;
+        // the winner claims them exclusively.
+        const recognitions$ = candidates.map((recognizer) => {
+            const given = pointers.slice(0, recognizer.touches);
+
+            return recognizer.recognize(given).pipe(
+                take(1),
+                map((recognition) => ({ recognizer, recognition })),
+            );
+        });
+
+        const accumulate = competitionReducer(pointers.length);
+
+        return merge(...recognitions$).pipe(
+            scan(accumulate, {
+                pending: candidates.length,
+                winner: null,
+                settled: false,
+            }),
+            filter((state) => state.settled),
             take(1),
-            map((recognition) => ({ candidate, recognition })),
+            map((state) => ({ winner: state.winner, pointers })),
+            catchError(() => {
+                releaseAll(pointers);
+                return EMPTY;
+            }),
         );
     });
+}
 
-    merge(...recognitions$)
-        .pipe(
-            scan(
-                (state, { candidate, recognition }): CompetitionState => {
-                    const claims = [...state.claims];
-
-                    if (recognition.claimed) {
-                        claims.push({
-                            candidate,
-                            recognition,
-                            score:
-                                recognition.confidence *
-                                (candidate.recognizer.touches / ptrs.length),
-                        });
-                    }
-
-                    return { pending: state.pending - 1, claims };
-                },
-                { pending: candidates.length, claims: [] } as CompetitionState,
-            ),
-            filter(
-                (state) =>
-                    state.pending === 0 ||
-                    state.claims.some(
-                        (c) =>
-                            c.score >= CONFIDENCE_THRESHOLD &&
-                            c.candidate.recognizer.touches >= ptrs.length,
-                    ),
-            ),
-            take(1),
-        )
-        .subscribe((state) => {
-            if (state.claims.length === 0) {
-                for (const p of ptrs) p.release();
-                return;
+/**
+ * Captures pointers for the winning recognizer, or releases
+ * them if nobody claimed. Drops emissions with no winner.
+ */
+function resolveWinner(): OperatorFunction<CompetitionResult, ResolvedResult> {
+    return pipe(
+        tap(({ winner, pointers }: CompetitionResult) => {
+            if (winner) {
+                for (const p of pointers) p.capture();
+            } else {
+                releaseAll(pointers);
             }
+        }),
+        filter(
+            (result: CompetitionResult): result is ResolvedResult =>
+                result.winner !== null,
+        ),
+    );
+}
 
-            state.claims.sort((a, b) => b.score - a.score);
-            const winner = state.claims[0]!;
+// ── Competition ────────────────────────────────────────────────
 
-            for (const p of ptrs) p.capture();
+type RecognitionResult = {
+    recognizer: Recognizer<unknown>;
+    recognition: Recognition<unknown>;
+};
 
-            winner.recognition.gesture$.subscribe({
-                next: (value) => winner.candidate.subject.next(value),
-            });
-        });
+/**
+ * Returns a reducer that tracks the highest-scoring claim and
+ * determines when the competition is settled — either all
+ * recognizers responded, or the best claim scores above threshold
+ * using all available pointers.
+ */
+function competitionReducer(pointerCount: number) {
+    return (
+        state: CompetitionState,
+        { recognizer, recognition }: RecognitionResult,
+    ): CompetitionState => {
+        const pending = state.pending - 1;
+
+        if (!recognition.claimed) {
+            return { ...state, pending, settled: pending === 0 };
+        }
+
+        const score =
+            recognition.confidence * (recognizer.touches / pointerCount);
+
+        const winner =
+            !state.winner || score > state.winner.score
+                ? { recognizer, recognition, score }
+                : state.winner;
+
+        const earlyWinner =
+            score >= CONFIDENCE_THRESHOLD && recognizer.touches >= pointerCount;
+
+        return { pending, winner, settled: pending === 0 || earlyWinner };
+    };
+}
+
+function releaseAll(pointers: PointerStream[]): void {
+    for (const p of pointers) p.release();
 }

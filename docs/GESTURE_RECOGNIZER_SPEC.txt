@@ -1,0 +1,82 @@
+Gesture Recognizer & Harness -- Spec
+=====================================
+
+What is a recognizer?
+---------------------
+
+A recognizer watches pointer input and answers one question: "is this my
+gesture?" If yes, it produces a stream of typed events describing the gesture
+as it unfolds.
+
+A recognizer needs to express:
+  - How many pointers it requires
+  - Whether the input matches its pattern (claim or reject)
+  - How confident it is in its claim (for competition)
+  - What events to emit while the gesture is active
+  - What final event to emit when the gesture ends
+
+A recognizer should NOT know about:
+  - Other recognizers or competition
+  - Pointer capture/release at the browser level
+  - When to start or stop listening
+  - The temporal race between recognition and pointer end
+
+
+What is the harness?
+--------------------
+
+The harness is the lifecycle machinery between raw pointer input and recognized
+gestures. It owns everything the recognizer shouldn't have to think about.
+
+The harness is responsible for:
+  - Managing the temporal race: if pointers end before the recognizer decides,
+    that's a rejection
+  - Terminating gesture event streams when pointers lift
+  - Tracking the "last known state" so end events have access to final values
+  - Assembling the claim object (confidence + event stream) for the
+    coordination layer
+
+
+Where is the boundary?
+----------------------
+
+Recognizer owns: what to measure, when to decide, what to emit.
+Harness owns: what happens if pointers end early, when to stop emitting,
+how to produce the final event.
+
+The hard boundary question is the gesture lifecycle after claiming. The
+recognizer knows what events look like. The harness knows when they should
+stop. Both are involved -- so the interface between them must express:
+
+  1. An ongoing stream of events (recognizer produces, harness terminates)
+  2. A way to produce the final event (recognizer defines the shape, harness
+     controls the timing)
+
+
+What sits above the harness?
+----------------------------
+
+The coordination layer (gestures.ts) manages competition:
+  - Buffers concurrent pointers
+  - Fans pointers to eligible recognizers
+  - Collects claims, weighs confidence x pointer utilization
+  - Awards the winner, captures pointers, subscribes to the gesture stream
+  - Releases pointers if everyone rejects
+
+The coordination layer should see recognizers as opaque -- it calls
+recognize(pointers) and gets back a claim-or-reject decision with an event
+stream. It should not need to understand recognizer internals.
+
+
+Constraints
+-----------
+
+  - The metrics type (what a recognizer measures internally) should not leak
+    into any shared interface. It's an implementation detail of the
+    recognizer's closure.
+  - The event type (what consumers see) must flow through cleanly -- it's
+    the only type parameter that matters externally.
+  - Recognizers should not need framework types beyond what describes their
+    output. The less a recognizer imports from the gesture system, the better.
+  - The harness should be invisible to recognizer consumers -- they register
+    a recognizer and get an observable of events.

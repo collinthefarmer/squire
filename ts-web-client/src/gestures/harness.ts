@@ -16,7 +16,6 @@ import { Observable, merge, of, race } from "rxjs";
 import {
     filter,
     map,
-    share,
     shareReplay,
     startWith,
     take,
@@ -24,9 +23,7 @@ import {
     withLatestFrom,
 } from "rxjs/operators";
 import type { PointerStream, PointerEnd } from "./pointers";
-import type { Recognition, Recognizer } from "./recognizer";
-
-// ── Descriptor ─────────────────────────────────────────────────
+import type { Recognition, Recognizer } from "./recognizers/recognizer";
 
 export type RecognizerDescriptor<M, T> = {
     metrics$: Observable<M>;
@@ -46,16 +43,10 @@ export function describe<M, T>(
     return { metrics$, ...spec };
 }
 
-// ── Recognizer builder ─────────────────────────────────────────
-
 /**
- * Builds a Recognizer from a declarative descriptor. The harness
- * owns the full gesture lifecycle: it shares the metrics stream,
- * races decision against early pointer end, tracks the latest
- * event via shareReplay, and assembles move + end streams.
- *
- * The compete callback receives pointers and returns a descriptor
- * (or null to reject immediately).
+ * Builds a Recognizer from a declarative descriptor. The compete
+ * callback receives pointers and returns a descriptor (or null
+ * to reject immediately).
  */
 export function defineRecognizer<M, T>(
     touches: number,
@@ -65,57 +56,69 @@ export function defineRecognizer<M, T>(
         touches,
         recognize(pointers) {
             const descriptor = compete(pointers);
-
             if (!descriptor) {
                 return of<Recognition<T>>({ claimed: false });
             }
 
-            const { decide, toEvent, toEnd } = descriptor;
-            const anyEnd$ = merge(...pointers.map((p) => p.end$)).pipe(
-                take(1),
-                shareReplay(1),
-            );
-            const shared$ = descriptor.metrics$.pipe(share());
-
-            const rejected$: Observable<Recognition<T>> = anyEnd$.pipe(
-                map(() => ({ claimed: false as const })),
-            );
-
-            const decided$ = shared$.pipe(
-                map((m) => ({ m, decision: decide(m) })),
-                filter(
-                    (v): v is { m: M; decision: number | false } =>
-                        v.decision !== null,
-                ),
-                take(1),
-                map(({ m, decision }): Recognition<T> => {
-                    if (decision === false) {
-                        return { claimed: false };
-                    }
-
-                    const confidence = decision;
-
-                    const move$ = shared$.pipe(
-                        map((m) => toEvent(m)),
-                        startWith(toEvent(m)),
-                        takeUntil(anyEnd$),
-                        shareReplay(1),
-                    );
-
-                    const end$ = anyEnd$.pipe(
-                        withLatestFrom(move$),
-                        map(([end, last]) => toEnd(end, last)),
-                    );
-
-                    return {
-                        claimed: true,
-                        confidence,
-                        gesture$: merge(move$, end$),
-                    };
-                }),
-            );
-
-            return race(decided$, rejected$);
+            return raceDecision(descriptor, pointers);
         },
     };
+}
+
+function raceDecision<M, T>(
+    descriptor: RecognizerDescriptor<M, T>,
+    pointers: PointerStream[],
+): Observable<Recognition<T>> {
+    const { decide, toEvent, toEnd } = descriptor;
+
+    const anyEnded$ = merge(...pointers.map((p) => p.end$)).pipe(take(1));
+    const rejected$: Observable<Recognition<T>> = anyEnded$.pipe(
+        map(() => ({ claimed: false as const })),
+    );
+
+    const decided$ = descriptor.metrics$.pipe(
+        map((m): Recognition<T> | null => {
+            const decision = decide(m);
+            if (decision === null) return null;
+            if (decision === false) return { claimed: false };
+
+            return {
+                claimed: true,
+                confidence: decision,
+                gesture$: gestureStream(
+                    m,
+                    descriptor.metrics$,
+                    anyEnded$,
+                    toEvent,
+                    toEnd,
+                ),
+            };
+        }),
+        filter((r): r is Recognition<T> => r !== null),
+        take(1),
+    );
+
+    return race(decided$, rejected$);
+}
+
+function gestureStream<M, T>(
+    firstMetrics: M,
+    metrics$: Observable<M>,
+    anyEnded$: Observable<PointerEnd>,
+    toEvent: (m: M) => T,
+    toEnd: (end: PointerEnd, last: T) => T,
+): Observable<T> {
+    const move$ = metrics$.pipe(
+        map((m) => toEvent(m)),
+        startWith(toEvent(firstMetrics)),
+        takeUntil(anyEnded$),
+        shareReplay(1),
+    );
+
+    const end$ = anyEnded$.pipe(
+        withLatestFrom(move$),
+        map(([end, last]) => toEnd(end, last)),
+    );
+
+    return merge(move$, end$);
 }
