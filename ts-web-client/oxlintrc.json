@@ -1,0 +1,14 @@
+{
+    "categories": {
+        "correctness": "error",
+        "suspicious": "warn",
+        "pedantic": "warn"
+    },
+    "rules": {
+        "max-lines": "off",
+        "max-lines-per-function": "off",
+        "no-inline-comments": "off",
+        "no-extraneous-class": "off",
+        "no-static-only-class": "off"
+    }
+}

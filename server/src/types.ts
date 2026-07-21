@@ -13,6 +13,7 @@ type Brand<T, B extends string> = T & { readonly __brand: B };
 export type ChannelId = Brand<string, "ChannelId">;
 export type LayerId = Brand<string, "LayerId">;
 export type TrackId = Brand<string, "TrackId">;
+export type ClockId = Brand<string, "ClockId">;
 
 /** Create a ChannelId from a plain string */
 export function channelId(s: string): ChannelId {
@@ -27,6 +28,11 @@ export function layerId(s: string): LayerId {
 /** Create a TrackId from a plain string */
 export function trackId(s: string): TrackId {
     return s as TrackId;
+}
+
+/** Create a ClockId from a plain string */
+export function clockId(s: string): ClockId {
+    return s as ClockId;
 }
 
 /**
@@ -309,7 +315,7 @@ export type ClockVisibility = "always" | "hidden" | "dm-only";
 export type ClockCompletionBehavior = "persist" | "auto-hide" | "auto-destroy";
 
 export interface ClockCreatePayload {
-    id: string;
+    id: ClockId;
     duration: number; // total duration in ms
     autoStart?: boolean; // start immediately on create
     position?: ImagePosition; // reuses image position format
@@ -322,24 +328,24 @@ export interface ClockCreatePayload {
 }
 
 export interface ClockStartPayload {
-    id: string;
+    id: ClockId;
 }
 
 export interface ClockPausePayload {
-    id: string;
+    id: ClockId;
 }
 
 export interface ClockAdjustPayload {
-    id: string;
+    id: ClockId;
     delta: number; // ms to add (positive) or remove (negative)
 }
 
 export interface ClockDestroyPayload {
-    id: string;
+    id: ClockId;
 }
 
 export interface ClockUpdatePayload {
-    id: string;
+    id: ClockId;
     position?: ImagePosition;
     zIndex?: number;
     visible?: boolean;

@@ -5,7 +5,10 @@
     "scripts": {
         "serve": "bun server.ts",
         "dev": "bun server.ts",
-        "type-check": "tsc --noEmit"
+        "type-check": "tsc --noEmit",
+        "lint": "oxlint src/",
+        "test:coverage": "bun test --coverage",
+        "check": "bun run type-check && bun run lint && bun test"
     },
     "devDependencies": {
         "@types/bun": "latest"

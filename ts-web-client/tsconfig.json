@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     // Environment setup & latest features
-    "lib": ["dom"],
+    "lib": ["dom", "es2023"],
     "target": "ESNext",
     "module": "Preserve",
     "moduleDetection": "force",
@@ -17,15 +17,14 @@
     // Path aliases
     "baseUrl": ".",
     "paths": {
-      "@shared/*": ["./src/shared/*"],
-      "@display/*": ["./src/display/*"],
-      "@master/*": ["./src/master/*"],
-      "@components/*": ["./src/shared/components/*"],
-      "@services/*": ["./src/shared/services/*"],
-      "@utils/*": ["./src/shared/utils/*"],
-      "@styles/*": ["./src/shared/styles/*"],
+      "@state/*": ["./src/state/*"],
+      "@effects/*": ["./src/effects/*"],
+      "@events/*": ["./src/events/*"],
+      "@scene/*": ["./src/scene/*"],
+      "@constants/*": ["./src/constants/*"],
+      "@utils/*": ["./src/utils/*"],
       "@types": ["./src/types.ts"],
-      "@schemas": ["./src/shared/schemas.ts"]
+      "@schemas": ["./src/schemas.ts"]
     },
 
     // Best practices

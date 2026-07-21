@@ -11,6 +11,7 @@ export type {
     ChannelId,
     LayerId,
     TrackId,
+    ClockId,
     AudioPlayEvent,
     AudioPauseEvent,
     AudioResumeEvent,
@@ -62,6 +63,7 @@ export {
     channelId,
     layerId,
     trackId,
+    clockId,
 } from "../../server/src/types";
 
 /**
