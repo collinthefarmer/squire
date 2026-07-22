@@ -4,15 +4,15 @@ import { styleMap } from "lit-html/directives/style-map.js";
 import { when } from "lit-html/directives/when.js";
 
 import { BaseComponent } from "@core/base-component";
-import { DISPLAY, SERVER_ORIGIN } from "@constants/display";
+import { DISPLAY } from "@constants/display";
 import { EventBuilder } from "@events/event-builder";
 import { onGesture, tap } from "@gestures";
-import { store } from "../services";
+import { store, imageService } from "../services";
 import workspaceCss from "./sq-workspace.css" with { type: "text" };
 
 import type { SqDisplay } from "@components/sq-display";
 import type { Point } from "@gestures";
-import type { ImageAsset } from "./sq-palette";
+import type { ImageAsset } from "@types";
 
 export class SqWorkspace extends BaseComponent {
     private scale = 1;
@@ -42,6 +42,7 @@ export class SqWorkspace extends BaseComponent {
     private displayRef = (el: Element | undefined): void => {
         if (!el) return;
         this.displayEl = el as SqDisplay;
+        this.displayEl.imageService = imageService;
         this.displayEl.layers = store.layers;
         this.displayEl.clocks = store.clocks;
     };
@@ -91,6 +92,7 @@ export class SqWorkspace extends BaseComponent {
     private paletteTemplate(position: Point): TemplateResult {
         return html`
             <sq-palette
+                .imageService=${imageService}
                 .images=${this.images ?? []}
                 .position=${position}
                 .scale=${this.scale}
@@ -157,8 +159,7 @@ export class SqWorkspace extends BaseComponent {
 
     private async fetchImages(): Promise<void> {
         try {
-            const response = await fetch(`${SERVER_ORIGIN}/api/assets/images`);
-            this.images = await response.json() as ImageAsset[];
+            this.images = await imageService.catalog.get();
             this.update();
         } catch {
             this.images = [];

@@ -1,6 +1,6 @@
 import { test, expect, describe } from "bun:test";
 import { EventBuilder } from "./event-builder";
-import { channelId, layerId, trackId, clockId } from "@types";
+import { channelId, layerId, trackId, clockId, imageRef } from "@types";
 
 describe("EventBuilder", () => {
     describe("metadata", () => {
@@ -112,13 +112,13 @@ describe("EventBuilder", () => {
         test("imageSet should set correct type and fields", () => {
             const event = EventBuilder.imageSet({
                 layer: "background",
-                imageRef: "forest.png",
+                imageRef: imageRef("forest.png"),
                 aspectRatio: "cover",
             });
 
             expect(event.type).toBe("visual.image.set");
             expect(event.payload.layer).toBe(layerId("background"));
-            expect(event.payload.imageRef).toBe("forest.png");
+            expect(event.payload.imageRef).toBe(imageRef("forest.png"));
             expect(event.payload.aspectRatio).toBe("cover");
         });
 

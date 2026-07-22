@@ -1,7 +1,7 @@
 import { test, expect, describe, mock } from "bun:test";
 import { AppStore } from "./store";
 import { EventBus } from "./event-bus";
-import { channelId, trackId, layerId, clockId } from "@types";
+import { channelId, trackId, layerId, clockId, imageRef } from "@types";
 import type { DomainEvent, AudioChannelState, ImageLayerState } from "@types";
 import type { ClockState } from "@state/clock-state";
 import { makeMetadata } from "../test-utils/factories";
@@ -125,14 +125,14 @@ describe("AppStore", () => {
                 type: "visual.image.set",
                 payload: {
                     layer: BG,
-                    imageRef: "forest.png",
+                    imageRef: imageRef("forest.png"),
                     aspectRatio: "cover",
                 },
                 metadata: makeMetadata(),
             });
 
             expect(store.layers.size).toBe(1);
-            expect(store.layers.get(BG)!.imageRef).toBe("forest.png");
+            expect(store.layers.get(BG)!.imageRef).toBe(imageRef("forest.png"));
         });
 
         test("should apply visual.image.clear to layers state", () => {
@@ -141,7 +141,7 @@ describe("AppStore", () => {
                 type: "visual.image.set",
                 payload: {
                     layer: BG,
-                    imageRef: "forest.png",
+                    imageRef: imageRef("forest.png"),
                     aspectRatio: "cover",
                 },
                 metadata: makeMetadata(),
@@ -263,7 +263,7 @@ describe("AppStore", () => {
                 type: "visual.image.set",
                 payload: {
                     layer: BG,
-                    imageRef: "forest.png",
+                    imageRef: imageRef("forest.png"),
                     aspectRatio: "cover",
                 },
                 metadata: makeMetadata(),
@@ -310,7 +310,7 @@ describe("AppStore", () => {
                 type: "visual.image.set",
                 payload: {
                     layer: BG,
-                    imageRef: "forest.png",
+                    imageRef: imageRef("forest.png"),
                     aspectRatio: "cover",
                 },
                 metadata: makeMetadata(),

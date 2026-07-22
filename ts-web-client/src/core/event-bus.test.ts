@@ -1,7 +1,7 @@
 import { test, expect, describe } from "bun:test";
 import { EventBus } from "./event-bus";
 import type { EventTypeMap } from "./event-bus";
-import { channelId, trackId, layerId } from "@types";
+import { channelId, trackId, layerId, imageRef } from "@types";
 import { makeMetadata } from "../test-utils/factories";
 
 function makeEvent<T extends keyof EventTypeMap>(
@@ -85,7 +85,7 @@ describe("EventBus", () => {
             bus.emit(
                 makeEvent("visual.image.set", {
                     layer: layerId("bg"),
-                    imageRef: "forest.png",
+                    imageRef: imageRef("forest.png"),
                     aspectRatio: "cover",
                 }),
             );

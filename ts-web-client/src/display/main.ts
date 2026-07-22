@@ -7,13 +7,14 @@
 
 import { Logger } from "@utils/logger";
 import { SqDisplay } from "@components/sq-display";
-import { store, connection } from "./services";
+import { store, connection, imageService } from "./services";
 
 const logger = new Logger("Display");
 
 customElements.define("sq-display", SqDisplay);
 
 const display = document.createElement("sq-display") as SqDisplay;
+display.imageService = imageService;
 document.body.appendChild(display);
 
 store.layers$.subscribe((layers) => { display.layers = layers; });

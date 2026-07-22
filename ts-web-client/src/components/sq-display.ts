@@ -7,7 +7,7 @@ import { getRemainingTime, formatTime } from "@state/clock-state";
 import displayCss from "./sq-display.css" with { type: "text" };
 
 import type { ClockState } from "@state/clock-state";
-import { SERVER_ORIGIN } from "@constants/display";
+import type { ImageService } from "@core/image-service";
 
 import type { ImageLayerState, ImagePosition, ImageEffect } from "@types";
 import type { LayerId, ClockId } from "@types";
@@ -63,6 +63,12 @@ const ASPECT_TO_FIT: Record<string, string> = {
 export class SqDisplay extends BaseComponent {
     private _layers: ReadonlyMap<LayerId, ImageLayerState> = new Map();
     private _clocks: ReadonlyMap<ClockId, ClockState> = new Map();
+    private _imageService: ImageService | null = null;
+
+    set imageService(value: ImageService) {
+        this._imageService = value;
+    }
+
     set layers(value: ReadonlyMap<LayerId, ImageLayerState>) {
         this._layers = value;
         this.update();
@@ -94,7 +100,7 @@ export class SqDisplay extends BaseComponent {
     }
 
     private layerTemplate(layer: ImageLayerState): TemplateResult {
-        const imageUrl = `${SERVER_ORIGIN}/public/images/${layer.imageRef}`;
+        const imageUrl = this._imageService!.resolveUrl(layer.imageRef!);
         const isFull = layer.aspectRatio in ASPECT_TO_FIT;
 
         const layerStyles: Record<string, string> = {

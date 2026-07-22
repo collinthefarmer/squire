@@ -1,4 +1,4 @@
-import { channelId, layerId, trackId, clockId } from "@types";
+import { channelId, layerId, trackId, clockId, imageRef } from "@types";
 import type {
     EventMetadata,
     ChannelId,
@@ -71,7 +71,7 @@ export function makeLayer(
 ): ImageLayerState {
     return {
         id: layerId("bg"),
-        imageRef: "default.png",
+        imageRef: imageRef("default.png"),
         aspectRatio: "cover",
         position: { x: "center", y: "center" },
         scale: 1.0,

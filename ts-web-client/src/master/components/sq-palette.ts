@@ -7,18 +7,12 @@ import { when } from "lit-html/directives/when.js";
 
 import { BaseComponent } from "@core/base-component";
 import { PanelTransform, PANEL_TRANSFORM_CSS } from "@core/panel-transform";
-import { SERVER_ORIGIN } from "@constants/display";
 import { drag, onGesture, pinch, tap } from "@gestures";
 import paletteCss from "./sq-palette.css" with { type: "text" };
 
+import type { ImageService } from "@core/image-service";
 import type { DragEvent, PinchEvent, Point } from "@gestures";
-
-export interface ImageAsset {
-    name: string;
-    url: string;
-    width: number;
-    height: number;
-}
+import type { ImageAsset } from "@types";
 
 const THUMB_WIDTH = 120;
 const PANEL_W = 280;
@@ -26,6 +20,7 @@ const PANEL_H = 340;
 
 export class SqPalette extends BaseComponent {
     private _images: ImageAsset[] = [];
+    private _imageService: ImageService | null = null;
     private currentIndex = 0;
     private displayScale = 1;
     private reelEl: HTMLDivElement | null = null;
@@ -38,6 +33,10 @@ export class SqPalette extends BaseComponent {
         baseHeight: PANEL_H,
         namespace: "palette",
     });
+
+    set imageService(value: ImageService) {
+        this._imageService = value;
+    }
 
     set images(value: ImageAsset[]) {
         this._images = value;
@@ -109,7 +108,7 @@ export class SqPalette extends BaseComponent {
                     ${map(this._images, (img, i) => html`
                         <img
                             class=${classMap({ "reel-thumb": true, active: i === this.currentIndex })}
-                            src="${SERVER_ORIGIN}${img.url}?w=${THUMB_WIDTH}"
+                            src="${this._imageService!.resolveUrl(img.name, { width: THUMB_WIDTH })}"
                             alt=${img.name}
                             loading="lazy"
                             ${onGesture(tap(), () => this.scrollToIndex(i))}
@@ -125,7 +124,7 @@ export class SqPalette extends BaseComponent {
             <div class="browser" ${ref(this.browserRef)}>
                 ${map(this._images, (img) => html`
                     <div class="slide" ${onGesture(tap(), () => this.selectImage(img))}>
-                        <img src="${SERVER_ORIGIN}${img.url}?w=480" alt=${img.name} />
+                        <img src="${this._imageService!.resolveUrl(img.name, { width: 480 })}" alt=${img.name} />
                         <span class="name">${img.name}</span>
                     </div>
                 `)}

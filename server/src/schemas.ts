@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { channelId, layerId, trackId } from "./types";
-import type { ChannelId, LayerId, TrackId } from "./types";
+import { channelId, layerId, trackId, imageRef } from "./types";
+import type { ChannelId, LayerId, TrackId, ImageRef } from "./types";
 
 /**
  * Zod schemas for runtime validation
@@ -15,6 +15,7 @@ import type { ChannelId, LayerId, TrackId } from "./types";
 const channelIdSchema = z.string().transform((s): ChannelId => channelId(s));
 const layerIdSchema = z.string().transform((s): LayerId => layerId(s));
 const trackIdSchema = z.string().transform((s): TrackId => trackId(s));
+const imageRefSchema = z.string().transform((s): ImageRef => imageRef(s));
 
 // Base schemas
 export const eventMetadataSchema = z.object({
@@ -196,7 +197,7 @@ export const imageTransitionSchema = z.object({
 
 export const imageSetPayloadSchema = z.object({
     layer: layerIdSchema,
-    imageRef: z.string(),
+    imageRef: imageRefSchema,
     aspectRatio: z.enum(["cover", "contain", "fill", "native", "custom"]),
     position: imagePositionSchema.optional(),
     transition: imageTransitionSchema.optional(),

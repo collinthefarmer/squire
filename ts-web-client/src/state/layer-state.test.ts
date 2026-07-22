@@ -8,7 +8,7 @@ import {
 } from "./layer-state";
 import { makeMetadata, makeLayers } from "../test-utils/factories";
 import type { ImageLayerState, LayerId } from "@types";
-import { layerId } from "@types";
+import { layerId, imageRef } from "@types";
 
 const BG = layerId("bg");
 const FG = layerId("fg");
@@ -20,14 +20,14 @@ describe("layer-state reducers", () => {
                 type: "visual.image.set",
                 payload: {
                     layer: BG,
-                    imageRef: "forest.png",
+                    imageRef: imageRef("forest.png"),
                     aspectRatio: "cover",
                 },
                 metadata: makeMetadata(),
             });
 
             const layer = result.get(BG)!;
-            expect(layer.imageRef).toBe("forest.png");
+            expect(layer.imageRef).toBe(imageRef("forest.png"));
             expect(layer.aspectRatio).toBe("cover");
             expect(layer.opacity).toBe(1.0);
             expect(layer.visible).toBe(true);
@@ -41,14 +41,14 @@ describe("layer-state reducers", () => {
                 type: "visual.image.set",
                 payload: {
                     layer: BG,
-                    imageRef: "new.png",
+                    imageRef: imageRef("new.png"),
                     aspectRatio: "contain",
                 },
                 metadata: makeMetadata(),
             });
 
             const layer = result.get(BG)!;
-            expect(layer.imageRef).toBe("new.png");
+            expect(layer.imageRef).toBe(imageRef("new.png"));
             expect(layer.opacity).toBe(0.5); // Preserved
             expect(layer.zIndex).toBe(3); // Preserved
         });
@@ -60,7 +60,7 @@ describe("layer-state reducers", () => {
                 type: "visual.image.set",
                 payload: {
                     layer: BG,
-                    imageRef: "a.png",
+                    imageRef: imageRef("a.png"),
                     aspectRatio: "cover",
                 },
                 metadata: makeMetadata(),

@@ -12,6 +12,7 @@ export type {
     LayerId,
     TrackId,
     ClockId,
+    ImageRef,
     AudioPlayEvent,
     AudioPauseEvent,
     AudioResumeEvent,
@@ -62,10 +63,15 @@ export type {
     SystemClientListEvent,
     SystemClientListPayload,
     ClientInfo,
+    ImageAsset,
+    AudioAsset,
+    FontAsset,
+    ImageDimensions,
+    ImageResizeOptions,
 } from "../../server/src/types";
 
 // Re-export branded ID creator functions
-export { channelId, layerId, trackId, clockId } from "../../server/src/types";
+export { channelId, layerId, trackId, clockId, imageRef } from "../../server/src/types";
 
 /**
  * Client-specific types

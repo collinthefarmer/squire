@@ -14,6 +14,7 @@ export type ChannelId = Brand<string, "ChannelId">;
 export type LayerId = Brand<string, "LayerId">;
 export type TrackId = Brand<string, "TrackId">;
 export type ClockId = Brand<string, "ClockId">;
+export type ImageRef = Brand<string, "ImageRef">;
 
 /** Create a ChannelId from a plain string */
 export function channelId(s: string): ChannelId {
@@ -33,6 +34,11 @@ export function trackId(s: string): TrackId {
 /** Create a ClockId from a plain string */
 export function clockId(s: string): ClockId {
     return s as ClockId;
+}
+
+/** Create an ImageRef from a plain string */
+export function imageRef(s: string): ImageRef {
+    return s as ImageRef;
 }
 
 /**
@@ -240,7 +246,7 @@ export type ImageEffectType = ImageEffect["type"];
 
 export interface ImageSetPayload {
     layer: LayerId;
-    imageRef: string; // Asset reference
+    imageRef: ImageRef;
     aspectRatio: AspectRatioMode;
     position?: ImagePosition;
     transition?: ImageTransition;
@@ -297,7 +303,7 @@ export type ImageEvent =
  */
 export interface ImageLayerState {
     id: LayerId;
-    imageRef: string | null;
+    imageRef: ImageRef | null;
     aspectRatio: AspectRatioMode;
     position: ImagePosition;
     scale: number;
@@ -401,4 +407,40 @@ export interface ApplicationState {
     clients?: ClientsState;
     image?: ImageState;
     time?: { scale: number };
+}
+
+/**
+ * Asset catalog types — shapes returned by /api/assets/* endpoints.
+ */
+
+export interface ImageAsset {
+    name: ImageRef;
+    url: string;
+    width: number;
+    height: number;
+}
+
+export interface AudioAsset {
+    name: string;
+    url: string;
+    duration: number;
+}
+
+export interface FontAsset {
+    name: string;
+    filename: string;
+    url: string;
+}
+
+/**
+ * Resolved dimensions from a loaded image element.
+ */
+export interface ImageDimensions {
+    naturalWidth: number;
+    naturalHeight: number;
+}
+
+export interface ImageResizeOptions {
+    width?: number;
+    height?: number;
 }

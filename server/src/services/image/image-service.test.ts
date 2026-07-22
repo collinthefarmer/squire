@@ -5,7 +5,7 @@ import { StateStore } from "@core/state/state-store";
 import { ClientRegistry } from "@core/transport/client-registry";
 import { getImageLayer } from "@utils/state-helpers";
 import { makeMetadata } from "../../test-utils/factories";
-import { layerId } from "@types";
+import { layerId, imageRef } from "@types";
 
 const BG = layerId("bg");
 const BACKGROUND = layerId("background");
@@ -29,7 +29,7 @@ describe("ImageService", () => {
                 type: "visual.image.set",
                 payload: {
                     layer: "background",
-                    imageRef: "forest.png",
+                    imageRef: imageRef("forest.png"),
                     aspectRatio: "cover",
                 },
                 metadata: makeMetadata(),
@@ -37,7 +37,7 @@ describe("ImageService", () => {
 
             const layer = getImageLayer(stateStore.getState(), BACKGROUND);
             expect(layer).toBeDefined();
-            expect(layer!.imageRef).toBe("forest.png");
+            expect(layer!.imageRef).toBe(imageRef("forest.png"));
             expect(layer!.aspectRatio).toBe("cover");
             expect(layer!.opacity).toBe(1);
             expect(layer!.visible).toBe(true);
@@ -48,7 +48,7 @@ describe("ImageService", () => {
                 type: "visual.image.set",
                 payload: {
                     layer: "bg",
-                    imageRef: "a.png",
+                    imageRef: imageRef("a.png"),
                     aspectRatio: "cover",
                 },
                 metadata: makeMetadata(),
@@ -66,14 +66,14 @@ describe("ImageService", () => {
                 type: "visual.image.set",
                 payload: {
                     layer: "bg",
-                    imageRef: "b.png",
+                    imageRef: imageRef("b.png"),
                     aspectRatio: "contain",
                 },
                 metadata: makeMetadata(),
             });
 
             const layer = getImageLayer(stateStore.getState(), BG);
-            expect(layer!.imageRef).toBe("b.png");
+            expect(layer!.imageRef).toBe(imageRef("b.png"));
             expect(layer!.opacity).toBe(0.5); // Preserved
         });
     });
@@ -84,7 +84,7 @@ describe("ImageService", () => {
                 type: "visual.image.set",
                 payload: {
                     layer: "bg",
-                    imageRef: "a.png",
+                    imageRef: imageRef("a.png"),
                     aspectRatio: "cover",
                 },
                 metadata: makeMetadata(),
@@ -106,7 +106,7 @@ describe("ImageService", () => {
                 type: "visual.image.set",
                 payload: {
                     layer: "bg",
-                    imageRef: "a.png",
+                    imageRef: imageRef("a.png"),
                     aspectRatio: "cover",
                 },
                 metadata: makeMetadata(),
@@ -134,7 +134,7 @@ describe("ImageService", () => {
                 type: "visual.image.set",
                 payload: {
                     layer: "bg",
-                    imageRef: "a.png",
+                    imageRef: imageRef("a.png"),
                     aspectRatio: "cover",
                     scale: 1.5,
                 },
@@ -162,7 +162,7 @@ describe("ImageService", () => {
                 type: "visual.image.set",
                 payload: {
                     layer: "bg",
-                    imageRef: "a.png",
+                    imageRef: imageRef("a.png"),
                     aspectRatio: "cover",
                 },
                 metadata: makeMetadata(),
@@ -188,7 +188,7 @@ describe("ImageService", () => {
                 type: "visual.image.set",
                 payload: {
                     layer: "bg",
-                    imageRef: "a.png",
+                    imageRef: imageRef("a.png"),
                     aspectRatio: "cover",
                 },
                 metadata: makeMetadata(),
@@ -225,7 +225,7 @@ describe("ImageService", () => {
                 type: "visual.image.set",
                 payload: {
                     layer: "bg",
-                    imageRef: "a.png",
+                    imageRef: imageRef("a.png"),
                     aspectRatio: "cover",
                 },
                 metadata: makeMetadata(),
@@ -255,12 +255,12 @@ describe("ImageService", () => {
         test("getAllLayers should return all layers", () => {
             eventStore.append({
                 type: "visual.image.set",
-                payload: { layer: "bg", imageRef: "a.png", aspectRatio: "cover" },
+                payload: { layer: "bg", imageRef: imageRef("a.png"), aspectRatio: "cover" },
                 metadata: makeMetadata(),
             });
             eventStore.append({
                 type: "visual.image.set",
-                payload: { layer: "fg", imageRef: "b.png", aspectRatio: "contain" },
+                payload: { layer: "fg", imageRef: imageRef("b.png"), aspectRatio: "contain" },
                 metadata: makeMetadata(),
             });
 

@@ -4,6 +4,7 @@ import { defineReplay } from "./replay-domain";
 import { imageReplay } from "./replay-configs";
 import { makeEvent } from "../../test-utils/factories";
 import type { Event } from "@types";
+import { imageRef } from "@types";
 
 describe("EventStore", () => {
     describe("append and all$", () => {
@@ -136,7 +137,7 @@ describe("EventStore", () => {
             store.append(
                 makeEvent("visual.image.set", {
                     layer: "bg",
-                    imageRef: "test.png",
+                    imageRef: imageRef("test.png"),
                 }),
             );
             store.append(makeEvent("time.scale_changed", { scale: 1.5 }));
@@ -154,7 +155,7 @@ describe("EventStore", () => {
             store.append(
                 makeEvent("visual.image.set", {
                     layer: "bg",
-                    imageRef: "forest.png",
+                    imageRef: imageRef("forest.png"),
                 }),
             );
 
@@ -174,7 +175,7 @@ describe("EventStore", () => {
             store.append(
                 makeEvent("visual.image.set", {
                     layer: "bg",
-                    imageRef: "forest.png",
+                    imageRef: imageRef("forest.png"),
                 }),
             );
             store.append(makeEvent("visual.image.clear", { layer: "bg" }));

@@ -25,7 +25,7 @@ import type {
     ClockUpdateEvent,
     TimeScaleChangedEvent,
 } from "@types";
-import { channelId, layerId, trackId, clockId } from "@types";
+import { channelId, layerId, trackId, clockId, imageRef } from "@types";
 
 /**
  * Event builder service for master client
@@ -202,7 +202,7 @@ export class EventBuilder {
             type: "visual.image.set",
             payload: {
                 layer: layerId(params.layer),
-                imageRef: params.imageRef,
+                imageRef: imageRef(params.imageRef),
                 aspectRatio: params.aspectRatio,
                 position: params.position,
                 transition: params.transition,
