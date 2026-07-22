@@ -58,8 +58,13 @@ class GestureDirective extends AsyncDirective {
     ) {
         const el = part.element as HTMLElement;
 
-        this.recognizer = recognizer;
         this.handler = handler as (event: unknown) => void;
+
+        if (this.subscription && el === this.element) {
+            return nothing;
+        }
+
+        this.recognizer = recognizer;
 
         if (el !== this.element) {
             this.teardown();
