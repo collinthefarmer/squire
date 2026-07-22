@@ -6,11 +6,11 @@ import { styleMap } from "lit-html/directives/style-map.js";
 import { when } from "lit-html/directives/when.js";
 
 import { BaseComponent } from "@core/base-component";
-import { DISPLAY, SERVER_ORIGIN } from "@constants/display";
-import { onGesture, tap } from "@gestures";
+import { SERVER_ORIGIN } from "@constants/display";
+import { drag, onGesture, pinch, tap } from "@gestures";
 import paletteCss from "./sq-palette.css" with { type: "text" };
 
-import type { Point } from "@gestures";
+import type { DragEvent, PinchEvent, Point } from "@gestures";
 
 export interface ImageAsset {
     name: string;
@@ -22,12 +22,19 @@ export interface ImageAsset {
 const THUMB_WIDTH = 120;
 const PANEL_W = 280;
 const PANEL_H = 340;
+const MIN_SCALE = 0.5;
+const MAX_SCALE = 2.0;
 
 
 export class SqPalette extends BaseComponent {
     private _images: ImageAsset[] = [];
     private _position: Point = { x: 0, y: 0 };
     private currentIndex = 0;
+    private panelScale = 1;
+    private pinchBaseScale: number | null = null;
+    private dragOrigin: Point | null = null;
+    private displayScale = 1;
+    private panelEl: HTMLDivElement | null = null;
     private reelEl: HTMLDivElement | null = null;
     private browserEl: HTMLDivElement | null = null;
 
@@ -37,9 +44,18 @@ export class SqPalette extends BaseComponent {
     }
 
     set position(value: Point) {
-        this._position = value;
+        this._position = { ...value };
         this.update();
     }
+
+    set scale(value: number) {
+        this.displayScale = value;
+    }
+
+    private panelRef = (el: Element | undefined): void => {
+        if (!el) return;
+        this.panelEl = el as HTMLDivElement;
+    };
 
     private reelRef = (el: Element | undefined): void => {
         if (!el) return;
@@ -71,13 +87,18 @@ export class SqPalette extends BaseComponent {
     }
 
     private panelTemplate(): TemplateResult {
-        const clamped = this.clampPosition(this._position);
-
         return html`
-            <div class="panel" @pointerdown=${(e: PointerEvent) => e.stopPropagation()} style=${styleMap({
-                left: `${clamped.x}px`,
-                top: `${clamped.y}px`,
-            })}>
+            <div class="panel"
+                ${ref(this.panelRef)}
+                @pointerdown=${(e: PointerEvent) => e.stopPropagation()}
+                ${onGesture(pinch(), (e: PinchEvent) => this.handlePinch(e))}
+                ${onGesture(drag({ touches: 2 }), (e: DragEvent) => this.handleDrag(e))}
+                style=${styleMap({
+                    left: `${this._position.x}px`,
+                    top: `${this._position.y}px`,
+                    '--scale': String(this.panelScale),
+                })}
+            >
                 ${when(
                     this._images.length > 0,
                     () => html`
@@ -126,19 +147,72 @@ export class SqPalette extends BaseComponent {
     private handleBrowserScroll = (): void => {
         if (!this.browserEl || !this.reelEl || this._images.length <= 1) return;
 
-        const browserMax = this.browserEl.scrollWidth - this.browserEl.clientWidth;
-        if (browserMax <= 0) return;
-
-        const ratio = this.browserEl.scrollLeft / browserMax;
-        const reelMax = this.reelEl.scrollWidth - this.reelEl.clientWidth;
-        this.reelEl.scrollLeft = ratio * reelMax;
-
         const index = Math.round(this.browserEl.scrollLeft / this.browserEl.clientWidth);
+        this.centerReelOn(index);
+
         if (index !== this.currentIndex) {
             this.currentIndex = Math.min(index, this._images.length - 1);
             this.update();
         }
     };
+
+    private centerReelOn(index: number): void {
+        if (!this.reelEl) return;
+
+        const thumbs = this.reelEl.querySelectorAll(".reel-thumb");
+        const thumb = thumbs[index];
+        if (!thumb) return;
+
+        const thumbEl = thumb as HTMLElement;
+        const thumbCenter = thumbEl.offsetLeft + thumbEl.offsetWidth / 2;
+        this.reelEl.scrollLeft = thumbCenter - this.reelEl.clientWidth / 2;
+    }
+
+    private handleDrag(event: DragEvent): void {
+        if (!this.panelEl) return;
+
+        if (!this.dragOrigin) {
+            this.dragOrigin = { x: this._position.x, y: this._position.y };
+        }
+
+        if (event.phase === "move") {
+            this._position.x = this.dragOrigin.x + event.delta.x / this.displayScale;
+            this._position.y = this.dragOrigin.y + event.delta.y / this.displayScale;
+
+            this.panelEl.style.left = `${this._position.x}px`;
+            this.panelEl.style.top = `${this._position.y}px`;
+        }
+
+        if (event.phase === "end") {
+            this.dragOrigin = null;
+        }
+    }
+
+    private handlePinch(event: PinchEvent): void {
+        if (!this.panelEl) return;
+
+        if (this.pinchBaseScale === null) {
+            this.pinchBaseScale = this.panelScale;
+        }
+
+        if (event.phase === "move") {
+            const prevScale = this.panelScale;
+            this.panelScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, this.pinchBaseScale * event.scale));
+
+            const dw = PANEL_W * (this.panelScale - prevScale) / 2;
+            const dh = PANEL_H * (this.panelScale - prevScale) / 2;
+            this._position.x -= dw;
+            this._position.y -= dh;
+
+            this.panelEl.style.setProperty("--scale", String(this.panelScale));
+            this.panelEl.style.left = `${this._position.x}px`;
+            this.panelEl.style.top = `${this._position.y}px`;
+        }
+
+        if (event.phase === "end") {
+            this.pinchBaseScale = null;
+        }
+    }
 
     private selectImage(image: ImageAsset): void {
         this.dispatchEvent(new CustomEvent("image-select", {
@@ -151,10 +225,7 @@ export class SqPalette extends BaseComponent {
     private scrollToIndex(index: number): void {
         if (!this.browserEl) return;
 
-        this.browserEl.scrollTo({
-            left: index * this.browserEl.clientWidth,
-            behavior: "smooth",
-        });
+        this.browserEl.scrollLeft = index * this.browserEl.clientWidth;
     }
 
     private handleBackdropTap = (e: PointerEvent): void => {
@@ -166,12 +237,4 @@ export class SqPalette extends BaseComponent {
         }));
     };
 
-    // -- Helpers --
-
-    private clampPosition(pos: Point): Point {
-        return {
-            x: Math.min(Math.max(0, pos.x), DISPLAY.WIDTH - PANEL_W),
-            y: Math.min(Math.max(0, pos.y), DISPLAY.HEIGHT - PANEL_H),
-        };
-    }
 }

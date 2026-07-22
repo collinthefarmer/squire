@@ -11,7 +11,7 @@
 
 .panel {
     position: absolute;
-    width: 280px;
+    width: calc(280px * var(--scale, 1));
     background: rgba(22, 33, 62, 0.95);
     border: 1px solid rgba(15, 52, 96, 0.8);
     border-radius: 8px;
@@ -19,12 +19,13 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    touch-action: none;
 }
 
 /* -- Top reel (minimap) -- */
 
 .reel {
-    height: 48px;
+    height: calc(48px * var(--scale, 1));
     flex-shrink: 0;
     overflow-x: auto;
     overflow-y: hidden;
@@ -40,15 +41,15 @@
 
 .reel-track {
     display: flex;
-    gap: 2px;
-    padding: 4px;
+    gap: calc(2px * var(--scale, 1));
+    padding: calc(4px * var(--scale, 1));
     height: 100%;
     align-items: center;
 }
 
 .reel-thumb {
-    height: 36px;
-    width: 36px;
+    height: calc(36px * var(--scale, 1));
+    width: calc(36px * var(--scale, 1));
     flex-shrink: 0;
     object-fit: cover;
     border-radius: 2px;
@@ -71,7 +72,6 @@
     overflow-x: auto;
     overflow-y: hidden;
     scroll-snap-type: x mandatory;
-    scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
 }
 
@@ -86,8 +86,8 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 6px;
-    gap: 4px;
+    padding: calc(6px * var(--scale, 1));
+    gap: calc(4px * var(--scale, 1));
     box-sizing: border-box;
 }
 
@@ -99,7 +99,7 @@
 }
 
 .slide .name {
-    font-size: 11px;
+    font-size: calc(11px * var(--scale, 1));
     color: rgba(224, 224, 224, 0.6);
     white-space: nowrap;
     overflow: hidden;
@@ -114,5 +114,5 @@
     align-items: center;
     justify-content: center;
     color: rgba(224, 224, 224, 0.4);
-    font-size: 13px;
+    font-size: calc(13px * var(--scale, 1));
 }

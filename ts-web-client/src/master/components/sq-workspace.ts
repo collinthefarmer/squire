@@ -93,6 +93,7 @@ export class SqWorkspace extends BaseComponent {
             <sq-palette
                 .images=${this.images ?? []}
                 .position=${position}
+                .scale=${this.scale}
                 @image-select=${this.handleImageSelect}
                 @dismiss=${this.handleDismiss}
             ></sq-palette>
