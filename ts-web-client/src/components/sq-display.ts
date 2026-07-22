@@ -7,10 +7,10 @@ import { getRemainingTime, formatTime } from "@state/clock-state";
 import displayCss from "./sq-display.css" with { type: "text" };
 
 import type { ClockState } from "@state/clock-state";
+import { SERVER_ORIGIN } from "@constants/display";
+
 import type { ImageLayerState, ImagePosition, ImageEffect } from "@types";
 import type { LayerId, ClockId } from "@types";
-
-const SERVER_ORIGIN = `${location.protocol}//${location.hostname}:3000`;
 
 // -- Position resolution --
 

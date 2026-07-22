@@ -6,6 +6,7 @@ import { styleMap } from "lit-html/directives/style-map.js";
 import { when } from "lit-html/directives/when.js";
 
 import { BaseComponent } from "@core/base-component";
+import { DISPLAY, SERVER_ORIGIN } from "@constants/display";
 import { onGesture, tap } from "@gestures";
 import paletteCss from "./sq-palette.css" with { type: "text" };
 
@@ -18,12 +19,9 @@ export interface ImageAsset {
     height: number;
 }
 
-const SERVER_ORIGIN = `${location.protocol}//${location.hostname}:3000`;
 const THUMB_WIDTH = 120;
 const PANEL_W = 280;
 const PANEL_H = 340;
-const DISPLAY_W = 1920;
-const DISPLAY_H = 1080;
 
 
 export class SqPalette extends BaseComponent {
@@ -172,8 +170,8 @@ export class SqPalette extends BaseComponent {
 
     private clampPosition(pos: Point): Point {
         return {
-            x: Math.min(Math.max(0, pos.x), DISPLAY_W - PANEL_W),
-            y: Math.min(Math.max(0, pos.y), DISPLAY_H - PANEL_H),
+            x: Math.min(Math.max(0, pos.x), DISPLAY.WIDTH - PANEL_W),
+            y: Math.min(Math.max(0, pos.y), DISPLAY.HEIGHT - PANEL_H),
         };
     }
 }

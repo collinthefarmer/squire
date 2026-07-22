@@ -4,6 +4,7 @@ import { styleMap } from "lit-html/directives/style-map.js";
 import { when } from "lit-html/directives/when.js";
 
 import { BaseComponent } from "@core/base-component";
+import { DISPLAY, SERVER_ORIGIN } from "@constants/display";
 import { EventBuilder } from "@events/event-builder";
 import { onGesture, tap } from "@gestures";
 import { store } from "../services";
@@ -12,10 +13,6 @@ import workspaceCss from "./sq-workspace.css" with { type: "text" };
 import type { SqDisplay } from "@components/sq-display";
 import type { Point } from "@gestures";
 import type { ImageAsset } from "./sq-palette";
-
-const DISPLAY_W = 1920;
-const DISPLAY_H = 1080;
-const SERVER_ORIGIN = `${location.protocol}//${location.hostname}:3000`;
 
 export class SqWorkspace extends BaseComponent {
     private scale = 1;
@@ -144,9 +141,9 @@ export class SqWorkspace extends BaseComponent {
     // -- Helpers --
 
     private computeScale(viewportW: number, viewportH: number): void {
-        this.scale = Math.min(viewportW / DISPLAY_W, viewportH / DISPLAY_H);
-        this.offsetX = (viewportW - DISPLAY_W * this.scale) / 2;
-        this.offsetY = (viewportH - DISPLAY_H * this.scale) / 2;
+        this.scale = Math.min(viewportW / DISPLAY.WIDTH, viewportH / DISPLAY.HEIGHT);
+        this.offsetX = (viewportW - DISPLAY.WIDTH * this.scale) / 2;
+        this.offsetY = (viewportH - DISPLAY.HEIGHT * this.scale) / 2;
         this.update();
     }
 
