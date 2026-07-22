@@ -3,6 +3,9 @@
 // Coordination
 export { gestures } from "./coordination";
 
+// Directive
+export { onGesture } from "./directive";
+
 // Pointer streams
 export { pointers$ } from "./pointers";
 
@@ -19,10 +22,12 @@ export { subtract, velocity, pairMetrics, pairDelta } from "./transform";
 export type { Point, PointerPairMetrics, PairDelta } from "./transform";
 
 // Recognizers
-export { drag, pinch } from "./recognizers";
+export { drag, pinch, tap } from "./recognizers";
 export type {
     DragEvent,
     DragConfig,
     PinchEvent,
     PinchConfig,
+    TapEvent,
+    TapConfig,
 } from "./recognizers";

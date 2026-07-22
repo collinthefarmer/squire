@@ -7,3 +7,6 @@ export type { DragEvent, DragConfig } from "./drag";
 
 export { pinch } from "./pinch";
 export type { PinchEvent, PinchConfig } from "./pinch";
+
+export { tap } from "./tap";
+export type { TapEvent, TapConfig } from "./tap";

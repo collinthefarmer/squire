@@ -1,23 +1,20 @@
-/**
- * Gesture sandbox — pointer data exploration component.
- *
- * Two zones side by side:
- * - Canvas (left): always-capture mode. Drag/pinch rects freely.
- * - Scroll zone (right): plain native scrolling list. Gesture
- *   recognition will be added when recognizer factories are built.
- *
- * Both zones share the same pointer data panel and event log.
- */
-
-import { html, nothing, type TemplateResult } from "lit-html";
+import { html, type TemplateResult } from "lit-html";
+import { map } from "lit-html/directives/map.js";
+import { ref } from "lit-html/directives/ref.js";
+import { repeat } from "lit-html/directives/repeat.js";
+import { styleMap } from "lit-html/directives/style-map.js";
+import { when } from "lit-html/directives/when.js";
 import { tap } from "rxjs/operators";
+
 import { BaseComponent } from "@core/base-component";
+import sandboxCss from "./gesture-sandbox.css" with { type: "text" };
 import {
     pointers$,
     trackedPointers$,
-    gestures,
+    onGesture,
     drag,
     pinch,
+    tap as tapGesture,
     subtract,
     velocity,
     pairMetrics,
@@ -28,6 +25,7 @@ import type {
     TrackedPointer,
     DragEvent,
     PinchEvent,
+    TapEvent,
     Point,
     PointerPairMetrics,
 } from "@gestures";
@@ -63,203 +61,6 @@ const SCROLL_ITEMS = Array.from({ length: 40 }, (_, i) => ({
     color: `hsl(${i * 9}, 50%, 25%)`,
 }));
 
-const STYLES = `
-:host {
-    display: block;
-    width: 100%;
-    height: 100%;
-    font-family: ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
-    font-size: 13px;
-    color: #e0e0e0;
-    background: #1a1a2e;
-    overflow: hidden;
-}
-
-.layout {
-    display: grid;
-    grid-template-rows: auto 1fr auto;
-    height: 100%;
-}
-
-.data-panel {
-    padding: 8px 12px;
-    background: #16213e;
-    border-bottom: 1px solid #0f3460;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 16px;
-    min-height: 36px;
-    align-items: center;
-}
-
-.data-label { color: #7f8c9b; }
-.data-value { color: #e94560; }
-.pair-data { color: #bd93f9; }
-
-.zones {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1px;
-    background: #0f3460;
-    overflow: hidden;
-}
-
-.zone-header {
-    padding: 4px 8px;
-    background: #16213e;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-/* Canvas zone (left) */
-.canvas-zone {
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    background: #1a1a2e;
-}
-
-.canvas-area {
-    position: relative;
-    flex: 1;
-    overflow: hidden;
-    cursor: crosshair;
-    touch-action: none;
-    user-select: none;
-}
-
-.rect {
-    position: absolute;
-    border: 2px solid rgba(255, 255, 255, 0.6);
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: rgba(255, 255, 255, 0.8);
-    font-size: 14px;
-    font-weight: bold;
-    user-select: none;
-    pointer-events: none;
-}
-
-.touch-dot {
-    position: absolute;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    transform: translate(-50%, -50%);
-    pointer-events: none;
-    box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 10px;
-    color: #fff;
-    z-index: 100;
-}
-
-/* Scroll zone (right) */
-.scroll-zone {
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    background: #1a1a2e;
-}
-
-.scroll-area {
-    flex: 1;
-    overflow-y: auto;
-    position: relative;
-    touch-action: pan-y;
-    overscroll-behavior: contain;
-}
-
-.scroll-list {
-    padding: 4px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.scroll-item {
-    padding: 16px 12px;
-    border-radius: 4px;
-    color: #e0e0e0;
-    font-size: 14px;
-    user-select: none;
-    min-height: 44px;
-    display: flex;
-    align-items: center;
-}
-
-.pull-indicator {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #1e3a5f;
-    color: #50fa7b;
-    font-size: 13px;
-    overflow: hidden;
-    flex-shrink: 0;
-}
-
-.zone-header .claim-badge {
-    padding: 2px 6px;
-    border-radius: 3px;
-    font-size: 10px;
-    font-weight: bold;
-}
-
-.claim-claimed { background: #50fa7b; color: #1a1a2e; }
-
-/* Log panel */
-.log-panel {
-    height: 140px;
-    overflow-y: auto;
-    background: #0f0f23;
-    border-top: 1px solid #0f3460;
-    padding: 4px 0;
-}
-
-.log-entry {
-    padding: 2px 12px;
-    white-space: nowrap;
-}
-
-.log-phase {
-    display: inline-block;
-    width: 50px;
-    color: #7f8c9b;
-}
-
-.log-phase-start { color: #50fa7b; }
-.log-phase-end { color: #ff5555; }
-.log-phase-move { color: #6272a4; }
-.log-phase-cancel { color: #ffb86c; }
-
-.log-source {
-    display: inline-block;
-    width: 50px;
-    color: #44475a;
-}
-
-.log-time {
-    float: right;
-    color: #44475a;
-}
-
-.status-bar {
-    padding: 6px 12px;
-    background: #16213e;
-    border-top: 1px solid #0f3460;
-    display: flex;
-    gap: 24px;
-}
-`;
 
 export class GestureSandbox extends BaseComponent {
     // Canvas zone
@@ -275,266 +76,224 @@ export class GestureSandbox extends BaseComponent {
     private refreshing = false;
     private twoFingerDelta: Point | null = null;
     private pinchScale: number | null = null;
+    private lastTap: TapEvent | null = null;
 
     // Shared
     private log: LogEntry[] = [];
     private moveCount = 0;
 
     private rects: SandboxRect[] = [
-        {
-            id: "A",
-            x: 20,
-            y: 40,
-            width: 100,
-            height: 75,
-            scale: 1,
-            rotation: 0,
-            color: "rgba(233, 69, 96, 0.5)",
-        },
-        {
-            id: "B",
-            x: 150,
-            y: 80,
-            width: 80,
-            height: 80,
-            scale: 1,
-            rotation: 0,
-            color: "rgba(80, 250, 123, 0.5)",
-        },
-        {
-            id: "C",
-            x: 60,
-            y: 180,
-            width: 110,
-            height: 60,
-            scale: 1,
-            rotation: 0,
-            color: "rgba(98, 114, 164, 0.5)",
-        },
+        { id: "A", x: 20, y: 40, width: 100, height: 75, scale: 1, rotation: 0, color: "rgba(233, 69, 96, 0.5)" },
+        { id: "B", x: 150, y: 80, width: 80, height: 80, scale: 1, rotation: 0, color: "rgba(80, 250, 123, 0.5)" },
+        { id: "C", x: 60, y: 180, width: 110, height: 60, scale: 1, rotation: 0, color: "rgba(98, 114, 164, 0.5)" },
     ];
+
+    // -- Element refs (stable arrow fields so lit-html ref() only fires once) --
+
+    private canvasRef = (el: Element | undefined): void => {
+        if (!el) return;
+        this.canvasEl = el as HTMLDivElement;
+
+        this.subscribe(
+            trackedPointers$(
+                pointers$(this.canvasEl).pipe(tap((s) => s.capture())),
+            ),
+            (snap) => this.handleCanvasEvent(snap),
+        );
+    };
+
+    private scrollRef = (el: Element | undefined): void => {
+        if (!el) return;
+        this.scrollEl = el as HTMLDivElement;
+    };
+
+    // -- Lifecycle --
 
     override connectedCallback(): void {
         super.connectedCallback();
-        this.adoptStyles(STYLES);
+        this.adoptStyles(sandboxCss);
         this.update();
-
-        requestAnimationFrame(() => {
-            this.canvasEl = this.shadowRoot!.querySelector(".canvas-area");
-            this.scrollEl = this.shadowRoot!.querySelector(".scroll-area");
-
-            if (this.canvasEl) {
-                this.subscribe(
-                    trackedPointers$(
-                        pointers$(this.canvasEl).pipe(tap((s) => s.capture())),
-                    ),
-                    (snap) => this.handleCanvasEvent(snap),
-                );
-            }
-
-            if (this.scrollEl) {
-                const scrollEl = this.scrollEl;
-                const input = gestures(scrollEl);
-
-                this.subscribe(
-                    input.on(
-                        drag({
-                            direction: { x: 0, y: 1 },
-                            when: () => scrollEl.scrollTop <= 0,
-                        }),
-                    ),
-                    (e) => this.handlePullDrag(e),
-                );
-
-                this.subscribe(input.on(drag({ touches: 2 })), (e) =>
-                    this.handleTwoFingerDrag(e),
-                );
-
-                this.subscribe(input.on(pinch()), (e) => this.handlePinch(e));
-            }
-        });
     }
 
+    // -- Template --
+
     protected template(): TemplateResult {
-        const canvasPointerList = [...this.canvasPointers.values()];
-
-        const canvasPair =
-            canvasPointerList.length >= 2
-                ? pairMetrics(
-                      canvasPointerList[0]!.position,
-                      canvasPointerList[1]!.position,
-                  )
-                : null;
-
         return html`
             <div class="layout">
-                <div class="data-panel">
-                    <span>
-                        <span class="data-label">Pointers:</span>
-                        <span class="data-value"
-                            >${canvasPointerList.length}</span
-                        >
-                    </span>
-                    ${canvasPointerList.map(
-                        (p) => html`
-                            <span>
-                                <span class="data-label">#${p.id}:</span>
-                                <span class="data-value"
-                                    >(${Math.round(p.position.x)},${Math.round(
-                                        p.position.y,
-                                    )})</span
-                                >
-                                <span class="data-label">${p.pointerType}</span>
-                            </span>
-                        `,
-                    )}
-                    ${canvasPair
-                        ? html`
-                              <span class="pair-data">
-                                  dist=${Math.round(canvasPair.distance)}
-                                  angle=${canvasPair.angle.toFixed(2)}rad
-                              </span>
-                          `
-                        : nothing}
-                </div>
-
+                ${this.dataPanelTemplate()}
                 <div class="zones">
-                    <div class="canvas-zone">
-                        <div class="zone-header">
-                            <span>Canvas (always capture)</span>
-                            <span class="data-value"
-                                >${canvasPointerList.length} ptr</span
-                            >
-                        </div>
-                        <div class="canvas-area">
-                            ${this.rects.map(
-                                (r) => html`
-                                    <div
-                                        class="rect"
-                                        style="
-                                        left: ${r.x}px; top: ${r.y}px;
-                                        width: ${r.width}px; height: ${r.height}px;
-                                        background: ${r.color};
-                                        transform: scale(${r.scale}) rotate(${r.rotation}rad);
-                                    "
-                                    >
-                                        ${r.id}
-                                    </div>
-                                `,
-                            )}
-                            ${canvasPointerList.map(
-                                (p) => html`
-                                    <div
-                                        class="touch-dot"
-                                        style="
-                                        left: ${p.position.x -
-                                        this.canvasOffset().x}px;
-                                        top: ${p.position.y -
-                                        this.canvasOffset().y}px;
-                                        background: hsl(${(p.id * 137) %
-                                        360}, 70%, 50%);
-                                    "
-                                    >
-                                        ${p.id}
-                                    </div>
-                                `,
-                            )}
-                        </div>
-                    </div>
-
-                    <div class="scroll-zone">
-                        <div class="zone-header">
-                            <span>Scroll (drag recognizer)</span>
-                            ${this.pinchScale !== null
-                                ? html`<span class="claim-badge claim-claimed"
-                                      >Pinch:
-                                      ${this.pinchScale.toFixed(2)}x</span
-                                  >`
-                                : this.twoFingerDelta
-                                  ? html`<span class="claim-badge claim-claimed"
-                                        >2-finger:
-                                        (${Math.round(
-                                            this.twoFingerDelta.x,
-                                        )},${Math.round(
-                                            this.twoFingerDelta.y,
-                                        )})</span
-                                    >`
-                                  : this.refreshing
-                                    ? html`<span
-                                          class="claim-badge claim-claimed"
-                                          >Refreshing...</span
-                                      >`
-                                    : this.pullDistance > 0
-                                      ? html`<span
-                                            class="claim-badge claim-claimed"
-                                            >Pull:
-                                            ${Math.round(
-                                                this.pullDistance,
-                                            )}px</span
-                                        >`
-                                      : html`<span class="data-label"
-                                            >1-finger pull / 2-finger drag</span
-                                        >`}
-                        </div>
-                        <div class="scroll-area">
-                            ${this.pullDistance > 0
-                                ? html`
-                                      <div
-                                          class="pull-indicator"
-                                          style="height: ${Math.min(
-                                              this.pullDistance,
-                                              120,
-                                          )}px"
-                                      >
-                                          ${this.pullDistance >
-                                          PULL_REFRESH_THRESHOLD
-                                              ? "Release to refresh"
-                                              : "Pull down..."}
-                                      </div>
-                                  `
-                                : nothing}
-                            <div class="scroll-list">
-                                ${SCROLL_ITEMS.map(
-                                    (item) => html`
-                                        <div
-                                            class="scroll-item"
-                                            style="background: ${item.color}"
-                                        >
-                                            ${item.label}
-                                        </div>
-                                    `,
-                                )}
-                            </div>
-                        </div>
-                    </div>
+                    ${this.canvasZoneTemplate()}
+                    ${this.scrollZoneTemplate()}
                 </div>
+                ${this.logPanelTemplate()}
+                ${this.statusBarTemplate()}
+            </div>
+        `;
+    }
 
-                <div class="log-panel">
-                    ${this.log.map(
-                        (entry) => html`
-                            <div class="log-entry">
-                                <span class="log-source">${entry.source}</span>
-                                <span class="log-phase log-phase-${entry.phase}"
-                                    >${entry.phase}</span
-                                >
-                                #${entry.pointerId} ${entry.pointerType}
-                                (${Math.round(entry.position.x)},${Math.round(
-                                    entry.position.y,
-                                )})
-                                ${entry.detail}
-                                <span class="log-time">${entry.time}</span>
-                            </div>
-                        `,
-                    )}
-                </div>
+    private dataPanelTemplate(): TemplateResult {
+        const pointers = [...this.canvasPointers.values()];
 
-                <div class="status-bar">
+        const pair = pointers.length >= 2
+            ? pairMetrics(pointers[0]!.position, pointers[1]!.position)
+            : null;
+
+        return html`
+            <div class="data-panel">
+                <span>
+                    <span class="data-label">Pointers:</span>
+                    <span class="data-value">${pointers.length}</span>
+                </span>
+                ${map(pointers, (p) => html`
                     <span>
-                        <span class="data-label">Canvas drag:</span>
-                        <span class="data-value"
-                            >${this.dragTarget?.id ?? "none"}</span
-                        >
+                        <span class="data-label">#${p.id}:</span>
+                        <span class="data-value">
+                            (${Math.round(p.position.x)},${Math.round(p.position.y)})
+                        </span>
+                        <span class="data-label">${p.pointerType}</span>
                     </span>
+                `)}
+                ${when(pair, (p) => html`
+                    <span class="pair-data">
+                        dist=${Math.round(p.distance)} angle=${p.angle.toFixed(2)}rad
+                    </span>
+                `)}
+            </div>
+        `;
+    }
+
+    private canvasZoneTemplate(): TemplateResult {
+        const pointers = [...this.canvasPointers.values()];
+        const offset = this.canvasOffset();
+
+        return html`
+            <div class="canvas-zone">
+                <div class="zone-header">
+                    <span>Canvas (always capture)</span>
+                    <span class="data-value">${pointers.length} ptr</span>
                 </div>
+                <div class="canvas-area" ${ref(this.canvasRef)}>
+                    ${repeat(this.rects, (r) => r.id, (r) => this.rectTemplate(r))}
+                    ${map(pointers, (p) => this.touchDotTemplate(p, offset))}
+                </div>
+            </div>
+        `;
+    }
+
+    private rectTemplate(rect: SandboxRect): TemplateResult {
+        return html`
+            <div class="rect" style=${styleMap({
+                left: `${rect.x}px`,
+                top: `${rect.y}px`,
+                width: `${rect.width}px`,
+                height: `${rect.height}px`,
+                background: rect.color,
+                transform: `scale(${rect.scale}) rotate(${rect.rotation}rad)`,
+            })}>
+                ${rect.id}
+            </div>
+        `;
+    }
+
+    private touchDotTemplate(pointer: TrackedPointer, offset: Point): TemplateResult {
+        return html`
+            <div class="touch-dot" style=${styleMap({
+                left: `${pointer.position.x - offset.x}px`,
+                top: `${pointer.position.y - offset.y}px`,
+                background: `hsl(${(pointer.id * 137) % 360}, 70%, 50%)`,
+            })}>
+                ${pointer.id}
+            </div>
+        `;
+    }
+
+    private scrollZoneTemplate(): TemplateResult {
+        return html`
+            <div class="scroll-zone">
+                <div class="zone-header">
+                    <span>Scroll (drag recognizer)</span>
+                    ${this.scrollBadgeTemplate()}
+                </div>
+                <div class="scroll-area"
+                    ${ref(this.scrollRef)}
+                    ${onGesture(drag({ direction: { x: 0, y: 1 }, when: () => this.scrollEl!.scrollTop <= 0 }), (e) => this.handlePullDrag(e))}
+                    ${onGesture(drag({ touches: 2 }), (e) => this.handleTwoFingerDrag(e))}
+                    ${onGesture(pinch(), (e) => this.handlePinch(e))}
+                    ${onGesture(tapGesture(), (e) => this.handleTap(e))}
+                >
+                    ${when(this.pullDistance > 0, () => html`
+                        <div class="pull-indicator" style=${styleMap({
+                            height: `${Math.min(this.pullDistance, 120)}px`,
+                        })}>
+                            ${this.pullDistance > PULL_REFRESH_THRESHOLD
+                                ? "Release to refresh"
+                                : "Pull down..."}
+                        </div>
+                    `)}
+                    <div class="scroll-list">
+                        ${repeat(SCROLL_ITEMS, (item) => item.id, (item) => html`
+                            <div class="scroll-item" style=${styleMap({ background: item.color })}>
+                                ${item.label}
+                            </div>
+                        `)}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    private scrollBadgeTemplate(): TemplateResult {
+        if (this.lastTap) {
+            return html`<span class="claim-badge">
+                Tap: (${Math.round(this.lastTap.position.x)},${Math.round(this.lastTap.position.y)}) ${this.lastTap.duration}ms
+            </span>`;
+        }
+
+        if (this.pinchScale !== null) {
+            return html`<span class="claim-badge">Pinch: ${this.pinchScale.toFixed(2)}x</span>`;
+        }
+
+        if (this.twoFingerDelta) {
+            return html`<span class="claim-badge">
+                2-finger: (${Math.round(this.twoFingerDelta.x)},${Math.round(this.twoFingerDelta.y)})
+            </span>`;
+        }
+
+        if (this.refreshing) {
+            return html`<span class="claim-badge">Refreshing...</span>`;
+        }
+
+        if (this.pullDistance > 0) {
+            return html`<span class="claim-badge">Pull: ${Math.round(this.pullDistance)}px</span>`;
+        }
+
+        return html`<span class="data-label">tap / pull / 2-finger drag</span>`;
+    }
+
+    private logPanelTemplate(): TemplateResult {
+        return html`
+            <div class="log-panel">
+                ${map(this.log, (entry) => html`
+                    <div class="log-entry">
+                        <span class="log-source">${entry.source}</span>
+                        <span class="log-phase log-phase-${entry.phase}">${entry.phase}</span>
+                        #${entry.pointerId} ${entry.pointerType}
+                        (${Math.round(entry.position.x)},${Math.round(entry.position.y)})
+                        ${entry.detail}
+                        <span class="log-time">${entry.time}</span>
+                    </div>
+                `)}
+            </div>
+        `;
+    }
+
+    private statusBarTemplate(): TemplateResult {
+        return html`
+            <div class="status-bar">
+                <span>
+                    <span class="data-label">Canvas drag:</span>
+                    <span class="data-value">${this.dragTarget?.id ?? "none"}</span>
+                </span>
             </div>
         `;
     }
@@ -597,17 +356,13 @@ export class GestureSandbox extends BaseComponent {
     }
 
     private applyCanvasTransform(snapshot: PointerSnapshot): void {
-        if (!this.dragTarget) {
-            return;
-        }
+        if (!this.dragTarget) return;
 
         const rect = this.dragTarget;
 
         if (snapshot.activeCount === 1) {
             const prevPos = this.previousPositions.get(snapshot.changed.id);
-            if (!prevPos) {
-                return;
-            }
+            if (!prevPos) return;
 
             const d = subtract(snapshot.changed.position, prevPos);
             rect.x += d.x;
@@ -617,9 +372,7 @@ export class GestureSandbox extends BaseComponent {
 
         if (snapshot.activeCount >= 2 && this.previousPairMetrics) {
             const currentMetrics = this.currentCanvasPairMetrics();
-            if (!currentMetrics) {
-                return;
-            }
+            if (!currentMetrics) return;
 
             const pd = pairDelta(this.previousPairMetrics, currentMetrics);
             rect.x += pd.translationDelta.x;
@@ -653,17 +406,13 @@ export class GestureSandbox extends BaseComponent {
     private currentCanvasPairMetrics(): PointerPairMetrics | null {
         const pointers = [...this.canvasPointers.values()];
 
-        if (pointers.length < 2) {
-            return null;
-        }
+        if (pointers.length < 2) return null;
 
         return pairMetrics(pointers[0]!.position, pointers[1]!.position);
     }
 
     private canvasOffset(): Point {
-        if (!this.canvasEl) {
-            return { x: 0, y: 0 };
-        }
+        if (!this.canvasEl) return { x: 0, y: 0 };
 
         const rect = this.canvasEl.getBoundingClientRect();
         return { x: rect.left, y: rect.top };
@@ -702,6 +451,16 @@ export class GestureSandbox extends BaseComponent {
         }
 
         this.update();
+    }
+
+    private handleTap(event: TapEvent): void {
+        this.lastTap = event;
+        this.update();
+
+        setTimeout(() => {
+            this.lastTap = null;
+            this.update();
+        }, 1000);
     }
 
     private handlePinch(event: PinchEvent): void {

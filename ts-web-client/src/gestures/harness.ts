@@ -29,7 +29,14 @@ export type RecognizerDescriptor<M, T> = {
     metrics$: Observable<M>;
     decide: (m: M) => number | false | null;
     toEvent: (m: M) => T;
-    toEnd: (end: PointerEnd, last: T) => T;
+    toEnd?: (end: PointerEnd, last: T) => T;
+    /**
+     * When true, pointer-end events flow into metrics$ instead of
+     * auto-rejecting. The recognizer's metrics$ is responsible for
+     * including end data, and decide() evaluates it like any other
+     * metric. Used by gestures like tap that decide at pointer end.
+     */
+    usePointerEnd?: boolean;
 };
 
 /**
@@ -72,9 +79,6 @@ function raceDecision<M, T>(
     const { decide, toEvent, toEnd } = descriptor;
 
     const anyEnded$ = merge(...pointers.map((p) => p.end$)).pipe(take(1));
-    const rejected$: Observable<Recognition<T>> = anyEnded$.pipe(
-        map(() => ({ claimed: false as const })),
-    );
 
     const decided$ = descriptor.metrics$.pipe(
         map((m): Recognition<T> | null => {
@@ -98,6 +102,12 @@ function raceDecision<M, T>(
         take(1),
     );
 
+    if (descriptor.usePointerEnd) return decided$;
+
+    const rejected$: Observable<Recognition<T>> = anyEnded$.pipe(
+        map(() => ({ claimed: false as const })),
+    );
+
     return race(decided$, rejected$);
 }
 
@@ -106,8 +116,13 @@ function gestureStream<M, T>(
     metrics$: Observable<M>,
     anyEnded$: Observable<PointerEnd>,
     toEvent: (m: M) => T,
-    toEnd: (end: PointerEnd, last: T) => T,
+    toEnd?: (end: PointerEnd, last: T) => T,
 ): Observable<T> {
+    // When there's no end-phase mapping, the gesture is a single
+    // emission (e.g. tap). Return it directly — the move$/takeUntil
+    // path would race against an already-replayed end$ and lose.
+    if (!toEnd) return of(toEvent(firstMetrics));
+
     const move$ = metrics$.pipe(
         map((m) => toEvent(m)),
         startWith(toEvent(firstMetrics)),

@@ -5,21 +5,19 @@
  * visuals, and clocks for the player-facing display.
  */
 
-import { EventBus } from "@core/event-bus";
-import { AppStore } from "@core/store";
-import { ConnectionService } from "@core/connection-service";
 import { Logger } from "@utils/logger";
+import { SqDisplay } from "@components/sq-display";
+import { store, connection } from "./services";
 
 const logger = new Logger("Display");
 
-const SERVER_URL = `wss://${window.location.hostname}:3000/ws`;
+customElements.define("sq-display", SqDisplay);
 
-const eventBus = new EventBus();
-const connection = new ConnectionService(SERVER_URL, "display");
-const store = new AppStore(eventBus, (event) => connection.send(event));
-connection.bindStore(store);
+const display = document.createElement("sq-display") as SqDisplay;
+document.body.appendChild(display);
 
-export { store, eventBus, connection };
+store.layers$.subscribe((layers) => { display.layers = layers; });
+store.clocks$.subscribe((clocks) => { display.clocks = clocks; });
 
 connection.connect();
 logger.info("Display client initialized");

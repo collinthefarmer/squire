@@ -1,5 +1,6 @@
 import masterHtml from "./src/master/index.html";
 import displayHtml from "./src/display/index.html";
+import sandboxHtml from "./src/sandbox/index.html";
 
 const certPath = "./certs/cert.pem";
 const keyPath = "./certs/key.pem";
@@ -17,6 +18,7 @@ const server = Bun.serve({
     routes: {
         "/": displayHtml,
         "/master": masterHtml,
+        "/sandbox": sandboxHtml,
     },
     development: {
         hmr: true,
