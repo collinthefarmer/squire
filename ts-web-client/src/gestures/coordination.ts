@@ -38,6 +38,7 @@ import {
     take,
     tap,
 } from "rxjs/operators";
+import { Logger } from "@utils/logger";
 import type { PointerStream } from "./pointers";
 import type {
     Recognizer,
@@ -49,6 +50,8 @@ import type {
 
 const CONCURRENT_WINDOW_MS = 50;
 const CONFIDENCE_THRESHOLD = 0.5;
+
+const logger = new Logger("gestures");
 
 
 // ── Internal types ─────────────────────────────────────────────
@@ -274,7 +277,13 @@ function raceRecognizers(): OperatorFunction<PointerGroup, CompetitionResult> {
             filter((state) => state.settled),
             take(1),
             map((state) => ({ winner: state.winner, pointers, added$ })),
-            catchError(() => {
+            catchError((error: unknown) => {
+                // A recognizer threw mid-competition. Surface it — silently
+                // swallowing hides real bugs — then release so the pointers
+                // fall back to native behaviour (scroll, etc).
+                logger.error("recognizer failed during competition", {
+                    error: String(error),
+                });
                 releaseAll(pointers);
                 return EMPTY;
             }),
