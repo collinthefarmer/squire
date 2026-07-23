@@ -7,17 +7,18 @@
 
 import { Logger } from "@utils/logger";
 import { SqDisplay } from "@components/sq-display";
-import { store, connection, imageService } from "./services";
+import { SqLayer } from "@components/sq-layer";
+import { store, connection, layerService } from "./services";
 
 const logger = new Logger("Display");
 
+customElements.define("sq-layer", SqLayer);
 customElements.define("sq-display", SqDisplay);
 
 const display = document.createElement("sq-display") as SqDisplay;
-display.imageService = imageService;
+display.layerService = layerService;
 document.body.appendChild(display);
 
-store.layers$.subscribe((layers) => { display.layers = layers; });
 store.clocks$.subscribe((clocks) => { display.clocks = clocks; });
 
 connection.connect();

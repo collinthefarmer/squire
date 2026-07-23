@@ -7,7 +7,7 @@ import { BaseComponent } from "@core/base-component";
 import { DISPLAY } from "@constants/display";
 import { EventBuilder } from "@events/event-builder";
 import { onGesture, tap } from "@gestures";
-import { store, imageService } from "../services";
+import { store, imageService, layerService } from "../services";
 import workspaceCss from "./sq-workspace.css" with { type: "text" };
 
 import type { SqDisplay } from "@components/sq-display";
@@ -42,8 +42,7 @@ export class SqWorkspace extends BaseComponent {
     private displayRef = (el: Element | undefined): void => {
         if (!el) return;
         this.displayEl = el as SqDisplay;
-        this.displayEl.imageService = imageService;
-        this.displayEl.layers = store.layers;
+        this.displayEl.layerService = layerService;
         this.displayEl.clocks = store.clocks;
     };
 
@@ -52,10 +51,6 @@ export class SqWorkspace extends BaseComponent {
     override connectedCallback(): void {
         super.connectedCallback();
         this.adoptStyles(workspaceCss);
-
-        this.subscribe(store.layers$, (layers) => {
-            if (this.displayEl) this.displayEl.layers = layers;
-        });
 
         this.subscribe(store.clocks$, (clocks) => {
             if (this.displayEl) this.displayEl.clocks = clocks;

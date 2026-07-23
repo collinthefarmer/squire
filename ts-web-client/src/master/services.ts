@@ -2,6 +2,7 @@ import { EventBus } from "@core/event-bus";
 import { AppStore } from "@core/store";
 import { ConnectionService } from "@core/connection-service";
 import { ImageService } from "@core/image-service";
+import { LayerService } from "@core/layer-service";
 import { SoundService } from "@core/sound-service";
 import { FontService } from "@core/font-service";
 
@@ -13,7 +14,8 @@ const store = new AppStore(eventBus, (event) => connection.send(event));
 connection.bindStore(store);
 
 const imageService = new ImageService();
+const layerService = new LayerService(store, imageService);
 const soundService = new SoundService();
 const fontService = new FontService();
 
-export { store, eventBus, connection, imageService, soundService, fontService };
+export { store, eventBus, connection, imageService, layerService, soundService, fontService };

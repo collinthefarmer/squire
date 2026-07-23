@@ -51,15 +51,18 @@ export function describe<M, T>(
 }
 
 /**
- * Builds a Recognizer from a declarative descriptor. The compete
- * callback receives pointers and returns a descriptor (or null
- * to reject immediately).
+ * Builds a Recognizer from a declarative descriptor. The name is a
+ * stable identifier surfaced to styling; the compete callback
+ * receives pointers and returns a descriptor (or null to reject
+ * immediately).
  */
 export function defineRecognizer<M, T>(
+    name: string,
     touches: number,
     compete: (pointers: PointerStream[]) => RecognizerDescriptor<M, T> | null,
 ): Recognizer<T> {
     return {
+        name,
         touches,
         recognize(pointers) {
             const descriptor = compete(pointers);

@@ -329,6 +329,27 @@ Use CSS custom properties for all visual values — never hardcode colors, spaci
 
 **Accessibility is structure, not decoration.** Use semantic elements (`button`, `nav`, `section`) — they carry meaning a `div` never will. Custom controls need ARIA labels. Interactive elements need visible focus indicators and keyboard handling (Tab, Enter, Escape). Minimum 4.5:1 color contrast.
 
+### 7.1 Forwarding Runtime Values to CSS
+
+When a runtime value drives appearance — a panel's live scale, a gesture's magnitude, a connection's status — forward it to CSS as a **custom property**, and let a **core, overridable stylesheet** consume it. Code decides *what the value is*; CSS decides *what it looks like*. The two never blur.
+
+The shape is the same everywhere:
+
+1. **A source exposes custom properties** as a `Record<string, string>` (`PanelTransform.styles`) or a projection function (`pinchVars`). Value only — no selectors, no rules.
+2. **A core stylesheet consumes them**, every reference a `var(--x, fallback)` so it degrades to a sane default, adopted alongside the component's own sheet.
+3. **Overriding is setting the property**, never restating the rule. A component that wants a different feel writes `--panel-scale` or `--gesture-drag-outline-color`; it does not copy the selector.
+
+**Name properties by concept, not by instance.** Use fixed names — `--panel-scale`, `--gesture-scale` — never per-instance namespaces like `--palette-scale`. Custom properties inherit per-subtree, so every element setting a property on its own root is already isolated from every other; a namespace buys nothing the DOM doesn't already give you, and it forces a bespoke stylesheet per instance instead of one shared core sheet.
+
+**Choose the write mechanism by who owns the value:**
+
+- **Durable component state → forward through the render loop.** Expose the properties and apply them with `styleMap` in `template()`. The value persists, it has an owner, and the per-render cost is a single style-attribute diff. This is the declarative default (§5.2). *Reference: `PanelTransform` + `PANEL_TRANSFORM_CSS`.*
+- **Ephemeral or shared-infra signal → reflect directly, outside the loop.** When the value isn't component state (a shared reactive source), updates per frame, or is consumed by many components, write it straight to the element the way a directive does — no `render()` per tick. *Reference: the `onGesture` directive + `GESTURE_STYLES`.*
+
+The difference is legible from the source of the value, and it is the *only* thing that varies between the two — the property-and-overridable-class shape is identical.
+
+**Out-of-loop values are valid only where they're guaranteed present.** A reflected property lingers on the element after the interaction that wrote it ends (clearing it at the exact end races the write). Guard its consumption behind the marker that scopes it — read `--gesture-scale` only inside a `[data-gesture]` rule — so a stale value can never reach a selector that matches.
+
 ---
 
 ## 8. Building a New Component
@@ -367,6 +388,17 @@ ts-web-client/src/
 - Files under 500 lines
 - Co-locate tests: `foo.ts` → `foo.test.ts`
 - Group imports: external → `@core` → `@state`/`@events`/etc. → types (with `import type`)
+
+**A component that needs more than one file becomes a directory sub-module.** A single-file component stays flat (`components/sq-foo.ts`); the moment it grows a stylesheet, a pure-logic helper, or a test, move it into `components/sq-foo/` with an `index.ts` that re-exports its public surface. Consumers import the directory (`@components/sq-foo`), so the internal file layout stays private and can change freely. Keep intra-module imports relative (`./sq-foo.css`, `./foo-styles`); only the `index.ts` is the outward contract. Extract DOM-free logic (pure `state → CSS` projections, reducers) into its own file in the sub-module so it is testable without the component's `HTMLElement` base — `sq-layer/` (`sq-layer.ts`, `sq-layer.css`, `layer-styles.ts`, `layer-styles.test.ts`, `index.ts`) is the reference shape.
+
+### Domain vocabulary: image vs layer
+
+Two words describe the visual domain, and they are not interchangeable:
+
+- **layer** — the positioned, styled render slot: `position`, `scale`, `rotation`, `blendMode`, `opacity`, `zIndex`, `visible`, `effects`, plus the `imageRef` it currently holds. Its identity is `LayerId`. A layer is a slot that *may* hold an image; it is not the image.
+- **image** — the asset/source (`imageRef`, `ImageAsset`, `/public/images/`, `ImageService`) **and** the event-domain namespace (`visual.image.*`). Image events *reduce into* layer state.
+
+New code follows this split — hence `sq-layer`, `LayerService`, `LayerView`, and the `.layer` CSS render the slot, while `ImageService` resolves the asset. Some existing symbols predate the convention and straddle it (`ImageLayerState`, `visual.image.layer_config`, `ImageState.layers`, `store.layers$`); these are **grandfathered** — not renamed, because the event names are wire protocol — but new names should not extend the ambiguity.
 
 ---
 

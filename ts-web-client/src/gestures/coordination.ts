@@ -19,18 +19,22 @@
  * and releases when pointers are captured or released.
  */
 
-import { EMPTY, Observable, merge, pipe } from "rxjs";
+import { EMPTY, Observable, concat, merge, of, pipe } from "rxjs";
 import type { OperatorFunction } from "rxjs";
 import {
     buffer,
     catchError,
     debounceTime,
+    distinctUntilChanged,
     filter,
     finalize,
+    ignoreElements,
     map,
     mergeMap,
     scan,
     share,
+    startWith,
+    switchMap,
     take,
     tap,
 } from "rxjs/operators";
@@ -93,6 +97,8 @@ export function gestures(element: HTMLElement): GestureSource {
     );
 
     return {
+        active$: activeGesture(competition$),
+
         on<T>(recognizer: Recognizer<T>): Observable<T> {
             recognizers.push(recognizer);
 
@@ -102,6 +108,33 @@ export function gestures(element: HTMLElement): GestureSource {
             );
         },
     };
+}
+
+/**
+ * Projects the competition into a name-or-null signal spanning each
+ * gesture. The window is the winning gesture stream's lifetime — it
+ * opens when a recognizer claims and closes when the stream completes
+ * on pointer lift. Nothing here reads the event payload, so gestures
+ * that carry no phase (tap) bracket exactly like those that do.
+ *
+ * switchMap unsubscribes the previous marker when a new gesture wins;
+ * the consumer's own subscription in claimGesture is unaffected.
+ */
+function activeGesture(
+    competition$: Observable<ResolvedResult>,
+): Observable<string | null> {
+    return competition$.pipe(
+        switchMap(({ winner }) =>
+            concat(
+                of(winner.recognizer.name),
+                winner.recognition.gesture$.pipe(ignoreElements()),
+                of(null),
+            ),
+        ),
+        startWith(null),
+        distinctUntilChanged(),
+        share(),
+    );
 }
 
 // ── Operators ──────────────────────────────────────────────────

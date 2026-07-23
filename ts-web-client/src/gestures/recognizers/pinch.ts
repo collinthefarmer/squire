@@ -31,7 +31,7 @@ const DEFAULT_PINCH_THRESHOLD = 0.05;
 export function pinch(config?: PinchConfig): Recognizer<PinchEvent> {
     const threshold = config?.threshold ?? DEFAULT_PINCH_THRESHOLD;
 
-    return defineRecognizer(2, (pointers) => {
+    return defineRecognizer("pinch", 2, (pointers) => {
         const [a, b] = [pointers[0]!, pointers[1]!];
 
         const initialSpacing = distance(a.start, b.start);

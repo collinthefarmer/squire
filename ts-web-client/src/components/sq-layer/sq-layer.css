@@ -1,0 +1,23 @@
+/* The host generates no box — the inner .layer positions directly
+   against the sq-display stage (its nearest positioned ancestor),
+   so a layer renders identically to when it lived inline. */
+:host {
+    display: contents;
+}
+
+.layer {
+    position: absolute;
+}
+
+.layer img {
+    display: block;
+}
+
+.layer-full {
+    inset: 0;
+}
+
+.layer-full img {
+    width: 100%;
+    height: 100%;
+}

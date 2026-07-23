@@ -36,7 +36,7 @@ export function tap(config?: TapConfig): Recognizer<TapEvent> {
     const maxDuration = config?.maxDuration ?? DEFAULT_MAX_DURATION;
     const threshold = config?.threshold ?? DEFAULT_TAP_THRESHOLD;
 
-    return defineRecognizer(config?.touches ?? 1, (pointers) => {
+    return defineRecognizer("tap", config?.touches ?? 1, (pointers) => {
         const origin = centroid(pointers.map((p) => p.start));
         const startTime = Date.now();
 

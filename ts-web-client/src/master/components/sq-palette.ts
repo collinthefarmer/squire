@@ -7,7 +7,7 @@ import { when } from "lit-html/directives/when.js";
 
 import { BaseComponent } from "@core/base-component";
 import { PanelTransform, PANEL_TRANSFORM_CSS } from "@core/panel-transform";
-import { drag, onGesture, pinch, tap } from "@gestures";
+import { drag, GESTURE_STYLES, onGesture, pinch, pinchVars, tap } from "@gestures";
 import paletteCss from "./sq-palette.css" with { type: "text" };
 
 import type { ImageService } from "@core/image-service";
@@ -31,7 +31,6 @@ export class SqPalette extends BaseComponent {
         maxScale: 2.0,
         baseWidth: PANEL_W,
         baseHeight: PANEL_H,
-        namespace: "palette",
     });
 
     set imageService(value: ImageService) {
@@ -65,7 +64,7 @@ export class SqPalette extends BaseComponent {
 
     override connectedCallback(): void {
         super.connectedCallback();
-        this.adoptStyles(paletteCss, PANEL_TRANSFORM_CSS("palette"));
+        this.adoptStyles(GESTURE_STYLES, paletteCss, PANEL_TRANSFORM_CSS);
         this.update();
     }
 
@@ -83,9 +82,9 @@ export class SqPalette extends BaseComponent {
 
     private panelTemplate(): TemplateResult {
         return html`
-            <div class="panel palette"
+            <div class="panel panel-transform"
                 @pointerdown=${(e: PointerEvent) => e.stopPropagation()}
-                ${onGesture(pinch(), (e: PinchEvent) => this.handlePinch(e))}
+                ${onGesture(pinch(), (e: PinchEvent) => this.handlePinch(e), pinchVars)}
                 ${onGesture(drag({ touches: 2 }), (e: DragEvent) => this.handleDrag(e))}
                 style=${styleMap(this.transform.styles)}
             >

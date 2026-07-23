@@ -41,7 +41,7 @@ const DEFAULT_DRAG_THRESHOLD = 10;
 export function drag(config?: DragConfig): Recognizer<DragEvent> {
     const threshold = config?.threshold ?? DEFAULT_DRAG_THRESHOLD;
 
-    return defineRecognizer(config?.touches ?? 1, (pointers) => {
+    return defineRecognizer("drag", config?.touches ?? 1, (pointers) => {
         const origin = centroid(pointers.map((p) => p.start));
         const initialSpacing =
             pointers.length >= 2

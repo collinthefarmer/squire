@@ -15,10 +15,19 @@ export type Recognition<T> =
     | { claimed: false };
 
 export type Recognizer<T> = {
+    /** Stable identifier used for styling and diagnostics ("drag", "pinch"). */
+    readonly name: string;
     readonly touches: number;
     recognize(pointers: PointerStream[]): Observable<Recognition<T>>;
 };
 
 export type GestureSource = {
     on<T>(recognizer: Recognizer<T>): Observable<T>;
+    /**
+     * Name of the gesture currently driving this element, or null
+     * when idle. Emits on every transition — the window is derived
+     * from the winning gesture stream's lifetime, so it holds for
+     * recognizers with no phase field (tap) as well as those with one.
+     */
+    readonly active$: Observable<string | null>;
 };

@@ -6,6 +6,14 @@ export { gestures } from "./coordination";
 // Directive
 export { onGesture } from "./directive";
 
+// Gesture-state styling
+export {
+    GESTURE_STYLES,
+    GESTURE_ATTR,
+    pinchVars,
+    dragVars,
+} from "./gesture-styles";
+
 // Pointer streams
 export { pointers$ } from "./pointers";
 

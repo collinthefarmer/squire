@@ -7,23 +7,6 @@
     background: #000;
 }
 
-.layer {
-    position: absolute;
-}
-
-.layer img {
-    display: block;
-}
-
-.layer-full {
-    inset: 0;
-}
-
-.layer-full img {
-    width: 100%;
-    height: 100%;
-}
-
 .clock {
     position: absolute;
     display: flex;

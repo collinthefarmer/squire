@@ -7,8 +7,6 @@ export interface PanelTransformConfig {
     baseWidth?: number;
     /** Height of the panel at scale 1, used for center-anchored scaling. */
     baseHeight?: number;
-    /** Namespace for CSS variables (default: "panel"). Produces --{ns}-x, --{ns}-y, --{ns}-scale. */
-    namespace?: string;
 }
 
 /**
@@ -18,8 +16,11 @@ export interface PanelTransformConfig {
  * coordinate conversion from client to display space, and
  * center-anchored scaling.
  *
- * Exposes state as namespaced CSS custom properties via `styles`,
- * ready for use with `styleMap()`.
+ * Exposes state as CSS custom properties via `styles`, ready for use
+ * with `styleMap()`. This is the render-loop instance of the
+ * variable-forwarding pattern (see CLIENT_STANDARDS §7.1): durable
+ * component state, so the values flow through the template rather
+ * than being written to the element out of band.
  */
 export class PanelTransform {
     private _position: Point = { x: 0, y: 0 };
@@ -31,14 +32,12 @@ export class PanelTransform {
     private readonly maxScale: number;
     private readonly baseWidth: number;
     private readonly baseHeight: number;
-    private readonly ns: string;
 
     constructor(config?: PanelTransformConfig) {
         this.minScale = config?.minScale ?? 0.5;
         this.maxScale = config?.maxScale ?? 2.0;
         this.baseWidth = config?.baseWidth ?? 0;
         this.baseHeight = config?.baseHeight ?? 0;
-        this.ns = config?.namespace ?? "panel";
     }
 
     get position(): Point {
@@ -67,13 +66,17 @@ export class PanelTransform {
 
     /**
      * CSS custom properties for the current transform state.
-     * Keys: --{ns}-x, --{ns}-y, --{ns}-scale
+     * Keys: --panel-x, --panel-y, --panel-scale.
+     *
+     * Names are fixed, not namespaced: custom properties inherit
+     * per-subtree, so every panel setting these on its own root is
+     * already isolated from every other. Consumed by PANEL_TRANSFORM_CSS.
      */
     get styles(): Record<string, string> {
         return {
-            [`--${this.ns}-x`]: `${this._position.x}px`,
-            [`--${this.ns}-y`]: `${this._position.y}px`,
-            [`--${this.ns}-scale`]: String(this._scale),
+            "--panel-x": `${this._position.x}px`,
+            "--panel-y": `${this._position.y}px`,
+            "--panel-scale": String(this._scale),
         };
     }
 
@@ -125,20 +128,20 @@ export class PanelTransform {
 }
 
 /**
- * Global CSS class that applies panel transform variables to
- * common properties. Adopt this stylesheet to get default
- * behavior for any namespaced panel transform.
+ * Core, overridable stylesheet consuming the panel transform
+ * variables. Adopt it alongside a component sheet, and give the
+ * transformed element the `panel-transform` class:
  *
- * Usage:
- *   this.adoptStyles(PANEL_TRANSFORM_CSS("myns"));
- *   // .myns { left: var(--myns-x); top: var(--myns-y); font-size: calc(1em * var(--myns-scale)); }
+ *   this.adoptStyles(PANEL_TRANSFORM_CSS, myComponentCss);
+ *   // <div class="panel-transform" style=${styleMap(transform.styles)}>
+ *
+ * Every value is a var() with a fallback, so a component overrides
+ * behavior by setting the property rather than restating the rule.
  */
-export function PANEL_TRANSFORM_CSS(ns: string): string {
-    return `
-.${ns} {
-    left: var(--${ns}-x, 0px);
-    top: var(--${ns}-y, 0px);
-    font-size: calc(1em * var(--${ns}-scale, 1));
+export const PANEL_TRANSFORM_CSS = `
+.panel-transform {
+    left: var(--panel-x, 0px);
+    top: var(--panel-y, 0px);
+    font-size: calc(1em * var(--panel-scale, 1));
 }
 `;
-}
