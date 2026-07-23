@@ -6,8 +6,7 @@
  * translation ratio.
  */
 
-import { combineLatest } from "rxjs";
-import { map } from "rxjs/operators";
+import { filter, map } from "rxjs/operators";
 import { distance, centroid, angle } from "../transform";
 import { defineRecognizer, describe } from "../harness";
 import type { Recognizer } from "./recognizer";
@@ -31,8 +30,8 @@ const DEFAULT_PINCH_THRESHOLD = 0.05;
 export function pinch(config?: PinchConfig): Recognizer<PinchEvent> {
     const threshold = config?.threshold ?? DEFAULT_PINCH_THRESHOLD;
 
-    return defineRecognizer("pinch", 2, (pointers) => {
-        const [a, b] = [pointers[0]!, pointers[1]!];
+    return defineRecognizer("pinch", 2, ({ initial, pointers$ }) => {
+        const [a, b] = [initial[0]!, initial[1]!];
 
         const initialSpacing = distance(a.start, b.start);
         if (initialSpacing === 0) return null;
@@ -41,8 +40,9 @@ export function pinch(config?: PinchConfig): Recognizer<PinchEvent> {
         const initialCenter = centroid([a.start, b.start]);
 
         return describe(
-            combineLatest([a.move$, b.move$]).pipe(
-                map(mapPinchMetrics(initialSpacing, initialAngle)),
+            pointers$.pipe(
+                filter((f) => f.positions.length >= 2),
+                map((f) => mapPinchMetrics(initialSpacing, initialAngle)(f.positions)),
             ),
             {
                 decide(m) {
@@ -73,13 +73,17 @@ type PinchMetrics = {
 function mapPinchMetrics(
     initialDist: number,
     initialAngle: number,
-): (points: [Point, Point]) => PinchMetrics {
-    return ([posA, posB]) => ({
-        center: centroid([posA, posB]),
-        scale: distance(posA, posB) / initialDist,
-        rotation: angle(posA, posB) - initialAngle,
-        distance: distance(posA, posB),
-    });
+): (points: Point[]) => PinchMetrics {
+    return (points) => {
+        const [posA, posB] = [points[0]!, points[1]!];
+
+        return {
+            center: centroid([posA, posB]),
+            scale: distance(posA, posB) / initialDist,
+            rotation: angle(posA, posB) - initialAngle,
+            distance: distance(posA, posB),
+        };
+    };
 }
 
 /**

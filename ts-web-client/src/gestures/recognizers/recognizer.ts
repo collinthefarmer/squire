@@ -17,8 +17,22 @@ export type Recognition<T> =
 export type Recognizer<T> = {
     /** Stable identifier used for styling and diagnostics ("drag", "pinch"). */
     readonly name: string;
+    /** Minimum pointers to start (and, once active, to stay alive). */
     readonly touches: number;
-    recognize(pointers: PointerStream[]): Observable<Recognition<T>>;
+    /**
+     * When true, the coordination layer routes pointers that land while
+     * this gesture is active into `recognize`'s `added$`, growing its
+     * set instead of opening a fresh competition. Default false.
+     */
+    readonly absorbs?: boolean;
+    /**
+     * @param pointers the pointers the gesture starts with
+     * @param added$ pointers absorbed while active (only fed when `absorbs`)
+     */
+    recognize(
+        pointers: PointerStream[],
+        added$?: Observable<PointerStream>,
+    ): Observable<Recognition<T>>;
 };
 
 export type GestureSource = {

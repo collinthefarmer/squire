@@ -6,8 +6,7 @@
  * Multi-touch confidence is based on translation vs spread.
  */
 
-import { combineLatest } from "rxjs";
-import { map } from "rxjs/operators";
+import { filter, map } from "rxjs/operators";
 import {
     subtract,
     magnitude,
@@ -40,17 +39,19 @@ const DEFAULT_DRAG_THRESHOLD = 10;
 
 export function drag(config?: DragConfig): Recognizer<DragEvent> {
     const threshold = config?.threshold ?? DEFAULT_DRAG_THRESHOLD;
+    const touches = config?.touches ?? 1;
 
-    return defineRecognizer("drag", config?.touches ?? 1, (pointers) => {
-        const origin = centroid(pointers.map((p) => p.start));
+    return defineRecognizer("drag", touches, ({ initial, pointers$ }) => {
+        const origin = centroid(initial.map((p) => p.start));
         const initialSpacing =
-            pointers.length >= 2
-                ? distance(pointers[0]!.start, pointers[1]!.start)
+            initial.length >= 2
+                ? distance(initial[0]!.start, initial[1]!.start)
                 : 0;
 
         return describe(
-            combineLatest(pointers.map((p) => p.move$)).pipe(
-                map(mapDragMetrics(origin)),
+            pointers$.pipe(
+                filter((f) => f.positions.length >= touches),
+                map((f) => mapDragMetrics(origin)(f.positions)),
             ),
             {
                 decide(m) {

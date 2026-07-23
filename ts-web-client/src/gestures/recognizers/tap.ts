@@ -8,8 +8,7 @@
  * when the pointer lifts.
  */
 
-import { merge } from "rxjs";
-import { map, take } from "rxjs/operators";
+import { map } from "rxjs/operators";
 import { centroid, magnitude, subtract } from "../transform";
 import { defineRecognizer, describe } from "../harness";
 import type { Point } from "../transform";
@@ -36,33 +35,35 @@ export function tap(config?: TapConfig): Recognizer<TapEvent> {
     const maxDuration = config?.maxDuration ?? DEFAULT_MAX_DURATION;
     const threshold = config?.threshold ?? DEFAULT_TAP_THRESHOLD;
 
-    return defineRecognizer("tap", config?.touches ?? 1, (pointers) => {
-        const origin = centroid(pointers.map((p) => p.start));
+    return defineRecognizer("tap", config?.touches ?? 1, ({ initial, pointers$ }) => {
+        const origin = centroid(initial.map((p) => p.start));
         const startTime = Date.now();
 
-        const anyEnd$ = merge(...pointers.map((p) => p.end$)).pipe(take(1));
-
-        const moveMetrics$ = merge(...pointers.map((p) => p.move$)).pipe(
-            map((pos) => ({
-                displacement: magnitude(subtract(pos, origin)),
-                position: pos,
-                ended: false as const,
-                duration: 0,
-                reason: "up" as "up" | "cancel",
-            })),
+        const metrics$ = pointers$.pipe(
+            map((frame) =>
+                frame.kind === "remove"
+                    ? {
+                          displacement: magnitude(subtract(frame.end.position, origin)),
+                          position: frame.end.position,
+                          ended: true as const,
+                          duration: Date.now() - startTime,
+                          reason: frame.end.reason,
+                      }
+                    : {
+                          displacement: Math.max(
+                              ...frame.positions.map((pos) =>
+                                  magnitude(subtract(pos, origin)),
+                              ),
+                          ),
+                          position: centroid(frame.positions),
+                          ended: false as const,
+                          duration: 0,
+                          reason: "up" as "up" | "cancel",
+                      },
+            ),
         );
 
-        const endMetrics$ = anyEnd$.pipe(
-            map((end) => ({
-                displacement: magnitude(subtract(end.position, origin)),
-                position: end.position,
-                ended: true as const,
-                duration: Date.now() - startTime,
-                reason: end.reason,
-            })),
-        );
-
-        return describe(merge(moveMetrics$, endMetrics$), {
+        return describe(metrics$, {
             usePointerEnd: true,
 
             decide(m) {

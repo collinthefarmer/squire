@@ -19,7 +19,7 @@
  * and releases when pointers are captured or released.
  */
 
-import { EMPTY, Observable, concat, merge, of, pipe } from "rxjs";
+import { EMPTY, Observable, Subject, concat, merge, of, pipe } from "rxjs";
 import type { OperatorFunction } from "rxjs";
 import {
     buffer,
@@ -74,11 +74,14 @@ type PointerGroup = {
 type CompetitionResult = {
     winner: ScoredClaim | null;
     pointers: PointerStream[];
+    /** Channel for pointers absorbed into the winner while it stays active. */
+    added$: Subject<PointerStream>;
 };
 
 type ResolvedResult = {
     winner: ScoredClaim;
     pointers: PointerStream[];
+    added$: Subject<PointerStream>;
 };
 
 // ── Public API ─────────────────────────────────────────────────
@@ -86,13 +89,58 @@ type ResolvedResult = {
 export function gestures(element: HTMLElement): GestureSource {
     const recognizers: Recognizer<unknown>[] = [];
 
+    // The active absorbing gesture's intake, or null. A pointer landing
+    // while this is set joins that gesture rather than starting anew.
+    let absorber: Subject<PointerStream> | null = null;
+
     const pointerSource$ = pointers$(element, { gate: true }).pipe(share());
-    const competition$ = pointerSource$.pipe(
-        buffer(pointerSource$.pipe(debounceTime(CONCURRENT_WINDOW_MS))),
+
+    // Route each new pointer: into the active absorber, or onward to a
+    // fresh competition. Shared so the divert runs once despite buffer
+    // subscribing the stream twice.
+    const free$ = pointerSource$.pipe(
+        mergeMap((p) => {
+            if (!absorber) return of(p);
+
+            p.capture();
+            absorber.next(p);
+            return EMPTY;
+        }),
+        share(),
+    );
+
+    const competition$ = free$.pipe(
+        buffer(free$.pipe(debounceTime(CONCURRENT_WINDOW_MS))),
         filter((group) => group.length > 0),
         matchCandidates(recognizers),
         raceRecognizers(),
         resolveWinner(),
+        tap((resolved) => {
+            if (!resolved.winner.recognizer.absorbs) return;
+
+            // Open the absorber for this gesture's lifetime; close it —
+            // and complete the channel — when the gesture ends.
+            const channel = resolved.added$;
+            absorber = channel;
+
+            // Fold in concurrent group-mates the winner's slice left
+            // behind (already captured). The recognizer's shared metrics
+            // keep the set alive, so this lands before the consumer
+            // subscribes — a two-finger *start* transforms, not just drags.
+            for (const p of resolved.pointers.slice(resolved.winner.recognizer.touches)) {
+                channel.next(p);
+            }
+
+            resolved.winner.recognition.gesture$
+                .pipe(
+                    ignoreElements(),
+                    finalize(() => {
+                        if (absorber === channel) absorber = null;
+                        channel.complete();
+                    }),
+                )
+                .subscribe();
+        }),
         share(),
     );
 
@@ -196,13 +244,17 @@ function matchCandidates(
  */
 function raceRecognizers(): OperatorFunction<PointerGroup, CompetitionResult> {
     return mergeMap(({ pointers, candidates }) => {
+        // One intake channel per group, shared by all candidates. Only a
+        // winning absorber ever draws from it; losers ignore it.
+        const added$ = new Subject<PointerStream>();
+
         // Each recognizer receives the first N pointers it needs.
         // Multiple recognizers may compete over the same pointers;
         // the winner claims them exclusively.
         const recognitions$ = candidates.map((recognizer) => {
             const given = pointers.slice(0, recognizer.touches);
 
-            return recognizer.recognize(given).pipe(
+            return recognizer.recognize(given, added$).pipe(
                 take(1),
                 map((recognition) => ({ recognizer, recognition })),
             );
@@ -218,7 +270,7 @@ function raceRecognizers(): OperatorFunction<PointerGroup, CompetitionResult> {
             }),
             filter((state) => state.settled),
             take(1),
-            map((state) => ({ winner: state.winner, pointers })),
+            map((state) => ({ winner: state.winner, pointers, added$ })),
             catchError(() => {
                 releaseAll(pointers);
                 return EMPTY;
