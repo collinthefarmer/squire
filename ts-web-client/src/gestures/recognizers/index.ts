@@ -10,3 +10,6 @@ export type { PinchEvent, PinchConfig } from "./pinch";
 
 export { tap } from "./tap";
 export type { TapEvent, TapConfig } from "./tap";
+
+export { grab } from "./grab";
+export type { GrabEvent, GrabConfig } from "./grab";

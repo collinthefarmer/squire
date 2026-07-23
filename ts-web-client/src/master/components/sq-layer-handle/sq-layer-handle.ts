@@ -2,12 +2,12 @@ import { html, nothing, type TemplateResult } from "lit-html";
 import { styleMap } from "lit-html/directives/style-map.js";
 
 import { BaseComponent } from "@core/base-component";
-import { drag, onGesture, pinch } from "@gestures";
+import { grab, onGesture } from "@gestures";
 import { handleRect } from "./handle-geometry";
 import handleCss from "./sq-layer-handle.css" with { type: "text" };
 
 import type { Observable } from "rxjs";
-import type { DragEvent, PinchEvent } from "@gestures";
+import type { GrabEvent } from "@gestures";
 import type { LayerView } from "@core/layer-service";
 import type { ImagePosition } from "@types";
 
@@ -24,8 +24,8 @@ export interface LayerTransformIntent {
 
 /**
  * A master-only manipulation handle that mirrors one layer's placement
- * and turns direct gestures into live transform intents:
- * one-finger drag moves, two-finger pinch scales and rotates.
+ * and turns a direct grab into live transform intents: one finger moves,
+ * a second finger (absorbed mid-gesture) adds scale and rotation.
  *
  * Presentational — it renders from an injected `LayerView` stream and
  * signals intent through a `layer-transform` CustomEvent; the workspace
@@ -40,8 +40,7 @@ export class SqLayerHandle extends BaseComponent {
     private _displayScale = 1;
     private _natural: { width: number; height: number } | null = null;
 
-    private dragBaseline: { x: number; y: number } | null = null;
-    private pinchBaseline: { scale: number; rotation: number } | null = null;
+    private grabBaseline: { x: number; y: number; scale: number; rotation: number } | null = null;
 
     set state$(value: Observable<LayerView | undefined>) {
         if (value === this._state$) return;
@@ -83,8 +82,7 @@ export class SqLayerHandle extends BaseComponent {
                           transform: `translate(-50%, -50%) rotate(${rect.rotation}deg)`,
                       })}
                       @pointerdown=${(e: PointerEvent) => e.stopPropagation()}
-                      ${onGesture(drag(), (e: DragEvent) => this.handleDrag(e))}
-                      ${onGesture(pinch(), (e: PinchEvent) => this.handlePinch(e))}
+                      ${onGesture(grab(), (e: GrabEvent) => this.handleGrab(e))}
                   ></div>`
                 : nothing}
         `;
@@ -98,42 +96,36 @@ export class SqLayerHandle extends BaseComponent {
         this.update();
     };
 
-    private handleDrag(event: DragEvent): void {
+    private handleGrab(event: GrabEvent): void {
         const view = this._view;
         if (!view || typeof view.position.x !== "number" || typeof view.position.y !== "number") return;
 
         if (event.phase === "end") {
-            this.dragBaseline = null;
+            this.grabBaseline = null;
             return;
         }
 
-        // Capture the layer's position at gesture start (no "start" phase
-        // is emitted) and add the cumulative delta, converted from client
-        // to display px. Baseline stays fixed, so the store echo can't drift.
-        if (!this.dragBaseline) this.dragBaseline = { x: view.position.x, y: view.position.y };
+        // Capture the layer's transform at grab start (no "start" phase is
+        // emitted) and apply the grab's cumulative transform on top. The
+        // baseline stays fixed, so the store echo can't drift.
+        if (!this.grabBaseline) {
+            this.grabBaseline = {
+                x: view.position.x,
+                y: view.position.y,
+                scale: view.scale,
+                rotation: view.rotation,
+            };
+        }
+
+        const b = this.grabBaseline;
 
         this.emit({
             position: {
-                x: Math.round(this.dragBaseline.x + event.delta.x / this._displayScale),
-                y: Math.round(this.dragBaseline.y + event.delta.y / this._displayScale),
+                x: Math.round(b.x + event.translation.x / this._displayScale),
+                y: Math.round(b.y + event.translation.y / this._displayScale),
             },
-        });
-    }
-
-    private handlePinch(event: PinchEvent): void {
-        const view = this._view;
-        if (!view) return;
-
-        if (event.phase === "end") {
-            this.pinchBaseline = null;
-            return;
-        }
-
-        if (!this.pinchBaseline) this.pinchBaseline = { scale: view.scale, rotation: view.rotation };
-
-        this.emit({
-            scale: clamp(this.pinchBaseline.scale * event.scale, MIN_SCALE, MAX_SCALE),
-            rotation: this.pinchBaseline.rotation + event.rotation * RAD_TO_DEG,
+            scale: clamp(b.scale * event.scale, MIN_SCALE, MAX_SCALE),
+            rotation: b.rotation + event.rotation * RAD_TO_DEG,
         });
     }
 

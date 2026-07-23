@@ -30,7 +30,7 @@ export { subtract, velocity, pairMetrics, pairDelta } from "./transform";
 export type { Point, PointerPairMetrics, PairDelta } from "./transform";
 
 // Recognizers
-export { drag, pinch, tap } from "./recognizers";
+export { drag, pinch, tap, grab } from "./recognizers";
 export type {
     DragEvent,
     DragConfig,
@@ -38,4 +38,6 @@ export type {
     PinchConfig,
     TapEvent,
     TapConfig,
+    GrabEvent,
+    GrabConfig,
 } from "./recognizers";
