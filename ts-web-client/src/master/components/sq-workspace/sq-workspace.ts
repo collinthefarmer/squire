@@ -7,7 +7,7 @@ import { BaseComponent } from "@core/base-component";
 import { DISPLAY } from "@constants/display";
 import { EventBuilder } from "@events/event-builder";
 import { onGesture, tap } from "@gestures";
-import { store, imageService, layerService } from "../services";
+import { store, imageService, layerService } from "../../services";
 import workspaceCss from "./sq-workspace.css" with { type: "text" };
 
 import type { SqDisplay } from "@components/sq-display";
