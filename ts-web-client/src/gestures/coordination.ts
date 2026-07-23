@@ -1,10 +1,14 @@
 /**
  * Gesture coordination layer.
  *
- * gestures(element) returns a gesture source that coordinates
- * competing recognizers on a single element. Each .on(recognizer)
+ * gestures(source$) returns a gesture source that coordinates
+ * competing recognizers over a stream of pointers. Each .on(recognizer)
  * call returns a typed Observable — subscribing enters the
  * competition, unsubscribing withdraws.
+ *
+ * The pointer source is injected, not created here: the DOM binding
+ * (pointers$ over an element) lives at the call site, so the whole
+ * competition and routing is testable with synthetic pointers.
  *
  * On pointer-down, concurrent pointers are buffered within a
  * short window (~50ms) then fanned to all eligible recognizers.
@@ -13,10 +17,6 @@
  * by pointer utilization (recognizers that explain more of the
  * input are preferred). If all reject, pointers are released
  * and the browser handles the interaction (scroll, zoom, etc).
- *
- * The gate mechanism (non-passive touchmove preventDefault) is
- * owned by pointers$ — it holds during the competition window
- * and releases when pointers are captured or released.
  */
 
 import { EMPTY, Observable, Subject, concat, merge, of, pipe } from "rxjs";
@@ -38,7 +38,6 @@ import {
     take,
     tap,
 } from "rxjs/operators";
-import { pointers$ } from "./pointers";
 import type { PointerStream } from "./pointers";
 import type {
     Recognizer,
@@ -86,14 +85,18 @@ type ResolvedResult = {
 
 // ── Public API ─────────────────────────────────────────────────
 
-export function gestures(element: HTMLElement): GestureSource {
+export function gestures(
+    source$: Observable<PointerStream>,
+    options?: { concurrentWindowMs?: number },
+): GestureSource {
+    const windowMs = options?.concurrentWindowMs ?? CONCURRENT_WINDOW_MS;
     const recognizers: Recognizer<unknown>[] = [];
 
     // The active absorbing gesture's intake, or null. A pointer landing
     // while this is set joins that gesture rather than starting anew.
     let absorber: Subject<PointerStream> | null = null;
 
-    const pointerSource$ = pointers$(element, { gate: true }).pipe(share());
+    const pointerSource$ = source$.pipe(share());
 
     // Route each new pointer: into the active absorber, or onward to a
     // fresh competition. Shared so the divert runs once despite buffer
@@ -110,7 +113,7 @@ export function gestures(element: HTMLElement): GestureSource {
     );
 
     const competition$ = free$.pipe(
-        buffer(free$.pipe(debounceTime(CONCURRENT_WINDOW_MS))),
+        buffer(free$.pipe(debounceTime(windowMs))),
         filter((group) => group.length > 0),
         matchCandidates(recognizers),
         raceRecognizers(),

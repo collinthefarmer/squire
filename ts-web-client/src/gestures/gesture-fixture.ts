@@ -12,6 +12,7 @@ import type { Point } from "./transform";
 export function fakePointer(id: number, start: Point) {
     const move$ = new Subject<Point>();
     const end$ = new ReplaySubject<PointerEnd>(1); // mirrors real shareReplay(1)
+    const flags = { captured: false, released: false };
 
     const stream: PointerStream = {
         id,
@@ -20,12 +21,17 @@ export function fakePointer(id: number, start: Point) {
         pointerType: "touch",
         move$: move$.asObservable(),
         end$: end$.asObservable(),
-        capture: () => {},
-        release: () => {},
+        capture: () => {
+            flags.captured = true;
+        },
+        release: () => {
+            flags.released = true;
+        },
     };
 
     return {
         stream,
+        flags,
         moveTo: (x: number, y: number) => move$.next({ x, y }),
         lift: (x = start.x, y = start.y, reason: "up" | "cancel" = "up") => {
             end$.next({ reason, position: { x, y } });

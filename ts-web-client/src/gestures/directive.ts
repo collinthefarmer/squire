@@ -21,6 +21,7 @@ import { directive, type ElementPart } from "lit-html/directive.js";
 import { merge, type Observable, type Subscription } from "rxjs";
 import { finalize, ignoreElements, share, tap } from "rxjs/operators";
 import { gestures } from "./coordination";
+import { pointers$ } from "./pointers";
 import { GESTURE_ATTR } from "./gesture-styles";
 import type { GestureSource, Recognizer } from "./recognizers/recognizer";
 
@@ -49,7 +50,8 @@ function bindingFor(el: HTMLElement): ElementBinding {
     let binding = bindings.get(el);
 
     if (!binding) {
-        const source = gestures(el);
+        // The DOM binding lives here; coordination just consumes the stream.
+        const source = gestures(pointers$(el, { gate: true }));
         const vars = new Set<string>();
 
         binding = { source, vars, reflect$: reflectAttribute(source, el, vars) };
