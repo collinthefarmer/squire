@@ -121,8 +121,8 @@ export class SqPalette extends BaseComponent {
     private browserTemplate(): TemplateResult {
         return html`
             <div class="browser" ${ref(this.browserRef)}>
-                ${map(this._images, (img) => html`
-                    <div class="slide" ${onGesture(tap(), () => this.selectImage(img))}>
+                ${map(this._images, (img, i) => html`
+                    <div class="slide" ${onGesture(tap(), () => this.selectImage(img, i))}>
                         <img src="${this._imageService!.resolveUrl(img.name, { width: 480 })}" alt=${img.name} />
                         <span class="name">${img.name}</span>
                     </div>
@@ -167,12 +167,30 @@ export class SqPalette extends BaseComponent {
         this.update();
     }
 
-    private selectImage(image: ImageAsset): void {
+    private selectImage(image: ImageAsset, index: number): void {
         this.dispatchEvent(new CustomEvent("image-select", {
-            detail: { imageRef: image.name },
+            detail: {
+                imageRef: image.name,
+                width: image.width,
+                height: image.height,
+                preview: this.measurePreview(index),
+            },
             bubbles: true,
             composed: true,
         }));
+    }
+
+    /**
+     * On-screen centre and side of the tapped preview image, in client
+     * px — the rectangle the reified layer should land on. Null if the
+     * element can't be found (the caller falls back to the tap point).
+     */
+    private measurePreview(index: number): { cx: number; cy: number; size: number } | null {
+        const img = this.browserEl?.querySelectorAll<HTMLImageElement>(".slide img")[index];
+        if (!img) return null;
+
+        const rect = img.getBoundingClientRect();
+        return { cx: rect.left + rect.width / 2, cy: rect.top + rect.height / 2, size: rect.width };
     }
 
     private scrollToIndex(index: number): void {

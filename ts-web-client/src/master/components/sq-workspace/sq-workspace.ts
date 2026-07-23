@@ -8,6 +8,7 @@ import { DISPLAY } from "@constants/display";
 import { EventBuilder } from "@events/event-builder";
 import { onGesture, tap } from "@gestures";
 import { store, imageService, layerService } from "../../services";
+import { computeLayerPlacement, PLACED_LAYER_WIDTH } from "./layer-placement";
 import workspaceCss from "./sq-workspace.css" with { type: "text" };
 
 import type { SqDisplay } from "@components/sq-display";
@@ -116,15 +117,34 @@ export class SqWorkspace extends BaseComponent {
     }
 
     private handleImageSelect = (e: Event): void => {
-        const { imageRef } = (e as CustomEvent<{ imageRef: string }>).detail;
+        const { imageRef, width, height, preview } = (
+            e as CustomEvent<{
+                imageRef: string;
+                width: number;
+                height: number;
+                preview: { cx: number; cy: number; size: number } | null;
+            }>
+        ).detail;
 
-        if (!this.palettePosition) return;
+        // Land the layer exactly on the preview's on-screen rectangle,
+        // converted from client to display space. Fall back to the tap
+        // point at a default size if the measurement was unavailable.
+        const center = preview
+            ? this.clientToDisplay({ x: preview.cx, y: preview.cy })
+            : this.palettePosition;
+
+        if (!center) return;
+
+        const previewSize = preview ? preview.size / this.scale : PLACED_LAYER_WIDTH;
+
+        const { position, scale } = computeLayerPlacement({ width, height }, center, previewSize);
 
         store.dispatch(EventBuilder.imageSet({
             layer: `layer-${Date.now()}`,
             imageRef,
-            aspectRatio: "cover",
-            position: { x: this.palettePosition.x, y: this.palettePosition.y },
+            aspectRatio: "native",
+            position,
+            scale,
         }));
 
         this.palettePosition = null;
