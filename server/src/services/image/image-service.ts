@@ -67,7 +67,7 @@ export class ImageService {
     }
 
     private handleSet(event: ImageSetEvent): void {
-        const { layer, imageRef, aspectRatio, position, scale } = event.payload;
+        const { layer, imageRef, aspectRatio, position, scale, rotation } = event.payload;
 
         logger.info(
             `Image set: layer=${layer}, imageRef=${imageRef}, scale=${scale ?? 1}`,
@@ -84,6 +84,7 @@ export class ImageService {
                       aspectRatio,
                       position: position || existingLayer.position,
                       scale: scale ?? existingLayer.scale,
+                      rotation: rotation ?? existingLayer.rotation,
                   }
                 : {
                       id: layer,
@@ -91,7 +92,7 @@ export class ImageService {
                       aspectRatio,
                       position: position || { x: "center", y: "center" },
                       scale: scale ?? 1,
-                      rotation: 0,
+                      rotation: rotation ?? 0,
                       blendMode: "normal",
                       opacity: 1,
                       zIndex: 0,

@@ -202,6 +202,7 @@ export const imageSetPayloadSchema = z.object({
     position: imagePositionSchema.optional(),
     transition: imageTransitionSchema.optional(),
     scale: z.number().min(0.1).max(5.0).optional(),
+    rotation: z.number().optional(),
 });
 
 export const imageSetEventSchema = z.object({

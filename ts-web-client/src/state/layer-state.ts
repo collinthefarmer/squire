@@ -39,7 +39,7 @@ export function applyImageSet(
     layers: Map<LayerId, ImageLayerState>,
     event: ImageSetEvent,
 ): Map<LayerId, ImageLayerState> {
-    const { layer, imageRef, aspectRatio, position, scale } = event.payload;
+    const { layer, imageRef, aspectRatio, position, scale, rotation } = event.payload;
     const existing = layers.get(layer);
 
     const state: ImageLayerState = existing
@@ -49,6 +49,7 @@ export function applyImageSet(
               aspectRatio,
               position: position ?? existing.position,
               scale: scale ?? existing.scale,
+              rotation: rotation ?? existing.rotation,
           }
         : {
               ...DEFAULT_LAYER,
@@ -57,6 +58,7 @@ export function applyImageSet(
               aspectRatio,
               position: position ?? { x: "center", y: "center" },
               scale: scale ?? 1.0,
+              rotation: rotation ?? DEFAULT_LAYER.rotation,
           };
 
     return setInMap(layers, layer, state);

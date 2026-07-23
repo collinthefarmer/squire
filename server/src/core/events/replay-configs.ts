@@ -146,7 +146,7 @@ export const imageReplay = defineReplay("layer", {
     "visual.image.set": {
         removes: ["visual.image.clear"],
         folds: {
-            "visual.image.transform": ["position", "scale"],
+            "visual.image.transform": ["position", "scale", "rotation"],
         },
         replaces: ["visual.image.effect", "visual.image.layer_config"],
     },

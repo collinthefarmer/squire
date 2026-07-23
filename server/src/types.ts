@@ -251,6 +251,7 @@ export interface ImageSetPayload {
     position?: ImagePosition;
     transition?: ImageTransition;
     scale?: number; // Initial scale factor (defaults to 1.0)
+    rotation?: number; // Initial rotation in degrees (defaults to 0)
 }
 
 export interface ImageClearPayload {

@@ -68,6 +68,38 @@ describe("layer-state reducers", () => {
 
             expect(original.size).toBe(0);
         });
+
+        test("should apply rotation from the payload (replay carries it via set)", () => {
+            // On reconnect the server folds transform fields into the set
+            // event; rotation must survive into the rebuilt layer.
+            const result = applyImageSet(new Map(), {
+                type: "visual.image.set",
+                payload: {
+                    layer: BG,
+                    imageRef: imageRef("forest.png"),
+                    aspectRatio: "native",
+                    scale: 0.5,
+                    rotation: 30,
+                },
+                metadata: makeMetadata(),
+            });
+
+            expect(result.get(BG)!.rotation).toBe(30);
+        });
+
+        test("should default rotation to 0 when the payload omits it", () => {
+            const result = applyImageSet(new Map(), {
+                type: "visual.image.set",
+                payload: {
+                    layer: BG,
+                    imageRef: imageRef("forest.png"),
+                    aspectRatio: "native",
+                },
+                metadata: makeMetadata(),
+            });
+
+            expect(result.get(BG)!.rotation).toBe(0);
+        });
     });
 
     describe("applyImageClear", () => {
