@@ -1,0 +1,28 @@
+/* Host generates no box — the outline positions against the workspace
+   overlay (display coordinates), the same stage sq-display draws on. */
+:host {
+    display: contents;
+}
+
+/* Hidden probe: loads the (already-cached) image only to read its
+   natural size. Never shown, never interactive. */
+.probe {
+    position: absolute;
+    width: 0;
+    height: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Subtle outline mirroring the layer; the whole box is the grab target
+   (transparent interior lets the layer show through). Overridable via
+   custom properties per the runtime-value-forwarding convention. */
+.outline {
+    position: absolute;
+    box-sizing: border-box;
+    border: var(--handle-border-width, 1px) solid
+        var(--handle-border-color, rgba(255, 255, 255, 0.55));
+    border-radius: 2px;
+    touch-action: none;
+    cursor: move;
+}

@@ -1,5 +1,6 @@
 import { html, type TemplateResult } from "lit-html";
 import { ref } from "lit-html/directives/ref.js";
+import { repeat } from "lit-html/directives/repeat.js";
 import { styleMap } from "lit-html/directives/style-map.js";
 import { when } from "lit-html/directives/when.js";
 
@@ -12,8 +13,9 @@ import { computeLayerPlacement, PLACED_LAYER_WIDTH } from "./layer-placement";
 import workspaceCss from "./sq-workspace.css" with { type: "text" };
 
 import type { SqDisplay } from "@components/sq-display";
+import type { LayerTransformIntent } from "../sq-layer-handle";
 import type { Point } from "@gestures";
-import type { ImageAsset } from "@types";
+import type { ImageAsset, LayerId } from "@types";
 
 export class SqWorkspace extends BaseComponent {
     private scale = 1;
@@ -25,6 +27,9 @@ export class SqWorkspace extends BaseComponent {
     // Palette state
     private palettePosition: Point | null = null;
     private images: ImageAsset[] | null = null;
+
+    // Layer manipulation handles
+    private layerIds: LayerId[] = [];
 
     // -- Element refs --
 
@@ -57,6 +62,11 @@ export class SqWorkspace extends BaseComponent {
             if (this.displayEl) this.displayEl.clocks = clocks;
         });
 
+        this.subscribe(layerService.layerIds$, (ids) => {
+            this.layerIds = ids;
+            this.update();
+        });
+
         this.update();
     }
 
@@ -78,6 +88,15 @@ export class SqWorkspace extends BaseComponent {
                     <div class="controls-overlay"
                         ${onGesture(tap(), (e) => this.handleOverlayTap(e.position))}
                     >
+                        ${repeat(
+                            this.layerIds,
+                            (id) => id,
+                            (id) => html`<sq-layer-handle
+                                .state$=${layerService.layer$(id)}
+                                .displayScale=${this.scale}
+                                @layer-transform=${(e: Event) => this.applyTransform(id, e)}
+                            ></sq-layer-handle>`,
+                        )}
                         ${when(this.palettePosition, (pos) => this.paletteTemplate(pos))}
                     </div>
                 </div>
@@ -155,6 +174,11 @@ export class SqWorkspace extends BaseComponent {
         this.palettePosition = null;
         this.update();
     };
+
+    private applyTransform(layer: LayerId, e: Event): void {
+        const intent = (e as CustomEvent<LayerTransformIntent>).detail;
+        store.dispatch(EventBuilder.imageTransform({ layer, ...intent }));
+    }
 
     // -- Helpers --
 
