@@ -8,18 +8,16 @@
 import { Logger } from "@utils/logger";
 import { SqDisplay } from "@components/sq-display";
 import { SqLayer } from "@components/sq-layer";
-import { store, connection, layerService } from "./services";
+import { SqStage } from "./components/sq-stage";
+import { connection } from "./services";
 
 const logger = new Logger("Display");
 
 customElements.define("sq-layer", SqLayer);
 customElements.define("sq-display", SqDisplay);
+customElements.define("sq-stage", SqStage);
 
-const display = document.createElement("sq-display") as SqDisplay;
-display.layerService = layerService;
-document.body.appendChild(display);
-
-store.clocks$.subscribe((clocks) => { display.clocks = clocks; });
+document.body.appendChild(document.createElement("sq-stage"));
 
 connection.connect();
 logger.info("Display client initialized");

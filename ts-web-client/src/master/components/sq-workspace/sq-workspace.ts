@@ -7,6 +7,7 @@ import { when } from "lit-html/directives/when.js";
 import { BaseComponent } from "@core/base-component";
 import { DISPLAY } from "@constants/display";
 import { EventBuilder } from "@events/event-builder";
+import { fitScale } from "@utils/fit-scale";
 import { onGesture, tap } from "@gestures";
 import { store, imageService, layerService } from "../../services";
 import { computeLayerPlacement, PLACED_LAYER_WIDTH } from "./layer-placement";
@@ -183,9 +184,10 @@ export class SqWorkspace extends BaseComponent {
     // -- Helpers --
 
     private computeScale(viewportW: number, viewportH: number): void {
-        this.scale = Math.min(viewportW / DISPLAY.WIDTH, viewportH / DISPLAY.HEIGHT);
-        this.offsetX = (viewportW - DISPLAY.WIDTH * this.scale) / 2;
-        this.offsetY = (viewportH - DISPLAY.HEIGHT * this.scale) / 2;
+        const fit = fitScale(viewportW, viewportH, DISPLAY.WIDTH, DISPLAY.HEIGHT);
+        this.scale = fit.scale;
+        this.offsetX = fit.offsetX;
+        this.offsetY = fit.offsetY;
         this.update();
     }
 
