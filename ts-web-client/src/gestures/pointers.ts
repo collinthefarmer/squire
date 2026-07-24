@@ -52,10 +52,18 @@ export function pointers$(
             subscriber.next(buildPointerStream(e, element, gate));
         };
 
+        // A hold long enough to be a long-press (or a right-click) otherwise
+        // raises the browser's native context menu over a surface whose
+        // pointers the gesture layer owns. Suppress it here, alongside the
+        // scroll the gate already cancels — no gesture surface wants it.
+        const onContextMenu = (e: Event): void => e.preventDefault();
+
         element.addEventListener("pointerdown", onPointerDown);
+        element.addEventListener("contextmenu", onContextMenu);
 
         return () => {
             element.removeEventListener("pointerdown", onPointerDown);
+            element.removeEventListener("contextmenu", onContextMenu);
             gate?.teardown();
         };
     });

@@ -15,7 +15,7 @@ import { computeLayerPlacement, PLACED_LAYER_WIDTH } from "./layer-placement";
 import workspaceCss from "./sq-workspace.css" with { type: "text" };
 
 import type { SqDisplay } from "@components/sq-display";
-import type { LayerTransformIntent } from "../sq-layer-handle";
+import type { LayerTransformIntent, LayerVisibilityIntent } from "../sq-layer-handle";
 import type { Point } from "@gestures";
 import type { ImageAsset, LayerId } from "@types";
 
@@ -100,6 +100,7 @@ export class SqWorkspace extends BaseComponent {
                                 .displayScale=${this.scale}
                                 .snap=${this.snapEnabled}
                                 @layer-transform=${(e: Event) => this.applyTransform(id, e)}
+                                @layer-visibility=${(e: Event) => this.applyVisibility(id, e)}
                             ></sq-layer-handle>`,
                         )}
                         ${when(this.palettePosition, (pos) => this.paletteTemplate(pos))}
@@ -183,6 +184,11 @@ export class SqWorkspace extends BaseComponent {
     private applyTransform(layer: LayerId, e: Event): void {
         const intent = (e as CustomEvent<LayerTransformIntent>).detail;
         store.dispatch(EventBuilder.imageTransform({ layer, ...intent }));
+    }
+
+    private applyVisibility(layer: LayerId, e: Event): void {
+        const { visible } = (e as CustomEvent<LayerVisibilityIntent>).detail;
+        store.dispatch(EventBuilder.imageLayerConfig({ layer, visible }));
     }
 
     // -- Helpers --

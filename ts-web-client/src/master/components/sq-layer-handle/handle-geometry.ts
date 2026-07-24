@@ -27,15 +27,18 @@ const FULL_BLEED = new Set(["cover", "contain", "fill"]);
 
 /**
  * The handle rectangle for a layer, or null when a handle doesn't
- * apply: hidden or image-less layers, full-bleed layers, layers with
- * a symbolic (non-numeric) position, or before the natural size has
- * been measured.
+ * apply: image-less layers, full-bleed layers, layers with a symbolic
+ * (non-numeric) position, or before the natural size has been measured.
+ *
+ * A *hidden* layer still gets a rect — its handle stays in the workspace
+ * as a ghost so a long-press can restore it. Visibility is the caller's
+ * concern (how to draw it), not this geometry's.
  */
 export function handleRect(
     view: LayerView,
     naturalSize: { width: number; height: number } | null,
 ): HandleRect | null {
-    if (!view.visible || !view.imageUrl) return null;
+    if (!view.imageUrl) return null;
     if (FULL_BLEED.has(view.aspectRatio)) return null;
     if (!naturalSize) return null;
 

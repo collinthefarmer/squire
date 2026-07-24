@@ -13,3 +13,6 @@ export type { TapEvent, TapConfig } from "./tap";
 
 export { grab } from "./grab";
 export type { GrabEvent, GrabConfig } from "./grab";
+
+export { longPress } from "./long-press";
+export type { LongPressEvent, LongPressConfig } from "./long-press";

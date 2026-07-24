@@ -60,9 +60,12 @@ describe("handleRect", () => {
         expect(handleRect(view({ position: { x: "center", y: "center" } }), DIMS)).toBeNull();
     });
 
-    test("null when hidden or image-less", () => {
-        expect(handleRect(view({ visible: false }), DIMS)).toBeNull();
+    test("null when image-less", () => {
         expect(handleRect(view({ imageUrl: null }), DIMS)).toBeNull();
+    });
+
+    test("still returns a rect for a hidden layer (the ghost handle)", () => {
+        expect(handleRect(view({ visible: false }), DIMS)).not.toBeNull();
     });
 });
 

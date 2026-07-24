@@ -4,7 +4,7 @@ import { styleMap } from "lit-html/directives/style-map.js";
 
 import { BaseComponent } from "@core/base-component";
 import { DISPLAY } from "@constants/display";
-import { grab, GESTURE_STYLES, grabVars, onGesture } from "@gestures";
+import { grab, longPress, GESTURE_STYLES, grabVars, onGesture } from "@gestures";
 import { GRID, ROTATION_SNAP_DEGREES } from "@constants/grid";
 import {
     handleRect,
@@ -36,6 +36,11 @@ export interface LayerTransformIntent {
     position?: ImagePosition;
     scale?: number;
     rotation?: number;
+}
+
+/** Detail of the `layer-visibility` event the handle emits upward. */
+export interface LayerVisibilityIntent {
+    visible: boolean;
 }
 
 /**
@@ -96,7 +101,7 @@ export class SqLayerHandle extends BaseComponent {
                 ? html`
                     ${this.guideTemplate(rect, view.zIndex)}
                     <div
-                        class="outline"
+                        class=${classMap({ outline: true, ghost: !view.visible })}
                         style=${styleMap({
                             left: `${rect.cx}px`,
                             top: `${rect.cy}px`,
@@ -106,7 +111,10 @@ export class SqLayerHandle extends BaseComponent {
                             transform: `translate(-50%, -50%) rotate(${rect.rotation}deg)`,
                         })}
                         @pointerdown=${(e: PointerEvent) => e.stopPropagation()}
-                        ${onGesture(grab(), (e: GrabEvent) => this.handleGrab(e), grabVars)}
+                        ${view.visible
+                            ? onGesture(grab(), (e: GrabEvent) => this.handleGrab(e), grabVars)
+                            : nothing}
+                        ${onGesture(longPress(), () => this.toggleVisibility())}
                     ></div>`
                 : nothing}
         `;
@@ -221,6 +229,18 @@ export class SqLayerHandle extends BaseComponent {
     private emit(detail: LayerTransformIntent): void {
         this.dispatchEvent(new CustomEvent("layer-transform", {
             detail,
+            bubbles: true,
+            composed: true,
+        }));
+    }
+
+    /** A long-press flips the layer's visibility; the workspace dispatches. */
+    private toggleVisibility(): void {
+        const view = this._view;
+        if (!view) return;
+
+        this.dispatchEvent(new CustomEvent<LayerVisibilityIntent>("layer-visibility", {
+            detail: { visible: !view.visible },
             bubbles: true,
             composed: true,
         }));

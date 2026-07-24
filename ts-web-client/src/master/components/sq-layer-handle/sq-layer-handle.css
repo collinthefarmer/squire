@@ -25,6 +25,25 @@
     border-radius: 2px;
     touch-action: none;
     cursor: move;
+
+    /* Long-press is our gesture — deny the browser's native reactions to a
+       hold (iOS callout, text selection) for the whole press, including the
+       window before the recognizer claims and [data-gesture] is set. The
+       contextmenu popup itself is suppressed in the pointer layer. */
+    -webkit-touch-callout: none;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* A hidden layer keeps a ghost handle in the master workspace so a
+   long-press can bring it back — the layer is gone from the display, but
+   its placeholder lingers here. Dashed and dimmed to read as absent, and
+   not "move" since manipulation is off while hidden. */
+.outline.ghost {
+    border-style: dashed;
+    border-color: var(--handle-ghost-border-color, rgba(255, 255, 255, 0.3));
+    opacity: var(--handle-ghost-opacity, 0.6);
+    cursor: default;
 }
 
 /* The rotation dial. Centred on the layer via translate, non-interactive
