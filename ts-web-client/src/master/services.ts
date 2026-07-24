@@ -5,6 +5,7 @@ import { ImageService } from "@core/image-service";
 import { LayerService } from "@core/layer-service";
 import { SoundService } from "@core/sound-service";
 import { FontService } from "@core/font-service";
+import { SettingsService } from "@core/settings-service";
 
 const SERVER_URL = `wss://${window.location.hostname}:3000/ws`;
 
@@ -17,5 +18,6 @@ const imageService = new ImageService();
 const layerService = new LayerService(store, imageService);
 const soundService = new SoundService();
 const fontService = new FontService();
+const settingsService = new SettingsService();
 
-export { store, eventBus, connection, imageService, layerService, soundService, fontService };
+export { store, eventBus, connection, imageService, layerService, soundService, fontService, settingsService };

@@ -55,6 +55,11 @@
     opacity: 1;
 }
 
+/* Snapping off → no grid to show; the guide would only mislead. */
+.controls-overlay.no-snap::before {
+    display: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .controls-overlay::before {
         transition: none;

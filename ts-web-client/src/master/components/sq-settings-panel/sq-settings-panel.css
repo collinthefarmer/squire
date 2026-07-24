@@ -1,0 +1,206 @@
+/* A drawer docked at the right edge: a compact tab parked at a vertical
+   offset is all that shows when closed; pulling it expands the body out
+   to the left of the edge. The host spans tab + body but paints nothing
+   itself and is click-through, so only the tab (and the open body) are
+   visible and interactive — many of these can stack down the edge at
+   different --tab-offsets without their columns occluding one another. */
+:host {
+    --tab-width: 46px;
+    --tab-height: 52px;
+    --tab-offset: 14px;
+    --body-width: min(320px, 78vw);
+    --header-height: 52px;
+
+    display: block;
+    position: absolute;
+    top: var(--tab-offset);
+    right: 0;
+    z-index: 30;
+    width: calc(var(--tab-width) + var(--body-width));
+
+    color: var(--panel-fg, rgba(255, 255, 255, 0.85));
+    pointer-events: none; /* transparent host; the tab and body opt back in */
+
+    /* Travel = the body width (100% of the host, less the always-shown
+       tab). `base` is where the settled state sits; the drag offsets it. */
+    --closed: calc(100% - var(--tab-width));
+    --base: var(--closed);
+
+    /* Stiffness of the pull's resistance before it unsticks (see below).
+       --settle (the unstick/latch distance) is injected from the handler
+       so the curve and the latch can't disagree. */
+    --pop: 4;
+    transform: translateX(var(--base));
+    transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
+}
+
+:host([open]) {
+    --base: 0px;
+}
+
+/* Following the finger: the sticky-snap curve, done in CSS from the raw
+   pull the handler writes to --drag. `--a` is its magnitude; the drawer
+   offset is `settle · (a/settle)^pop` — resisting — until that curve meets
+   the finger at a = settle, past which min() switches to tracking it 1:1.
+   The travel cancels out of the curve, so nothing is measured; only the
+   clamp needs the panel width, and CSS has it as a percentage. No
+   transition — resistance, snap, and 1:1 follow are all in the value. */
+:host([dragging]) {
+    transition: none;
+
+    --a: abs(var(--drag, 0px));
+    --pull: min(
+        var(--a),
+        calc(var(--settle, 40px) * pow(var(--a) / var(--settle, 40px), var(--pop)))
+    );
+
+    transform: translateX(clamp(
+        0px,
+        calc(var(--base) + sign(var(--drag, 0px)) * var(--pull)),
+        var(--closed)
+    ));
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :host {
+        transition: none;
+    }
+}
+
+/* ── Tab (the handle) ─────────────────────────────────────────── */
+
+/* A compact pull-tab at the drawer's top-left, level with the header.
+   Absolutely placed so it never stretches to the body's height — that is
+   what keeps it small enough to stack. Rounded and shadowed on its outer
+   (left) edge so it reads as a grip protruding from the belt of tabs. */
+.tab {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: var(--tab-width);
+    height: var(--tab-height);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background: var(--panel-bg, #17181c);
+    border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.08));
+    border-right: none;
+    border-radius: 10px 0 0 10px;
+    box-shadow: -4px 0 14px rgba(0, 0, 0, 0.28);
+    color: var(--tab-icon, rgba(255, 255, 255, 0.6));
+
+    cursor: grab;
+    pointer-events: auto;
+    touch-action: none;
+    -webkit-touch-callout: none;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: color 120ms ease;
+}
+
+.tab:hover {
+    color: var(--tab-icon-hover, rgba(255, 255, 255, 0.85));
+}
+
+.tab[data-gesture] {
+    cursor: grabbing;
+}
+
+:host([open]) .tab {
+    color: var(--tab-icon-active, #8fc7ff);
+}
+
+.tab:focus-visible {
+    outline: 2px solid var(--tab-focus, #3b9eff);
+    outline-offset: -2px;
+}
+
+.icon {
+    width: 24px;
+    height: 24px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+}
+
+.icon .knob {
+    fill: currentColor;
+    stroke: none;
+}
+
+/* ── Body (the drawer) ────────────────────────────────────────── */
+
+/* Sits to the right of the tab column and sizes to its content, so the
+   drawer that expands out is taller than the tab it came from. Its shadow
+   is held back until it is actually emerging, so a closed drawer casts
+   nothing onto the edge beside its tab. */
+.body {
+    margin-left: var(--tab-width);
+    display: flex;
+    flex-direction: column;
+    background: var(--panel-bg, #17181c);
+    border-radius: 0 0 0 10px;
+    pointer-events: auto;
+    overflow: hidden;
+}
+
+:host([open]) .body,
+:host([dragging]) .body {
+    box-shadow: -12px 0 32px rgba(0, 0, 0, 0.35);
+}
+
+.head {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+    height: var(--header-height, 52px);
+    padding: 0 18px;
+    border-bottom: 1px solid var(--panel-border, rgba(255, 255, 255, 0.08));
+}
+
+.head h2 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 18px;
+}
+
+.row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    min-height: 48px;
+}
+
+.label {
+    font-size: 13px;
+    color: var(--panel-muted, rgba(255, 255, 255, 0.6));
+    flex: 0 0 auto;
+}
+
+.control {
+    flex: 1 1 auto;
+    max-width: 200px;
+}
+
+.control.placeholder {
+    height: 24px;
+    border-radius: 6px;
+    border: 1px dashed var(--panel-placeholder, rgba(255, 255, 255, 0.16));
+    background: repeating-linear-gradient(
+        -45deg,
+        transparent 0 6px,
+        rgba(255, 255, 255, 0.03) 6px 12px
+    );
+}

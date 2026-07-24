@@ -5,7 +5,7 @@ import { styleMap } from "lit-html/directives/style-map.js";
 import { BaseComponent } from "@core/base-component";
 import { DISPLAY } from "@constants/display";
 import { grab, longPress, GESTURE_STYLES, grabVars, onGesture } from "@gestures";
-import { GRID, ROTATION_SNAP_DEGREES } from "@constants/grid";
+import { settingsService } from "../../services";
 import {
     handleRect,
     snapToGrid,
@@ -48,19 +48,20 @@ export interface LayerVisibilityIntent {
  * and turns a direct grab into live transform intents: one finger moves,
  * a second finger (absorbed mid-gesture) adds scale and rotation.
  *
- * Presentational — it renders from an injected `LayerView` stream and
- * signals intent through a `layer-transform` CustomEvent; the workspace
- * dispatches. It measures the image's natural size with a hidden probe
- * `<img>` (already cached by the display), so it needs no dimension
- * plumbing. Scale and rotation carry no position correction because the
- * renderer transforms about the layer's centre.
+ * It renders from an injected `LayerView` stream and signals intent
+ * through a `layer-transform` CustomEvent; the workspace dispatches. Snap
+ * settings it reads straight from the settings service — it needs them
+ * only at grab time, so it reads rather than takes them as props. It
+ * measures the image's natural size with a hidden probe `<img>` (already
+ * cached by the display), so it needs no dimension plumbing. Scale and
+ * rotation carry no position correction because the renderer transforms
+ * about the layer's centre.
  */
 export class SqLayerHandle extends BaseComponent {
     private _view: LayerView | undefined;
     private _state$: Observable<LayerView | undefined> | null = null;
     private _displayScale = 1;
     private _natural: { width: number; height: number } | null = null;
-    private _snap = true;
 
     private grabBaseline: { x: number; y: number; scale: number; rotation: number } | null = null;
 
@@ -76,11 +77,6 @@ export class SqLayerHandle extends BaseComponent {
 
     set displayScale(value: number) {
         this._displayScale = value;
-    }
-
-    /** Whether a grab quantises the layer's centre to the workspace grid. */
-    set snap(value: boolean) {
-        this._snap = value;
     }
 
     override connectedCallback(): void {
@@ -135,7 +131,7 @@ export class SqLayerHandle extends BaseComponent {
     private guideTemplate(rect: HandleRect, zIndex: number): TemplateResult {
         const radius = rotationGuideRadius(rect, ROTATION_GUIDE_MARGIN, ROTATION_GUIDE_MAX_RADIUS);
         const size = radius * 2;
-        const ticks = rotationTicks(radius, ROTATION_SNAP_DEGREES, rect.rotation);
+        const ticks = rotationTicks(radius, settingsService.rotationSnap, rect.rotation);
         const needle = pointAtAngle(radius, rect.rotation);
 
         return html`<svg
@@ -206,11 +202,15 @@ export class SqLayerHandle extends BaseComponent {
             y: b.y + event.translation.y / this._displayScale,
         };
 
+        // Snap settings are read live from the service — the handle needs
+        // them only here, at grab time, so it reads rather than subscribes.
+        const { snapEnabled, gridSize, rotationSnap } = settingsService;
+
         // Snapping quantises the numeric position itself — the value that
         // is broadcast to every display — not just the master's view; a
         // CSS-only snap would leave the displays showing the raw drift.
-        const position = this._snap && this._natural
-            ? snapToGrid(raw, this._natural, GRID.SIZE)
+        const position = snapEnabled && this._natural
+            ? snapToGrid(raw, this._natural, gridSize)
             : { x: Math.round(raw.x), y: Math.round(raw.y) };
 
         // Same reasoning as position: the snapped angle is the value that
@@ -222,7 +222,7 @@ export class SqLayerHandle extends BaseComponent {
         this.emit({
             position,
             scale: clamp(b.scale * event.scale, MIN_SCALE, MAX_SCALE),
-            rotation: this._snap ? snapAngle(rotation, ROTATION_SNAP_DEGREES) : rotation,
+            rotation: snapEnabled ? snapAngle(rotation, rotationSnap) : rotation,
         });
     }
 

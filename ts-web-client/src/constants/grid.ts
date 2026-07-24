@@ -15,9 +15,18 @@
  * outline already rotates to it, clicking through the detents in view.
  */
 export const GRID = {
-    /** Cell edge in display px. */
+    /** Cell edge in display px — the default the settings service starts at. */
     SIZE: 120,
+    /** Adjustable range the settings panel offers for the cell edge. */
+    MIN: 20,
+    MAX: 240,
+    STEP: 10,
 } as const;
 
 /** Rotation detent in degrees — a grab's angle snaps to multiples of this. */
 export const ROTATION_SNAP_DEGREES = 15;
+
+/** Adjustable range the settings panel offers for the rotation detent. */
+export const ROTATION_SNAP_MIN = 5;
+export const ROTATION_SNAP_MAX = 90;
+export const ROTATION_SNAP_STEP = 5;

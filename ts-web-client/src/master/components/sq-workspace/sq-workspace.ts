@@ -10,7 +10,7 @@ import { GRID } from "@constants/grid";
 import { EventBuilder } from "@events/event-builder";
 import { fitScale } from "@utils/fit-scale";
 import { onGesture, tap } from "@gestures";
-import { store, imageService, layerService } from "../../services";
+import { store, imageService, layerService, settingsService } from "../../services";
 import { computeLayerPlacement, PLACED_LAYER_WIDTH } from "./layer-placement";
 import workspaceCss from "./sq-workspace.css" with { type: "text" };
 
@@ -32,7 +32,11 @@ export class SqWorkspace extends BaseComponent {
 
     // Layer manipulation handles
     private layerIds: LayerId[] = [];
+
+    // Snapping — the workspace reads these for its own grid overlay (the
+    // handles read the service directly for the actual snap math).
     private snapEnabled = true;
+    private gridSize: number = GRID.SIZE;
 
     // -- Element refs --
 
@@ -70,6 +74,15 @@ export class SqWorkspace extends BaseComponent {
             this.update();
         });
 
+        this.subscribe(settingsService.snapEnabled$, (v) => {
+            this.snapEnabled = v;
+            this.update();
+        });
+        this.subscribe(settingsService.gridSize$, (v) => {
+            this.gridSize = v;
+            this.update();
+        });
+
         this.update();
     }
 
@@ -88,8 +101,8 @@ export class SqWorkspace extends BaseComponent {
                     transform: `translate(${this.offsetX}px, ${this.offsetY}px) scale(${this.scale})`,
                 })}>
                     <sq-display ${ref(this.displayRef)}></sq-display>
-                    <div class="controls-overlay"
-                        style=${styleMap({ "--grid-size": `${GRID.SIZE}px` })}
+                    <div class="controls-overlay ${this.snapEnabled ? "" : "no-snap"}"
+                        style=${styleMap({ "--grid-size": `${this.gridSize}px` })}
                         ${onGesture(tap(), (e) => this.handleOverlayTap(e.position))}
                     >
                         ${repeat(
@@ -98,7 +111,6 @@ export class SqWorkspace extends BaseComponent {
                             (id) => html`<sq-layer-handle
                                 .state$=${layerService.layer$(id)}
                                 .displayScale=${this.scale}
-                                .snap=${this.snapEnabled}
                                 @layer-transform=${(e: Event) => this.applyTransform(id, e)}
                                 @layer-visibility=${(e: Event) => this.applyVisibility(id, e)}
                             ></sq-layer-handle>`,
@@ -106,6 +118,8 @@ export class SqWorkspace extends BaseComponent {
                         ${when(this.palettePosition, (pos) => this.paletteTemplate(pos))}
                     </div>
                 </div>
+
+                <sq-settings-panel></sq-settings-panel>
             </div>
         `;
     }
