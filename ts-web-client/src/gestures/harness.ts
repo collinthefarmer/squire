@@ -19,7 +19,7 @@
  * appears in any shared interface.
  */
 
-import { EMPTY, Observable, from, merge, of, race } from "rxjs";
+import { Observable, from, merge, of, race } from "rxjs";
 import {
     filter,
     map,
@@ -33,6 +33,15 @@ import {
 import type { PointerStream, PointerEnd } from "./pointers";
 import type { Point } from "./transform";
 import type { Recognition, Recognizer } from "./recognizers/recognizer";
+
+/**
+ * A locally built empty stream, standing in for RxJS's `EMPTY`. Bun's HMR
+ * dev bundler resolves the barrel's `EMPTY` re-export (an instance const)
+ * to `undefined`, so a non-absorbing recognizer's `absorbed$` became
+ * `undefined` and `merge(from(initial), undefined)` threw on subscribe.
+ * Constructed from the `Observable` class, which does resolve.
+ */
+const EMPTY = new Observable<never>((subscriber) => subscriber.complete());
 
 /**
  * One tick of the live pointer set: the current positions after a

@@ -19,7 +19,7 @@
  * and the browser handles the interaction (scroll, zoom, etc).
  */
 
-import { EMPTY, Observable, Subject, concat, merge, of, pipe } from "rxjs";
+import { Observable, Subject, concat, merge, of, pipe } from "rxjs";
 import type { OperatorFunction } from "rxjs";
 import {
     buffer,
@@ -52,6 +52,18 @@ const CONCURRENT_WINDOW_MS = 50;
 const CONFIDENCE_THRESHOLD = 0.5;
 
 const logger = new Logger("gestures");
+
+/**
+ * A locally built empty stream, used instead of RxJS's `EMPTY`.
+ *
+ * `EMPTY` is re-exported through the rxjs barrel as an instance const,
+ * and Bun's HMR dev bundler resolves that particular re-export to
+ * `undefined` — so `return EMPTY` fed a bare `undefined` into `innerFrom`
+ * ("You provided 'undefined' where a stream was expected") and took down
+ * every non-absorbing recognizer's competition. Constructing our own,
+ * from the `Observable` class (which does resolve), sidesteps the quirk.
+ */
+const EMPTY = new Observable<never>((subscriber) => subscriber.complete());
 
 
 // ── Internal types ─────────────────────────────────────────────
