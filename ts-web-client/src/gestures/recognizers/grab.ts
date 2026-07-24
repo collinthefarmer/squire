@@ -28,6 +28,15 @@ export type GrabEvent = {
     scale: number;
     /** Cumulative rotation since the grab began (radians). */
     rotation: number;
+    /**
+     * Whether the layer is actively turning this frame. Read straight off
+     * the transform — how far `output` has rotated past the banked `base`,
+     * i.e. the twist since the current finger reference — so it means real
+     * rotation, not merely the presence of a second finger. A lone finger
+     * (no rotation delta) and a straight pinch (scale without a twist)
+     * both leave it false.
+     */
+    rotating: boolean;
 };
 
 export type GrabConfig = {
@@ -42,6 +51,16 @@ export type GrabConfig = {
 const DEFAULT_THRESHOLD = 10;
 const DEFAULT_SCALE_THRESHOLD = 0.05;
 const DEFAULT_ROTATION_THRESHOLD = 0.1;
+
+/**
+ * Minimum live twist (radians, since the current finger reference) for a
+ * frame to read as rotating. A deadzone: a two-finger *scale* wobbles its
+ * pair-angle by a couple of degrees, and this keeps that from masquerading
+ * as rotation. Roughly 2.9° — comfortably past pinch wobble, still well
+ * short of the 7.5° midpoint to the first snap detent, so a deliberate
+ * twist still summons the dial promptly.
+ */
+const ROTATION_ACTIVE_EPSILON = 0.05;
 
 type Transform = { translation: Point; scale: number; rotation: number };
 type Geometry = { center: Point; spread: number; angle: number };
@@ -73,10 +92,12 @@ function grabReducer(state: GrabState, frame: PointerFrame): GrabState {
         return { ref: cur, base: state.output, output: state.output };
     }
 
-    const paired = state.ref.spread > 0 && cur.spread > 0;
+    // A spread on both frames is what lets scale and rotation be measured;
+    // two fingers momentarily coincident (spread 0) can't.
+    const hasSpread = state.ref.spread > 0 && cur.spread > 0;
     const translation = subtract(cur.center, state.ref.center);
-    const scaleDelta = paired ? cur.spread / state.ref.spread : 1;
-    const rotationDelta = paired ? cur.angle - state.ref.angle : 0;
+    const scaleDelta = hasSpread ? cur.spread / state.ref.spread : 1;
+    const rotationDelta = hasSpread ? cur.angle - state.ref.angle : 0;
 
     return {
         ...state,
@@ -121,6 +142,9 @@ export function grab(config?: GrabConfig): Recognizer<GrabEvent> {
                         translation: s.output.translation,
                         scale: s.output.scale,
                         rotation: s.output.rotation,
+                        rotating:
+                            Math.abs(s.output.rotation - s.base.rotation) >
+                            ROTATION_ACTIVE_EPSILON,
                     }),
 
                     toEnd: (_end, last): GrabEvent => ({ ...last, phase: "end" }),

@@ -26,3 +26,69 @@
     touch-action: none;
     cursor: move;
 }
+
+/* The rotation dial. Centred on the layer via translate, non-interactive
+   (the grab lives on the outline above it), and allowed to overflow so
+   the ring and its ticks never clip at the viewBox edge. Its blue is the
+   gesture system's, tying it to the grab ring.
+
+   Always in the DOM alongside the outline but hidden; the grab handler
+   flips data-rotating on the host when a pair of fingers makes rotation
+   live. Coming back from display:none restarts the animation, so it still
+   fades in each time it is revealed. */
+.rot-guide {
+    display: none;
+    position: absolute;
+    transform: translate(-50%, -50%);
+    overflow: visible;
+    pointer-events: none;
+    animation: rot-guide-in 160ms ease-out;
+}
+
+:host([data-rotating]) .rot-guide {
+    display: block;
+}
+
+@keyframes rot-guide-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.rot-ring {
+    fill: none;
+    stroke: var(--rot-ring-color, rgba(59, 158, 255, 0.22));
+    stroke-width: var(--rot-ring-width, 1.5);
+}
+
+.rot-tick {
+    stroke: var(--rot-tick-color, rgba(59, 158, 255, 0.5));
+    stroke-width: var(--rot-tick-width, 1.5);
+}
+
+.rot-tick.cardinal {
+    stroke: var(--rot-tick-cardinal-color, rgba(59, 158, 255, 0.75));
+    stroke-width: var(--rot-tick-cardinal-width, 2.5);
+}
+
+/* The detent the layer's heading has snapped to — brightest, so the eye
+   lands on it. */
+.rot-tick.active {
+    stroke: var(--rot-tick-active-color, #8fc7ff);
+    stroke-width: var(--rot-tick-active-width, 3);
+}
+
+.rot-needle {
+    stroke: var(--rot-needle-color, rgba(143, 199, 255, 0.85));
+    stroke-width: var(--rot-needle-width, 2);
+    stroke-linecap: round;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .rot-guide {
+        animation: none;
+    }
+}

@@ -6,6 +6,7 @@ import { when } from "lit-html/directives/when.js";
 
 import { BaseComponent } from "@core/base-component";
 import { DISPLAY } from "@constants/display";
+import { GRID } from "@constants/grid";
 import { EventBuilder } from "@events/event-builder";
 import { fitScale } from "@utils/fit-scale";
 import { onGesture, tap } from "@gestures";
@@ -31,6 +32,7 @@ export class SqWorkspace extends BaseComponent {
 
     // Layer manipulation handles
     private layerIds: LayerId[] = [];
+    private snapEnabled = true;
 
     // -- Element refs --
 
@@ -87,6 +89,7 @@ export class SqWorkspace extends BaseComponent {
                 })}>
                     <sq-display ${ref(this.displayRef)}></sq-display>
                     <div class="controls-overlay"
+                        style=${styleMap({ "--grid-size": `${GRID.SIZE}px` })}
                         ${onGesture(tap(), (e) => this.handleOverlayTap(e.position))}
                     >
                         ${repeat(
@@ -95,6 +98,7 @@ export class SqWorkspace extends BaseComponent {
                             (id) => html`<sq-layer-handle
                                 .state$=${layerService.layer$(id)}
                                 .displayScale=${this.scale}
+                                .snap=${this.snapEnabled}
                                 @layer-transform=${(e: Event) => this.applyTransform(id, e)}
                             ></sq-layer-handle>`,
                         )}

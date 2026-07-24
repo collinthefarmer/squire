@@ -12,6 +12,7 @@ export {
     GESTURE_ATTR,
     pinchVars,
     dragVars,
+    grabVars,
 } from "./gesture-styles";
 
 // Pointer streams

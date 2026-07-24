@@ -24,3 +24,39 @@
     inset: 0;
     touch-action: none;
 }
+
+/* The snapping grid. Drawn in the frame's own 1920×1080 space, so its
+   cells scale with the stage and its lines fall exactly on the display
+   coordinates a grab snaps to — --grid-size is the one number, injected
+   from the GRID constant that the snap math also reads.
+
+   It lives on a pseudo-element rather than the overlay's own background
+   so its strength can transition, and pointer-events: none keeps it out
+   of the tap path. Painted above the scene (the overlay sits over
+   sq-display) but beneath the positioned handles. */
+.controls-overlay::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+        linear-gradient(to right, var(--grid-line-color, rgba(255, 255, 255, 0.14)) 0 1px, transparent 1px),
+        linear-gradient(to bottom, var(--grid-line-color, rgba(255, 255, 255, 0.14)) 0 1px, transparent 1px);
+    background-size: var(--grid-size, 120px) var(--grid-size, 120px);
+    opacity: var(--grid-idle-opacity, 0.25);
+    transition: opacity 140ms ease;
+}
+
+/* A grab anywhere on the stage brings the grid up to full strength — a
+   pure-CSS reaction to any handle reflecting data-manipulating onto its
+   host. The blue grab ring already says *what* is held; the grid says
+   *where* it will land. */
+.controls-overlay:has(sq-layer-handle[data-manipulating])::before {
+    opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .controls-overlay::before {
+        transition: none;
+    }
+}

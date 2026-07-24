@@ -1,9 +1,20 @@
-import { html, nothing, type TemplateResult } from "lit-html";
+import { html, svg, nothing, type TemplateResult } from "lit-html";
+import { classMap } from "lit-html/directives/class-map.js";
 import { styleMap } from "lit-html/directives/style-map.js";
 
 import { BaseComponent } from "@core/base-component";
-import { grab, onGesture } from "@gestures";
-import { handleRect } from "./handle-geometry";
+import { DISPLAY } from "@constants/display";
+import { grab, GESTURE_STYLES, grabVars, onGesture } from "@gestures";
+import { GRID, ROTATION_SNAP_DEGREES } from "@constants/grid";
+import {
+    handleRect,
+    snapToGrid,
+    snapAngle,
+    pointAtAngle,
+    rotationGuideRadius,
+    rotationTicks,
+    type HandleRect,
+} from "./handle-geometry";
 import handleCss from "./sq-layer-handle.css" with { type: "text" };
 
 import type { Observable } from "rxjs";
@@ -14,6 +25,11 @@ import type { ImagePosition } from "@types";
 const MIN_SCALE = 0.1;
 const MAX_SCALE = 5.0;
 const RAD_TO_DEG = 180 / Math.PI;
+
+/** Gap between the layer's corner and the guide ring, in display px. */
+const ROTATION_GUIDE_MARGIN = 40;
+/** The ring is capped so it always fits on the display. */
+const ROTATION_GUIDE_MAX_RADIUS = Math.min(DISPLAY.WIDTH, DISPLAY.HEIGHT) / 2;
 
 /** Detail of the `layer-transform` event the handle emits upward. */
 export interface LayerTransformIntent {
@@ -39,6 +55,7 @@ export class SqLayerHandle extends BaseComponent {
     private _state$: Observable<LayerView | undefined> | null = null;
     private _displayScale = 1;
     private _natural: { width: number; height: number } | null = null;
+    private _snap = true;
 
     private grabBaseline: { x: number; y: number; scale: number; rotation: number } | null = null;
 
@@ -56,9 +73,14 @@ export class SqLayerHandle extends BaseComponent {
         this._displayScale = value;
     }
 
+    /** Whether a grab quantises the layer's centre to the workspace grid. */
+    set snap(value: boolean) {
+        this._snap = value;
+    }
+
     override connectedCallback(): void {
         super.connectedCallback();
-        this.adoptStyles(handleCss);
+        this.adoptStyles(handleCss, GESTURE_STYLES);
         this.update();
     }
 
@@ -71,21 +93,62 @@ export class SqLayerHandle extends BaseComponent {
         return html`
             <img class="probe" src=${view.imageUrl} @load=${this.onProbeLoad} alt="" aria-hidden="true" />
             ${rect
-                ? html`<div
-                      class="outline"
-                      style=${styleMap({
-                          left: `${rect.cx}px`,
-                          top: `${rect.cy}px`,
-                          width: `${rect.width}px`,
-                          height: `${rect.height}px`,
-                          zIndex: String(view.zIndex),
-                          transform: `translate(-50%, -50%) rotate(${rect.rotation}deg)`,
-                      })}
-                      @pointerdown=${(e: PointerEvent) => e.stopPropagation()}
-                      ${onGesture(grab(), (e: GrabEvent) => this.handleGrab(e))}
-                  ></div>`
+                ? html`
+                    ${this.guideTemplate(rect, view.zIndex)}
+                    <div
+                        class="outline"
+                        style=${styleMap({
+                            left: `${rect.cx}px`,
+                            top: `${rect.cy}px`,
+                            width: `${rect.width}px`,
+                            height: `${rect.height}px`,
+                            zIndex: String(view.zIndex),
+                            transform: `translate(-50%, -50%) rotate(${rect.rotation}deg)`,
+                        })}
+                        @pointerdown=${(e: PointerEvent) => e.stopPropagation()}
+                        ${onGesture(grab(), (e: GrabEvent) => this.handleGrab(e), grabVars)}
+                    ></div>`
                 : nothing}
         `;
+    }
+
+    /**
+     * The rotation dial, centred on the layer and drawn beneath the
+     * outline (which renders after it and so paints on top). It does not
+     * rotate with the layer — the detent ticks mark absolute headings —
+     * while the needle and the highlighted tick track the layer's current
+     * angle, so a snap reads as the needle settling onto a tick.
+     *
+     * Always rendered when the handle has a rectangle; the CSS reveals it
+     * only under `:host([data-rotating])`, so its presence is a styling
+     * concern the grab handler flips with one attribute — no component
+     * state, no render on toggle.
+     */
+    private guideTemplate(rect: HandleRect, zIndex: number): TemplateResult {
+        const radius = rotationGuideRadius(rect, ROTATION_GUIDE_MARGIN, ROTATION_GUIDE_MAX_RADIUS);
+        const size = radius * 2;
+        const ticks = rotationTicks(radius, ROTATION_SNAP_DEGREES, rect.rotation);
+        const needle = pointAtAngle(radius, rect.rotation);
+
+        return html`<svg
+            class="rot-guide"
+            viewBox="${-radius} ${-radius} ${size} ${size}"
+            style=${styleMap({
+                left: `${rect.cx}px`,
+                top: `${rect.cy}px`,
+                width: `${size}px`,
+                height: `${size}px`,
+                zIndex: String(zIndex),
+            })}
+            aria-hidden="true"
+        >
+            <circle class="rot-ring" cx="0" cy="0" r=${radius}></circle>
+            <line class="rot-needle" x1="0" y1="0" x2=${needle.x} y2=${needle.y}></line>
+            ${ticks.map((t) => svg`<line
+                class=${classMap({ "rot-tick": true, cardinal: t.cardinal, active: t.active })}
+                x1=${t.x1} y1=${t.y1} x2=${t.x2} y2=${t.y2}
+            ></line>`)}
+        </svg>`;
     }
 
     private onProbeLoad = (e: Event): void => {
@@ -102,8 +165,19 @@ export class SqLayerHandle extends BaseComponent {
 
         if (event.phase === "end") {
             this.grabBaseline = null;
+            this.removeAttribute("data-manipulating");
+            this.removeAttribute("data-rotating");
             return;
         }
+
+        // Both states are reflected onto the host (which lives in the
+        // workspace's shadow tree, unlike the recognizer's own data-gesture
+        // buried in ours), so pure CSS can react: data-manipulating reveals
+        // the workspace grid, data-rotating reveals this handle's dial. The
+        // event states `rotating` outright, so there's nothing to derive and
+        // no toggle to track — the attribute is the state.
+        this.setAttribute("data-manipulating", "");
+        this.toggleAttribute("data-rotating", event.rotating);
 
         // Capture the layer's transform at grab start (no "start" phase is
         // emitted) and apply the grab's cumulative transform on top. The
@@ -119,13 +193,28 @@ export class SqLayerHandle extends BaseComponent {
 
         const b = this.grabBaseline;
 
+        const raw = {
+            x: b.x + event.translation.x / this._displayScale,
+            y: b.y + event.translation.y / this._displayScale,
+        };
+
+        // Snapping quantises the numeric position itself — the value that
+        // is broadcast to every display — not just the master's view; a
+        // CSS-only snap would leave the displays showing the raw drift.
+        const position = this._snap && this._natural
+            ? snapToGrid(raw, this._natural, GRID.SIZE)
+            : { x: Math.round(raw.x), y: Math.round(raw.y) };
+
+        // Same reasoning as position: the snapped angle is the value that
+        // reaches every display, so it quantises here, not in CSS. Its
+        // feedback rides the render loop — the outline rotates to the
+        // detent — so no overlay is needed to make it legible.
+        const rotation = b.rotation + event.rotation * RAD_TO_DEG;
+
         this.emit({
-            position: {
-                x: Math.round(b.x + event.translation.x / this._displayScale),
-                y: Math.round(b.y + event.translation.y / this._displayScale),
-            },
+            position,
             scale: clamp(b.scale * event.scale, MIN_SCALE, MAX_SCALE),
-            rotation: b.rotation + event.rotation * RAD_TO_DEG,
+            rotation: this._snap ? snapAngle(rotation, ROTATION_SNAP_DEGREES) : rotation,
         });
     }
 
