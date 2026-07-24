@@ -15,6 +15,7 @@ import {
     matchesDirection,
 } from "../transform";
 import { defineRecognizer, describe } from "../harness";
+import type { PointerFrame } from "../harness";
 import type { Recognizer } from "./recognizer";
 import type { Point } from "../transform";
 
@@ -23,6 +24,8 @@ export type DragEvent = {
     position: Point;
     origin: Point;
     delta: Point;
+    /** Event time of the frame that produced this event (ms). */
+    timestamp: number;
 };
 
 export type DragConfig = {
@@ -51,7 +54,7 @@ export function drag(config?: DragConfig): Recognizer<DragEvent> {
         return describe(
             pointers$.pipe(
                 filter((f) => f.positions.length >= touches),
-                map((f) => mapDragMetrics(origin)(f.positions)),
+                map(mapDragMetrics(origin)),
             ),
             {
                 decide(m) {
@@ -73,6 +76,7 @@ export function drag(config?: DragConfig): Recognizer<DragEvent> {
                     position: m.position,
                     origin,
                     delta: m.delta,
+                    timestamp: m.timestamp,
                 }),
 
                 toEnd: (end): DragEvent => ({
@@ -80,6 +84,7 @@ export function drag(config?: DragConfig): Recognizer<DragEvent> {
                     position: end.position,
                     origin,
                     delta: subtract(end.position, origin),
+                    timestamp: end.t,
                 }),
             },
         );
@@ -90,16 +95,18 @@ type DragMetrics = {
     position: Point;
     delta: Point;
     positions: Point[];
+    timestamp: number;
 };
 
-function mapDragMetrics(origin: Point): (positions: Point[]) => DragMetrics {
-    return (positions) => {
-        const position = centroid(positions);
+function mapDragMetrics(origin: Point): (frame: PointerFrame) => DragMetrics {
+    return (frame) => {
+        const position = centroid(frame.positions);
 
         return {
             position,
             delta: subtract(position, origin),
-            positions,
+            positions: frame.positions,
+            timestamp: frame.t,
         };
     };
 }

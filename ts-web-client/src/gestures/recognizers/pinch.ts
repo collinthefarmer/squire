@@ -9,6 +9,7 @@
 import { filter, map } from "rxjs/operators";
 import { distance, centroid, angle } from "../transform";
 import { defineRecognizer, describe } from "../harness";
+import type { PointerFrame } from "../harness";
 import type { Recognizer } from "./recognizer";
 import type { Point } from "../transform";
 
@@ -18,6 +19,8 @@ export type PinchEvent = {
     scale: number;
     rotation: number;
     distance: number;
+    /** Event time of the frame that produced this event (ms). */
+    timestamp: number;
 };
 
 export type PinchConfig = {
@@ -42,7 +45,7 @@ export function pinch(config?: PinchConfig): Recognizer<PinchEvent> {
         return describe(
             pointers$.pipe(
                 filter((f) => f.positions.length >= 2),
-                map((f) => mapPinchMetrics(initialSpacing, initialAngle)(f.positions)),
+                map(mapPinchMetrics(initialSpacing, initialAngle)),
             ),
             {
                 decide(m) {
@@ -57,7 +60,11 @@ export function pinch(config?: PinchConfig): Recognizer<PinchEvent> {
                 },
 
                 toEvent: (m): PinchEvent => ({ phase: "move", ...m }),
-                toEnd: (_end, last): PinchEvent => ({ ...last, phase: "end" }),
+                toEnd: (end, last): PinchEvent => ({
+                    ...last,
+                    phase: "end",
+                    timestamp: end.t,
+                }),
             },
         );
     });
@@ -68,20 +75,22 @@ type PinchMetrics = {
     scale: number;
     rotation: number;
     distance: number;
+    timestamp: number;
 };
 
 function mapPinchMetrics(
     initialDist: number,
     initialAngle: number,
-): (points: Point[]) => PinchMetrics {
-    return (points) => {
-        const [posA, posB] = [points[0]!, points[1]!];
+): (frame: PointerFrame) => PinchMetrics {
+    return (frame) => {
+        const [posA, posB] = [frame.positions[0]!, frame.positions[1]!];
 
         return {
             center: centroid([posA, posB]),
             scale: distance(posA, posB) / initialDist,
             rotation: angle(posA, posB) - initialAngle,
             distance: distance(posA, posB),
+            timestamp: frame.t,
         };
     };
 }

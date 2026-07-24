@@ -5,12 +5,12 @@
  */
 
 import { Subject, ReplaySubject, type Observable } from "rxjs";
-import type { PointerStream, PointerEnd } from "./pointers";
+import type { PointerStream, PointerEnd, PointerSample } from "./pointers";
 import type { Recognition } from "./recognizers/recognizer";
 import type { Point } from "./transform";
 
 export function fakePointer(id: number, start: Point) {
-    const move$ = new Subject<Point>();
+    const move$ = new Subject<PointerSample>();
     const end$ = new ReplaySubject<PointerEnd>(1); // mirrors real shareReplay(1)
     const flags = { captured: false, released: false };
 
@@ -32,9 +32,15 @@ export function fakePointer(id: number, start: Point) {
     return {
         stream,
         flags,
-        moveTo: (x: number, y: number) => move$.next({ x, y }),
-        lift: (x = start.x, y = start.y, reason: "up" | "cancel" = "up") => {
-            end$.next({ reason, position: { x, y } });
+        moveTo: (x: number, y: number, t = 0) =>
+            move$.next({ position: { x, y }, t }),
+        lift: (
+            x = start.x,
+            y = start.y,
+            reason: "up" | "cancel" = "up",
+            t = 0,
+        ) => {
+            end$.next({ reason, position: { x, y }, t });
             end$.complete();
             move$.complete();
         },

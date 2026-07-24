@@ -37,6 +37,8 @@ export type GrabEvent = {
      * both leave it false.
      */
     rotating: boolean;
+    /** Event time of the frame that produced this event (ms). */
+    timestamp: number;
 };
 
 export type GrabConfig = {
@@ -64,7 +66,12 @@ const ROTATION_ACTIVE_EPSILON = 0.05;
 
 type Transform = { translation: Point; scale: number; rotation: number };
 type Geometry = { center: Point; spread: number; angle: number };
-type GrabState = { ref: Geometry; base: Transform; output: Transform };
+type GrabState = {
+    ref: Geometry;
+    base: Transform;
+    output: Transform;
+    t: number;
+};
 
 const IDENTITY: Transform = { translation: { x: 0, y: 0 }, scale: 1, rotation: 0 };
 
@@ -89,7 +96,7 @@ function grabReducer(state: GrabState, frame: PointerFrame): GrabState {
 
     // Membership change → rebase: bank the current transform, re-reference.
     if (frame.kind !== "move") {
-        return { ref: cur, base: state.output, output: state.output };
+        return { ref: cur, base: state.output, output: state.output, t: frame.t };
     }
 
     // A spread on both frames is what lets scale and rotation be measured;
@@ -109,6 +116,7 @@ function grabReducer(state: GrabState, frame: PointerFrame): GrabState {
             scale: state.base.scale * scaleDelta,
             rotation: state.base.rotation + rotationDelta,
         },
+        t: frame.t,
     };
 }
 
@@ -126,7 +134,12 @@ export function grab(config?: GrabConfig): Recognizer<GrabEvent> {
 
             return describe(
                 pointers$.pipe(
-                    scan(grabReducer, { ref: start, base: IDENTITY, output: IDENTITY }),
+                    scan(grabReducer, {
+                        ref: start,
+                        base: IDENTITY,
+                        output: IDENTITY,
+                        t: 0,
+                    }),
                 ),
                 {
                     decide(s) {
@@ -145,9 +158,14 @@ export function grab(config?: GrabConfig): Recognizer<GrabEvent> {
                         rotating:
                             Math.abs(s.output.rotation - s.base.rotation) >
                             ROTATION_ACTIVE_EPSILON,
+                        timestamp: s.t,
                     }),
 
-                    toEnd: (_end, last): GrabEvent => ({ ...last, phase: "end" }),
+                    toEnd: (end, last): GrabEvent => ({
+                        ...last,
+                        phase: "end",
+                        timestamp: end.t,
+                    }),
                 },
             );
         },

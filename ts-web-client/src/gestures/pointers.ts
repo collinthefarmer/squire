@@ -26,6 +26,18 @@ import type { Point as Vector2 } from "./transform";
 export type PointerEnd = {
     reason: "up" | "cancel";
     position: Vector2;
+    /** Event time of the up/cancel (DOMHighResTimeStamp, ms). */
+    t: number;
+};
+
+/**
+ * One timestamped move sample. The bare position is no longer enough —
+ * downstream frames need the event time to be differentiable (velocity),
+ * so every move carries the `PointerEvent`'s `timeStamp`.
+ */
+export type PointerSample = {
+    position: Vector2;
+    t: number;
 };
 
 export type PointerStream = {
@@ -33,7 +45,7 @@ export type PointerStream = {
     start: Vector2;
     startTime: number;
     pointerType: "mouse" | "touch" | "pen";
-    move$: Observable<Vector2>;
+    move$: Observable<PointerSample>;
     end$: Observable<PointerEnd>;
     capture: () => void;
     release: () => void;
@@ -117,6 +129,7 @@ function buildPointerStream(
             (ev): PointerEnd => ({
                 reason: "up",
                 position: { x: ev.clientX, y: ev.clientY },
+                t: ev.timeStamp,
             }),
         ),
     );
@@ -128,6 +141,7 @@ function buildPointerStream(
             (ev): PointerEnd => ({
                 reason: "cancel",
                 position: { x: ev.clientX, y: ev.clientY },
+                t: ev.timeStamp,
             }),
         ),
     );
@@ -138,7 +152,10 @@ function buildPointerStream(
 
     const move$ = fromEvent<PointerEvent>(document, "pointermove").pipe(
         filter((ev) => ev.pointerId === e.pointerId),
-        map((ev): Vector2 => ({ x: ev.clientX, y: ev.clientY })),
+        map((ev): PointerSample => ({
+            position: { x: ev.clientX, y: ev.clientY },
+            t: ev.timeStamp,
+        })),
         takeUntil(end$),
         share(),
     );

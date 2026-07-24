@@ -3,7 +3,7 @@ import { Subject, EMPTY } from "rxjs";
 import { gather, emptyState, pointerLifecycle$ } from "./pointer-tracker";
 import type { InternalEvent } from "./pointer-tracker";
 import type { TrackedPointer } from "./pointer-tracker";
-import type { PointerStream } from "./pointers";
+import type { PointerStream, PointerSample, PointerEnd } from "./pointers";
 import type { Point } from "./transform";
 
 // ── Factories ───────────────────────────────────────────────────
@@ -118,11 +118,8 @@ describe("gather", () => {
 describe("pointerLifecycle$", () => {
     test("emits start immediately", () => {
         const events: InternalEvent[] = [];
-        const move$ = new Subject<Point>();
-        const end$ = new Subject<{
-            reason: "up" | "cancel";
-            position: Point;
-        }>();
+        const move$ = new Subject<PointerSample>();
+        const end$ = new Subject<PointerEnd>();
 
         const stream: PointerStream = {
             id: 1,
@@ -149,11 +146,8 @@ describe("pointerLifecycle$", () => {
 
     test("emits move events with updated position", () => {
         const events: InternalEvent[] = [];
-        const move$ = new Subject<Point>();
-        const end$ = new Subject<{
-            reason: "up" | "cancel";
-            position: Point;
-        }>();
+        const move$ = new Subject<PointerSample>();
+        const end$ = new Subject<PointerEnd>();
 
         const stream: PointerStream = {
             id: 1,
@@ -168,8 +162,8 @@ describe("pointerLifecycle$", () => {
 
         pointerLifecycle$(stream).subscribe((e) => events.push(e));
 
-        move$.next({ x: 50, y: 60 });
-        move$.next({ x: 100, y: 120 });
+        move$.next({ position: { x: 50, y: 60 }, t: 0 });
+        move$.next({ position: { x: 100, y: 120 }, t: 0 });
 
         expect(events.length).toBe(3);
         expect(events[1]!.phase).toBe("move");
@@ -184,11 +178,8 @@ describe("pointerLifecycle$", () => {
 
     test("emits end with final position", () => {
         const events: InternalEvent[] = [];
-        const move$ = new Subject<Point>();
-        const end$ = new Subject<{
-            reason: "up" | "cancel";
-            position: Point;
-        }>();
+        const move$ = new Subject<PointerSample>();
+        const end$ = new Subject<PointerEnd>();
 
         const stream: PointerStream = {
             id: 1,
@@ -202,7 +193,7 @@ describe("pointerLifecycle$", () => {
         };
 
         pointerLifecycle$(stream).subscribe((e) => events.push(e));
-        end$.next({ reason: "up", position: { x: 30, y: 40 } });
+        end$.next({ reason: "up", position: { x: 30, y: 40 }, t: 0 });
 
         const last = events.at(-1)!;
         expect(last.phase).toBe("end");
@@ -211,11 +202,8 @@ describe("pointerLifecycle$", () => {
 
     test("cancel reason maps to cancel phase", () => {
         const events: InternalEvent[] = [];
-        const move$ = new Subject<Point>();
-        const end$ = new Subject<{
-            reason: "up" | "cancel";
-            position: Point;
-        }>();
+        const move$ = new Subject<PointerSample>();
+        const end$ = new Subject<PointerEnd>();
 
         const stream: PointerStream = {
             id: 1,
@@ -229,18 +217,15 @@ describe("pointerLifecycle$", () => {
         };
 
         pointerLifecycle$(stream).subscribe((e) => events.push(e));
-        end$.next({ reason: "cancel", position: { x: 0, y: 0 } });
+        end$.next({ reason: "cancel", position: { x: 0, y: 0 }, t: 0 });
 
         expect(events.at(-1)!.phase).toBe("cancel");
     });
 
     test("stream reference is preserved on all events", () => {
         const events: InternalEvent[] = [];
-        const move$ = new Subject<Point>();
-        const end$ = new Subject<{
-            reason: "up" | "cancel";
-            position: Point;
-        }>();
+        const move$ = new Subject<PointerSample>();
+        const end$ = new Subject<PointerEnd>();
 
         const stream: PointerStream = {
             id: 42,
@@ -254,8 +239,8 @@ describe("pointerLifecycle$", () => {
         };
 
         pointerLifecycle$(stream).subscribe((e) => events.push(e));
-        move$.next({ x: 10, y: 10 });
-        end$.next({ reason: "up", position: { x: 10, y: 10 } });
+        move$.next({ position: { x: 10, y: 10 }, t: 0 });
+        end$.next({ reason: "up", position: { x: 10, y: 10 }, t: 0 });
 
         for (const event of events) {
             expect(event.stream).toBe(stream);

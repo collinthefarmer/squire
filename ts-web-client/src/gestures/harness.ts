@@ -46,12 +46,14 @@ const EMPTY = new Observable<never>((subscriber) => subscriber.complete());
 /**
  * One tick of the live pointer set: the current positions after a
  * change, tagged with the kind of change. `remove` carries the end of
- * the pointer that left.
+ * the pointer that left. `t` is the event time that drove the change
+ * (DOMHighResTimeStamp, ms) — the sample clock the recognizers stamp
+ * their events with, and the basis any downstream velocity differences.
  */
 export type PointerFrame =
-    | { kind: "add"; positions: Point[] }
-    | { kind: "move"; positions: Point[] }
-    | { kind: "remove"; positions: Point[]; end: PointerEnd };
+    | { kind: "add"; positions: Point[]; t: number }
+    | { kind: "move"; positions: Point[]; t: number }
+    | { kind: "remove"; positions: Point[]; end: PointerEnd; t: number };
 
 /**
  * What the harness hands a recognizer instead of a raw pointer array.
@@ -139,22 +141,30 @@ function pointerFrames(
     added$: Observable<PointerStream>,
 ): Observable<PointerFrame> {
     type Change =
-        | { kind: "add"; id: number; pos: Point }
-        | { kind: "move"; id: number; pos: Point }
-        | { kind: "remove"; id: number; end: PointerEnd };
+        | { kind: "add"; id: number; pos: Point; t: number }
+        | { kind: "move"; id: number; pos: Point; t: number }
+        | { kind: "remove"; id: number; end: PointerEnd; t: number };
 
     type State = { members: Map<number, Point>; frame: PointerFrame };
 
+    // Each change carries the event time that produced it: a pointer's
+    // start time on add, the move sample's time on move, the end's time
+    // on remove. The frame simply inherits it — no accumulation needed.
     const changes$ = merge(from(initial), added$).pipe(
         mergeMap((p) =>
             merge(
-                of<Change>({ kind: "add", id: p.id, pos: p.start }),
+                of<Change>({ kind: "add", id: p.id, pos: p.start, t: p.startTime }),
                 p.move$.pipe(
-                    map((pos): Change => ({ kind: "move", id: p.id, pos })),
+                    map((sample): Change => ({
+                        kind: "move",
+                        id: p.id,
+                        pos: sample.position,
+                        t: sample.t,
+                    })),
                 ),
                 p.end$.pipe(
                     take(1),
-                    map((end): Change => ({ kind: "remove", id: p.id, end })),
+                    map((end): Change => ({ kind: "remove", id: p.id, end, t: end.t })),
                 ),
             ),
         ),
@@ -173,6 +183,7 @@ function pointerFrames(
                             kind: "remove",
                             positions: [...members.values()],
                             end: change.end,
+                            t: change.t,
                         },
                     };
                 }
@@ -180,10 +191,17 @@ function pointerFrames(
                 members.set(change.id, change.pos);
                 return {
                     members,
-                    frame: { kind: change.kind, positions: [...members.values()] },
+                    frame: {
+                        kind: change.kind,
+                        positions: [...members.values()],
+                        t: change.t,
+                    },
                 };
             },
-            { members: new Map<number, Point>(), frame: { kind: "add", positions: [] } },
+            {
+                members: new Map<number, Point>(),
+                frame: { kind: "add", positions: [], t: 0 },
+            },
         ),
         map((state) => state.frame),
         shareReplay(1),

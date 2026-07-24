@@ -24,6 +24,8 @@ export type LongPressEvent = {
     position: Point;
     /** The hold time that elapsed to fire this press (ms). */
     duration: number;
+    /** Event time of the last sample before the press fired (ms). */
+    timestamp: number;
 };
 
 export type LongPressConfig = {
@@ -38,7 +40,12 @@ export type LongPressConfig = {
 const DEFAULT_DURATION = 350;
 const DEFAULT_THRESHOLD = 10;
 
-type PressState = { displacement: number; position: Point; held: boolean };
+type PressState = {
+    displacement: number;
+    position: Point;
+    held: boolean;
+    timestamp: number;
+};
 
 export function longPress(config?: LongPressConfig): Recognizer<LongPressEvent> {
     const duration = config?.duration ?? DEFAULT_DURATION;
@@ -56,16 +63,19 @@ export function longPress(config?: LongPressConfig): Recognizer<LongPressEvent> 
                     ...frame.positions.map((pos) => magnitude(subtract(pos, origin))),
                 ),
                 position: centroid(frame.positions),
+                timestamp: frame.t,
             })),
         );
 
         // A single tick, once the hold has elapsed — this is what claims.
+        // It carries no timestamp, so the last move's time is what the
+        // fired press inherits.
         const held$ = timer(duration).pipe(map((): Partial<PressState> => ({ held: true })));
 
         const metrics$ = merge(moves$, held$).pipe(
             scan<Partial<PressState>, PressState>(
                 (state, patch) => ({ ...state, ...patch }),
-                { displacement: 0, position: origin, held: false },
+                { displacement: 0, position: origin, held: false, timestamp: 0 },
             ),
         );
 
@@ -77,7 +87,11 @@ export function longPress(config?: LongPressConfig): Recognizer<LongPressEvent> 
                 return null;
             },
 
-            toEvent: (m): LongPressEvent => ({ position: m.position, duration }),
+            toEvent: (m): LongPressEvent => ({
+                position: m.position,
+                duration,
+                timestamp: m.timestamp,
+            }),
         });
     });
 }

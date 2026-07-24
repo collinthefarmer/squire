@@ -17,6 +17,8 @@ import type { Recognizer } from "./recognizer";
 export type TapEvent = {
     position: Point;
     duration: number;
+    /** Event time of the up that completed this tap (ms). */
+    timestamp: number;
 };
 
 export type TapConfig = {
@@ -37,7 +39,11 @@ export function tap(config?: TapConfig): Recognizer<TapEvent> {
 
     return defineRecognizer("tap", config?.touches ?? 1, ({ initial, pointers$ }) => {
         const origin = centroid(initial.map((p) => p.start));
-        const startTime = Date.now();
+
+        // Press start in the same clock the frames carry, so the hold time
+        // is a difference of event times — no reach for a separate wall
+        // clock, and deterministic under a fixture that supplies the times.
+        const startTime = initial[0]?.startTime ?? 0;
 
         const metrics$ = pointers$.pipe(
             map((frame) =>
@@ -46,8 +52,9 @@ export function tap(config?: TapConfig): Recognizer<TapEvent> {
                           displacement: magnitude(subtract(frame.end.position, origin)),
                           position: frame.end.position,
                           ended: true as const,
-                          duration: Date.now() - startTime,
+                          duration: frame.end.t - startTime,
                           reason: frame.end.reason,
+                          timestamp: frame.end.t,
                       }
                     : {
                           displacement: Math.max(
@@ -59,6 +66,7 @@ export function tap(config?: TapConfig): Recognizer<TapEvent> {
                           ended: false as const,
                           duration: 0,
                           reason: "up" as "up" | "cancel",
+                          timestamp: frame.t,
                       },
             ),
         );
@@ -77,6 +85,7 @@ export function tap(config?: TapConfig): Recognizer<TapEvent> {
             toEvent: (m): TapEvent => ({
                 position: m.position,
                 duration: m.duration,
+                timestamp: m.timestamp,
             }),
         });
     });

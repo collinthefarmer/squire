@@ -95,10 +95,10 @@ export function pointerLifecycle$(
 
         stream.move$.pipe(
             map(
-                (position): InternalEvent => ({
+                (sample): InternalEvent => ({
                     phase: "move",
                     stream,
-                    pointer: { ...base, position },
+                    pointer: { ...base, position: sample.position },
                 }),
             ),
         ),
