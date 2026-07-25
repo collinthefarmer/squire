@@ -381,7 +381,7 @@ ts-web-client/src/
 │   ├── constants/      #   Display, drag, layer constants
 │   ├── utils/          #   Logger, audio helpers
 │   └── test-utils/     #   Test factories
-├── gestures/           # Pointer tracking, recognizers (drag, pinch) — stands alone
+├── lib/gestures/       # Pointer tracking, recognizers (drag, pinch)
 ├── display/            # Display client entry point + components
 └── master/             # Master client entry point, own services + components
 ```

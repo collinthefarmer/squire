@@ -69,7 +69,7 @@ bun test
 - `@constants/*` — Display, drag, layer constants
 - `@utils/*` — Utilities (logger, audio helpers)
 - `@test-utils/*` — Test factories
-- `@gestures` / `@gestures/*` — Gesture recognition system (stands alone at `src/gestures/`)
+- `@gestures` / `@gestures/*` — Gesture recognition system (stands alone at `src/lib/gestures/`)
 - `@display/*` — Display-client code (wiring, components)
 - `@master/*` — Master-client code (wiring, own services, components)
 - `@types` — Type definitions (re-exported from server)
@@ -109,7 +109,7 @@ ts-web-client/
 │   │   ├── constants/      #   Display, drag, layer constants
 │   │   ├── utils/          #   Logger, audio helpers
 │   │   └── test-utils/     #   Test factories
-│   ├── gestures/           # Gesture recognition (stands alone — pointer tracking, recognizers)
+│   ├── lib/gestures/       # Gesture recognition (pointer tracking, recognizers)
 │   ├── display/            # Display client (main.ts, index.html, services.ts, components/)
 │   ├── master/             # Master client (main.ts, index.html, services/, components/)
 │   └── sandbox/            # Dev playground for gestures

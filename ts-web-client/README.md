@@ -22,7 +22,7 @@ src/
 │   ├── constants/      #   Display, drag, layer constants
 │   ├── utils/          #   Logger, audio/geometry helpers
 │   └── test-utils/     #   Test factories
-├── gestures/           # Gesture recognition — stands alone (pointer tracking, recognizers)
+├── lib/gestures/       # Gesture recognition — pointer tracking, recognizers
 ├── display/            # Display client: main.ts, services.ts, components/ (sq-stage)
 ├── master/             # Master client: main.ts, services/ (own services + wiring), components/
 ├── sandbox/            # Dev playground for gestures

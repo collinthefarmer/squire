@@ -248,7 +248,7 @@ ts-web-client/
 │   │   ├── constants/           #   Display, drag, layer constants
 │   │   ├── utils/               #   Logger, audio/geometry helpers
 │   │   └── test-utils/          #   Test factories
-│   ├── gestures/                # Gesture recognition — stands alone (pointer tracking, recognizers)
+│   ├── lib/gestures/            # Gesture recognition — pointer tracking, recognizers
 │   ├── display/                 # Display client
 │   │   ├── components/          #   sq-stage
 │   │   └── services.ts          #   Wiring (all services shared; display owns none exclusively)
