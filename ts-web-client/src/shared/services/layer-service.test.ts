@@ -4,7 +4,7 @@ import { EventBus } from "./event-bus";
 import { LayerService, type LayerView } from "./layer-service";
 import { layerId, imageRef } from "@types";
 import type { DomainEvent, ImageRef } from "@types";
-import { makeMetadata } from "../test-utils/factories";
+import { makeMetadata } from "@test-utils/factories";
 
 const A = layerId("a");
 const B = layerId("b");

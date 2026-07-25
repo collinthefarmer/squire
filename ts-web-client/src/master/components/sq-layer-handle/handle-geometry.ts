@@ -9,7 +9,7 @@
  * size is `naturalSize * scale`.
  */
 
-import type { LayerView } from "@core/layer-service";
+import type { LayerView } from "@services/layer-service";
 
 export interface HandleRect {
     /** Centre in display px. */

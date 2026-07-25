@@ -3,13 +3,13 @@ import { map } from "lit-html/directives/map.js";
 import { repeat } from "lit-html/directives/repeat.js";
 import { styleMap } from "lit-html/directives/style-map.js";
 
-import { BaseComponent } from "@core/base-component";
+import { BaseComponent } from "@components/base-component";
 import { getRemainingTime, formatTime } from "@state/clock-state";
 import { resolveX, resolveY, buildTransform } from "@utils/layer-geometry";
 import displayCss from "./sq-display.css" with { type: "text" };
 
 import type { ClockState } from "@state/clock-state";
-import type { LayerService } from "@core/layer-service";
+import type { LayerService } from "@services/layer-service";
 import type { LayerId, ClockId } from "@types";
 
 export class SqDisplay extends BaseComponent {

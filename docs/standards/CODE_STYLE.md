@@ -53,8 +53,8 @@ For 2-3 cases, switch/case with cast is fine.
 
 Group in order, sort alphabetically within groups:
 1. External packages (Bun, Zod, RxJS, lit-html)
-2. Internal core infrastructure (`@core/`)
-3. Internal modules (`@state/`, `@events/`, `@services/`, `@utils/`, etc.)
+2. Internal core/shared infrastructure (server `@core/`; client `@services/`, `@components/`)
+3. Internal modules (`@state/`, `@events/`, `@utils/`, etc.)
 4. Internal types (`import type`)
 5. Relative imports
 

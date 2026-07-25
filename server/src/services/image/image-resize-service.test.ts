@@ -1,10 +1,18 @@
 import { test, expect, describe, beforeEach, afterEach, mock } from "bun:test";
 import { ImageResizeService } from "./image-resize-service";
-import { existsSync, mkdirSync, rmSync } from "fs";
+import { existsSync, mkdirSync } from "fs";
 
 // Store originals so we can restore after each test
 const originalBunFile = Bun.file;
 const originalBunWrite = Bun.write;
+
+// Shape of the minimal Bun.file stand-in these tests hand back. Annotating the
+// mock factories with this gives inference an anchor, so `exists` no longer
+// collapses into TS7023 circular-return-type territory.
+type MockBunFile = {
+    exists: () => Promise<boolean>;
+    arrayBuffer?: () => Promise<ArrayBufferLike>;
+};
 
 // Mock imgkit resize
 mock.module("imgkit", () => ({
@@ -59,7 +67,7 @@ describe("ImageResizeService", () => {
         test("should accept width at lower boundary (16)", async () => {
             // Mock: no cache, source exists
             Object.defineProperty(Bun, "file", {
-                value: mock((path: string) => {
+                value: mock((path: string): MockBunFile => {
                     if (path.includes(".thumbs")) {
                         return { exists: async () => false };
                     }
@@ -82,7 +90,7 @@ describe("ImageResizeService", () => {
 
         test("should accept width at upper boundary (2048)", async () => {
             Object.defineProperty(Bun, "file", {
-                value: mock((path: string) => {
+                value: mock((path: string): MockBunFile => {
                     if (path.includes(".thumbs")) {
                         return { exists: async () => false };
                     }
@@ -104,7 +112,7 @@ describe("ImageResizeService", () => {
 
         test("should accept height at lower boundary (16)", async () => {
             Object.defineProperty(Bun, "file", {
-                value: mock((path: string) => {
+                value: mock((path: string): MockBunFile => {
                     if (path.includes(".thumbs")) {
                         return { exists: async () => false };
                     }
@@ -126,7 +134,7 @@ describe("ImageResizeService", () => {
 
         test("should accept height at upper boundary (2048)", async () => {
             Object.defineProperty(Bun, "file", {
-                value: mock((path: string) => {
+                value: mock((path: string): MockBunFile => {
                     if (path.includes(".thumbs")) {
                         return { exists: async () => false };
                     }
@@ -152,7 +160,7 @@ describe("ImageResizeService", () => {
             const cachedData = new Uint8Array([1, 2, 3, 4]);
 
             Object.defineProperty(Bun, "file", {
-                value: mock((path: string) => {
+                value: mock((path: string): MockBunFile => {
                     if (path.includes(".thumbs")) {
                         return {
                             exists: async () => true,
@@ -176,7 +184,7 @@ describe("ImageResizeService", () => {
             const writeMock = mock(async () => {});
 
             Object.defineProperty(Bun, "file", {
-                value: mock((path: string) => {
+                value: mock((path: string): MockBunFile => {
                     if (path.includes(".thumbs")) {
                         return { exists: async () => false };
                     }
@@ -203,7 +211,7 @@ describe("ImageResizeService", () => {
     describe("source file existence", () => {
         test("should return null when source file does not exist", async () => {
             Object.defineProperty(Bun, "file", {
-                value: mock((path: string) => {
+                value: mock((path: string): MockBunFile => {
                     if (path.includes(".thumbs")) {
                         return { exists: async () => false };
                     }
@@ -224,7 +232,7 @@ describe("ImageResizeService", () => {
             const filePaths: string[] = [];
 
             Object.defineProperty(Bun, "file", {
-                value: mock((path: string) => {
+                value: mock((path: string): MockBunFile => {
                     filePaths.push(path);
                     if (path.includes(".thumbs")) {
                         return { exists: async () => false };
@@ -252,7 +260,7 @@ describe("ImageResizeService", () => {
             const filePaths: string[] = [];
 
             Object.defineProperty(Bun, "file", {
-                value: mock((path: string) => {
+                value: mock((path: string): MockBunFile => {
                     filePaths.push(path);
                     if (path.includes(".thumbs")) {
                         return { exists: async () => false };
@@ -279,7 +287,7 @@ describe("ImageResizeService", () => {
             const writtenPaths: string[] = [];
 
             Object.defineProperty(Bun, "file", {
-                value: mock((path: string) => {
+                value: mock((path: string): MockBunFile => {
                     if (path.includes(".thumbs")) {
                         return { exists: async () => false };
                     }

@@ -5,12 +5,12 @@ import { ref } from "lit-html/directives/ref.js";
 import { styleMap } from "lit-html/directives/style-map.js";
 import { when } from "lit-html/directives/when.js";
 
-import { BaseComponent } from "@core/base-component";
-import { PanelTransform, PANEL_TRANSFORM_CSS } from "@core/panel-transform";
+import { BaseComponent } from "@components/base-component";
+import { PanelTransform, PANEL_TRANSFORM_CSS } from "@master/services/panel-transform";
 import { drag, GESTURE_STYLES, onGesture, pinch, pinchVars, tap } from "@gestures";
 import paletteCss from "./sq-palette.css" with { type: "text" };
 
-import type { ImageService } from "@core/image-service";
+import type { ImageService } from "@services/image-service";
 import type { DragEvent, PinchEvent, Point } from "@gestures";
 import type { ImageAsset } from "@types";
 

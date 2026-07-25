@@ -6,7 +6,7 @@ import {
     applyImageEffect,
     applyImageLayerConfig,
 } from "./layer-state";
-import { makeMetadata, makeLayers } from "../test-utils/factories";
+import { makeMetadata, makeLayers } from "@test-utils/factories";
 import type { ImageLayerState, LayerId } from "@types";
 import { layerId, imageRef } from "@types";
 

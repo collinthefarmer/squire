@@ -8,7 +8,7 @@
 
 import { resolveX, resolveY, buildTransform } from "@utils/layer-geometry";
 
-import type { LayerView } from "@core/layer-service";
+import type { LayerView } from "@services/layer-service";
 import type { ImageEffect } from "@types";
 
 function resolveFilters(effects: ImageEffect[]): string {

@@ -2,10 +2,10 @@ import { html, type TemplateResult } from "lit-html";
 import { ref } from "lit-html/directives/ref.js";
 import { styleMap } from "lit-html/directives/style-map.js";
 
-import { BaseComponent } from "@core/base-component";
+import { BaseComponent } from "@components/base-component";
 import { DISPLAY } from "@constants/display";
 import { fitScale } from "@utils/fit-scale";
-import { store, layerService } from "../../services";
+import { store, layerService } from "@display/services";
 import stageCss from "./sq-stage.css" with { type: "text" };
 
 import type { SqDisplay } from "@components/sq-display";

@@ -15,7 +15,7 @@ import type {
     TrackId,
 } from "@types";
 import { channelId, trackId } from "@types";
-import { makeChannels, makeMetadata, makeTrack } from "../test-utils/factories";
+import { makeChannels, makeMetadata, makeTrack } from "@test-utils/factories";
 
 const CH_MUSIC = channelId("music");
 const T1 = trackId("t1");

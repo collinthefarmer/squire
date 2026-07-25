@@ -30,7 +30,7 @@ import { store, eventBus } from "../main.ts";
 
 ## 2. AppStore
 
-`AppStore` (`@core/store.ts`) is the central reactive state container. It holds all domain state as `BehaviorSubject` observables and routes events to pure reducers in `@state/`.
+`AppStore` (`@services/store.ts`) is the central reactive state container. It holds all domain state as `BehaviorSubject` observables and routes events to pure reducers in `@state/`.
 
 **Observables:** `channels$`, `layers$`, `clocks$`, `timeScale$`, `clientId$`
 **Sync getters:** `channels`, `layers`, `clocks`, `timeScale`, `clientId` (read `.value`)
@@ -75,7 +75,7 @@ export function applyAudioStop(channels: Map<string, AudioChannelState>, event: 
 
 ### 4.1 EventBus
 
-Client-side `EventBus` (`@core/event-bus.ts`) uses RxJS Subject + filter for strongly typed pub/sub:
+Client-side `EventBus` (`@services/event-bus.ts`) uses RxJS Subject + filter for strongly typed pub/sub:
 
 - `on<T>(type)` — subscribe to a specific event type with full type narrowing
 - `onPrefix(prefix)` — subscribe to events by prefix (e.g., `"audio."`)
@@ -84,7 +84,7 @@ Client-side `EventBus` (`@core/event-bus.ts`) uses RxJS Subject + filter for str
 
 ### 4.2 ConnectionService
 
-`ConnectionService` (`@core/connection-service.ts`) manages the WebSocket lifecycle:
+`ConnectionService` (`@services/connection-service.ts`) manages the WebSocket lifecycle:
 
 - Exponential backoff reconnection (1s base, 2x multiplier, 30s max)
 - `state$` observable: `"disconnected" | "connecting" | "connected" | "reconnecting"`
@@ -113,7 +113,7 @@ store.dispatch(event);
 
 ### 5.1 BaseComponent
 
-All components extend `BaseComponent` (`@core/base-component.ts`), which provides:
+All components extend `BaseComponent` (`@components/base-component.ts`), which provides:
 
 - Automatic Shadow DOM creation
 - `protected abstract template(): TemplateResult` — returns lit-html template
@@ -371,23 +371,26 @@ Once you know the shape:
 
 ```
 ts-web-client/src/
-├── core/               # BaseComponent, EventBus, AppStore, ConnectionService
-├── state/              # Shared reducers: audio-channel-state, layer-state, clock-state
-├── events/             # EventBuilder
-├── effects/            # Effect chain, definitions, presets
-├── gestures/           # Pointer tracking, recognizers (drag, pinch)
-├── scene/              # Scene types
-├── constants/          # Display, drag, layer constants
-├── utils/              # Logger, audio helpers
+├── shared/             # Shared by both clients
+│   ├── components/     #   BaseComponent, sq-display, sq-layer
+│   ├── services/       #   EventBus, AppStore, ConnectionService, image/layer/sound/font/asset
+│   ├── state/          #   Shared reducers: audio-channel-state, layer-state, clock-state
+│   ├── events/         #   EventBuilder
+│   ├── effects/        #   Effect chain, definitions, presets
+│   ├── scene/          #   Scene types
+│   ├── constants/      #   Display, drag, layer constants
+│   ├── utils/          #   Logger, audio helpers
+│   └── test-utils/     #   Test factories
+├── gestures/           # Pointer tracking, recognizers (drag, pinch) — stands alone
 ├── display/            # Display client entry point + components
-└── master/             # Master client entry point + components
+└── master/             # Master client entry point, own services + components
 ```
 
 - Kebab-case files, PascalCase classes, camelCase functions
 - One component per file
 - Files under 500 lines
 - Co-locate tests: `foo.ts` → `foo.test.ts`
-- Group imports: external → `@core` → `@state`/`@events`/etc. → types (with `import type`)
+- Group imports: external → `@services`/`@components` → `@state`/`@events`/etc. → types (with `import type`)
 
 **A component that needs more than one file becomes a directory sub-module.** A single-file component stays flat (`components/sq-foo.ts`); the moment it grows a stylesheet, a pure-logic helper, or a test, move it into `components/sq-foo/` with an `index.ts` that re-exports its public surface. Consumers import the directory (`@components/sq-foo`), so the internal file layout stays private and can change freely. Keep intra-module imports relative (`./sq-foo.css`, `./foo-styles`); only the `index.ts` is the outward contract. Extract DOM-free logic (pure `state → CSS` projections, reducers) into its own file in the sub-module so it is testable without the component's `HTMLElement` base — `sq-layer/` (`sq-layer.ts`, `sq-layer.css`, `layer-styles.ts`, `layer-styles.test.ts`, `index.ts`) is the reference shape.
 

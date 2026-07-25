@@ -144,7 +144,7 @@ export function setAudioChannel(state: ApplicationState, channelId: string, chan
 
 ### 5.3 Shared Reducers
 
-When both display and master clients handle the same event types, extract state transformations into shared reducers in `ts-web-client/src/state/{domain}-state.ts` (aliased as `@state/`).
+When both display and master clients handle the same event types, extract state transformations into shared reducers in `ts-web-client/src/shared/state/{domain}-state.ts` (aliased as `@state/`).
 
 **Convention:** `apply{Domain}{Action}(map, event) → map`
 

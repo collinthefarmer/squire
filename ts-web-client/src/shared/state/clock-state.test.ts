@@ -11,7 +11,7 @@ import {
     formatTime,
     getUrgency,
 } from "./clock-state";
-import { makeMetadata, makeClocks } from "../test-utils/factories";
+import { makeMetadata, makeClocks } from "@test-utils/factories";
 import { clockId } from "@types";
 
 describe("clock-state computation helpers", () => {

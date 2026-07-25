@@ -4,7 +4,7 @@ import { EventBus } from "./event-bus";
 import { channelId, trackId, layerId, clockId, imageRef } from "@types";
 import type { DomainEvent, AudioChannelState, ImageLayerState } from "@types";
 import type { ClockState } from "@state/clock-state";
-import { makeMetadata } from "../test-utils/factories";
+import { makeMetadata } from "@test-utils/factories";
 
 function createStore() {
     const eventBus = new EventBus();

@@ -8,7 +8,7 @@ import {
     rotationGuideRadius,
     rotationTicks,
 } from "./handle-geometry";
-import type { LayerView } from "@core/layer-service";
+import type { LayerView } from "@services/layer-service";
 
 const BASE: LayerView = {
     id: layerId("l"),

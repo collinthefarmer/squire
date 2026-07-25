@@ -14,8 +14,8 @@
 import type { Observable } from "rxjs";
 import { distinctUntilChanged, map, shareReplay } from "rxjs/operators";
 
-import type { AppStore } from "@core/store";
-import type { ImageService } from "@core/image-service";
+import type { AppStore } from "@services/store";
+import type { ImageService } from "@services/image-service";
 import type { ImageLayerState, LayerId } from "@types";
 
 /**

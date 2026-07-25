@@ -9,7 +9,7 @@ import type {
     AudioTrackState,
     ImageLayerState,
 } from "@types";
-import type { ClockState } from "../state/clock-state";
+import type { ClockState } from "@state/clock-state";
 
 /**
  * Shared test data factories.

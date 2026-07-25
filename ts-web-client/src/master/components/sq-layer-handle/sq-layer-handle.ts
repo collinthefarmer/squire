@@ -2,10 +2,10 @@ import { html, svg, nothing, type TemplateResult } from "lit-html";
 import { classMap } from "lit-html/directives/class-map.js";
 import { styleMap } from "lit-html/directives/style-map.js";
 
-import { BaseComponent } from "@core/base-component";
+import { BaseComponent } from "@components/base-component";
 import { DISPLAY } from "@constants/display";
 import { grab, longPress, GESTURE_STYLES, grabVars, onGesture } from "@gestures";
-import { settingsService } from "../../services";
+import { settingsService } from "@master/services";
 import {
     handleRect,
     snapToGrid,
@@ -19,7 +19,7 @@ import handleCss from "./sq-layer-handle.css" with { type: "text" };
 
 import type { Observable } from "rxjs";
 import type { GrabEvent } from "@gestures";
-import type { LayerView } from "@core/layer-service";
+import type { LayerView } from "@services/layer-service";
 import type { ImagePosition } from "@types";
 
 const MIN_SCALE = 0.1;

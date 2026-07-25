@@ -1,11 +1,11 @@
-import { EventBus } from "@core/event-bus";
-import { AppStore } from "@core/store";
-import { ConnectionService } from "@core/connection-service";
-import { ImageService } from "@core/image-service";
-import { LayerService } from "@core/layer-service";
-import { SoundService } from "@core/sound-service";
-import { FontService } from "@core/font-service";
-import { SettingsService } from "@core/settings-service";
+import { EventBus } from "@services/event-bus";
+import { AppStore } from "@services/store";
+import { ConnectionService } from "@services/connection-service";
+import { ImageService } from "@services/image-service";
+import { LayerService } from "@services/layer-service";
+import { SoundService } from "@services/sound-service";
+import { FontService } from "@services/font-service";
+import { SettingsService } from "./settings-service";
 
 const SERVER_URL = `wss://${window.location.hostname}:3000/ws`;
 

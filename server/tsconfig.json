@@ -21,7 +21,6 @@
             "@core/*": ["./src/core/*"],
             "@services/*": ["./src/services/*"],
             "@utils/*": ["./src/utils/*"],
-            "@api/*": ["./src/api/*"],
             "@types": ["./src/types.ts"],
             "@schemas": ["./src/schemas.ts"]
         }

@@ -144,7 +144,7 @@ State helper functions (`get*`, `set*`, `update*`, `remove*`) in `utils/state-he
 
 Client services hold state in RxJS `BehaviorSubject`s. Same immutability rules apply — `new Map(existing)` before mutation, then `.next(newMap)`.
 
-Both display and master clients handle the same event types. To avoid duplicating state transformation logic, shared **reducer functions** live in `shared/services/`:
+Both display and master clients handle the same event types. To avoid duplicating state transformation logic, shared **reducer functions** live in `shared/state/`:
 
 ```
 applyAudioPlay(channels, event) → channels
@@ -239,17 +239,23 @@ server/
 ts-web-client/
 ├── src/
 │   ├── shared/                  # Code shared by both clients
-│   │   ├── components/          #   BaseComponent, reusable UI
-│   │   ├── services/            #   EventBus, ConnectionService, reducers
-│   │   ├── utils/               #   State helpers, DOM utilities
-│   │   └── styles/              #   Theme, common.css
+│   │   ├── components/          #   BaseComponent, sq-display, sq-layer render primitives
+│   │   ├── services/            #   EventBus, AppStore, ConnectionService, image/layer/sound/font/asset
+│   │   ├── state/               #   Shared reducers (apply{Domain}{Action})
+│   │   ├── events/              #   EventBuilder
+│   │   ├── effects/             #   Effect chain, definitions, presets
+│   │   ├── scene/               #   Scene types
+│   │   ├── constants/           #   Display, drag, layer constants
+│   │   ├── utils/               #   Logger, audio/geometry helpers
+│   │   └── test-utils/          #   Test factories
+│   ├── gestures/                # Gesture recognition — stands alone (pointer tracking, recognizers)
 │   ├── display/                 # Display client
-│   │   ├── components/          #   audio-player, visual-renderer, clock-renderer
-│   │   └── services/            #   AudioService, VisualService, ClockService
-│   └── master/                  # Master client
-│       ├── components/          #   Control panels (audio, image, clock, scene, time)
-│       │   └── canvas/          #   Overlay for interactive positioning
-│       └── services/            #   EventBuilder, AssetService, domain services
+│   │   ├── components/          #   sq-stage
+│   │   └── services.ts          #   Wiring (all services shared; display owns none exclusively)
+│   ├── master/                  # Master client
+│   │   ├── components/          #   Control panels (workspace, palette, settings, layer-handle)
+│   │   └── services/            #   Master-owned services (settings, panel-transform) + wiring
+│   └── sandbox/                 # Dev playground for gestures
 
 scripts/
 └── serve.ts                     # Runs server + client concurrently
@@ -265,7 +271,7 @@ The steps are always the same:
 2. **Schemas** — add Zod schema to `server/src/schemas.ts`, add to `eventSchema` union
 3. **Server service** — create in `server/src/services/{domain}/`, subscribe to events, update state, broadcast
 4. **Register** — add token to `TOKENS`, register factory in `main.ts`
-5. **Shared reducer** — create `shared/services/{domain}-state.ts` with `apply{Domain}{Action}` functions
+5. **Shared reducer** — create `shared/state/{domain}-state.ts` with `apply{Domain}{Action}` functions
 6. **Client services** — display and master services import shared reducers
 7. **Components** — display renderer + master controls
 8. **EventStore replay** — add config in `replay-configs.ts` if the domain has persistent entities

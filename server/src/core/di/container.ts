@@ -23,9 +23,11 @@ export class Container {
      * Resolve a service
      */
     resolve<T>(token: symbol): T {
-        // Check if already instantiated
+        // Check if already instantiated. The container holds heterogeneous
+        // instances keyed by symbol, so the token is the caller's proof of type
+        // and we assert it back to T at this boundary.
         if (this.services.has(token)) {
-            return this.services.get(token);
+            return this.services.get(token) as T;
         }
 
         // Check if factory exists
@@ -33,7 +35,7 @@ export class Container {
         if (factory) {
             const instance = factory();
             this.services.set(token, instance);
-            return instance;
+            return instance as T;
         }
 
         throw new Error(`Service not found for token: ${token.toString()}`);

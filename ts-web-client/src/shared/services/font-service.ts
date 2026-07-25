@@ -1,5 +1,5 @@
 import { SERVER_ORIGIN } from "@constants/display";
-import { AssetService } from "@core/asset-service";
+import { AssetService } from "@services/asset-service";
 
 import type { FontAsset } from "@types";
 

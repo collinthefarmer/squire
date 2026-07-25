@@ -51,23 +51,27 @@ bun test
 
 ### Server (server/tsconfig.json)
 
-- `@core/*` — Core infrastructure (DI, events, state, transport, HTTP)
+- `@core/*` — Core infrastructure (DI, events, state, transport, HTTP + API handlers/routes)
 - `@services/*` — Business logic services
 - `@utils/*` — Utility functions
-- `@api/*` — HTTP API handlers
 - `@types` — Type definitions
 - `@schemas` — Zod validation schemas
 
 ### Client (ts-web-client/tsconfig.json)
 
-- `@core/*` — Core infrastructure (BaseComponent, EventBus, AppStore, ConnectionService)
+- `@shared/*` — Everything shared by both clients (catch-all under `src/shared/`)
+- `@components/*` — Shared components (BaseComponent, sq-display, sq-layer)
+- `@services/*` — Shared services (EventBus, AppStore, ConnectionService, image/layer/sound/font/asset)
 - `@state/*` — Shared state reducers (audio, visual, clock)
 - `@events/*` — EventBuilder
-- `@gestures` / `@gestures/*` — Gesture recognition system
 - `@effects/*` — Effect chain and definitions
 - `@scene/*` — Scene types
 - `@constants/*` — Display, drag, layer constants
 - `@utils/*` — Utilities (logger, audio helpers)
+- `@test-utils/*` — Test factories
+- `@gestures` / `@gestures/*` — Gesture recognition system (stands alone at `src/gestures/`)
+- `@display/*` — Display-client code (wiring, components)
+- `@master/*` — Master-client code (wiring, own services, components)
 - `@types` — Type definitions (re-exported from server)
 - `@schemas` — Zod schemas (re-exported from server)
 
@@ -95,17 +99,21 @@ server/
 
 ts-web-client/
 ├── src/
-│   ├── core/           # BaseComponent, EventBus, AppStore, ConnectionService
-│   ├── state/          # Shared reducers (audio-channel-state, layer-state, clock-state)
-│   ├── events/         # EventBuilder
-│   ├── effects/        # Effect chain, definitions, presets
-│   ├── gestures/       # Pointer tracking, drag/pinch recognizers
-│   ├── scene/          # Scene types
-│   ├── constants/      # Display, drag, layer constants
-│   ├── utils/          # Logger, audio helpers
-│   ├── display/        # Display client (main.ts, index.html)
-│   └── master/         # Master client (main.ts, index.html, components/)
-├── vite.config.ts      # Vite build config
+│   ├── shared/             # Code shared by both clients
+│   │   ├── components/     #   BaseComponent, sq-display, sq-layer
+│   │   ├── services/       #   EventBus, AppStore, ConnectionService, image/layer/sound/font/asset
+│   │   ├── state/          #   Shared reducers (audio-channel-state, layer-state, clock-state)
+│   │   ├── events/         #   EventBuilder
+│   │   ├── effects/        #   Effect chain, definitions, presets
+│   │   ├── scene/          #   Scene types
+│   │   ├── constants/      #   Display, drag, layer constants
+│   │   ├── utils/          #   Logger, audio helpers
+│   │   └── test-utils/     #   Test factories
+│   ├── gestures/           # Gesture recognition (stands alone — pointer tracking, recognizers)
+│   ├── display/            # Display client (main.ts, index.html, services.ts, components/)
+│   ├── master/             # Master client (main.ts, index.html, services/, components/)
+│   └── sandbox/            # Dev playground for gestures
+├── server.ts               # Bun.serve dev/prod host for the three HTML entrypoints
 └── tsconfig.json
 
 scripts/
@@ -124,11 +132,11 @@ scripts/
 
 ### Key Client Files
 
-- `ts-web-client/src/core/base-component.ts` — Web Component base class
-- `ts-web-client/src/core/store.ts` — AppStore (reactive state container)
-- `ts-web-client/src/core/connection-service.ts` — WebSocket with reconnection
-- `ts-web-client/src/core/event-bus.ts` — Client-side pub/sub
-- `ts-web-client/src/events/event-builder.ts` — Type-safe event construction
+- `ts-web-client/src/shared/components/base-component.ts` — Web Component base class
+- `ts-web-client/src/shared/services/store.ts` — AppStore (reactive state container)
+- `ts-web-client/src/shared/services/connection-service.ts` — WebSocket with reconnection
+- `ts-web-client/src/shared/services/event-bus.ts` — Client-side pub/sub
+- `ts-web-client/src/shared/events/event-builder.ts` — Type-safe event construction
 
 ## Event Types
 

@@ -4,13 +4,13 @@ import { repeat } from "lit-html/directives/repeat.js";
 import { styleMap } from "lit-html/directives/style-map.js";
 import { when } from "lit-html/directives/when.js";
 
-import { BaseComponent } from "@core/base-component";
+import { BaseComponent } from "@components/base-component";
 import { DISPLAY } from "@constants/display";
 import { GRID } from "@constants/grid";
 import { EventBuilder } from "@events/event-builder";
 import { fitScale } from "@utils/fit-scale";
 import { onGesture, tap } from "@gestures";
-import { store, imageService, layerService, settingsService } from "../../services";
+import { store, imageService, layerService, settingsService } from "@master/services";
 import { computeLayerPlacement, PLACED_LAYER_WIDTH } from "./layer-placement";
 import workspaceCss from "./sq-workspace.css" with { type: "text" };
 

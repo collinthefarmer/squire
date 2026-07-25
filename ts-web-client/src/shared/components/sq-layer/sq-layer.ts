@@ -1,12 +1,12 @@
 import { html, nothing, type TemplateResult } from "lit-html";
 import { styleMap } from "lit-html/directives/style-map.js";
 
-import { BaseComponent } from "@core/base-component";
+import { BaseComponent } from "@components/base-component";
 import { buildLayerStyles } from "./layer-styles";
 import layerCss from "./sq-layer.css" with { type: "text" };
 
 import type { Observable } from "rxjs";
-import type { LayerView } from "@core/layer-service";
+import type { LayerView } from "@services/layer-service";
 
 /**
  * Renders a single image layer from a stream of its render-ready

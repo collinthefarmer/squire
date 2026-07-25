@@ -1,6 +1,6 @@
 import type { Event } from "@types";
 import type { TimeService } from "@services/time/time-service";
-import { getAudioDuration } from "@api/handlers/assets-metadata";
+import { getAudioDuration } from "@core/http/handlers/assets-metadata";
 import { computeGameTimeElapsed } from "@utils/game-time";
 import {
     withGameTimestamp,

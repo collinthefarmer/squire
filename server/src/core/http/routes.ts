@@ -1,13 +1,13 @@
 import type { Router } from "@core/http/router";
-import { listAudioAssets, listImageAssets, listFontAssets } from "@api/handlers/assets-list";
+import { listAudioAssets, listImageAssets, listFontAssets } from "@core/http/handlers/assets-list";
 import {
     uploadAudioAsset,
     uploadImageAsset,
-} from "@api/handlers/assets-upload";
+} from "@core/http/handlers/assets-upload";
 import {
     getAudioMetadata,
     getImageMetadata,
-} from "@api/handlers/assets-metadata";
+} from "@core/http/handlers/assets-metadata";
 
 /**
  * Register all API routes

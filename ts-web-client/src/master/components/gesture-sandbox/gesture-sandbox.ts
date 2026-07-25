@@ -6,7 +6,7 @@ import { styleMap } from "lit-html/directives/style-map.js";
 import { when } from "lit-html/directives/when.js";
 import { tap } from "rxjs/operators";
 
-import { BaseComponent } from "@core/base-component";
+import { BaseComponent } from "@components/base-component";
 import sandboxCss from "./gesture-sandbox.css" with { type: "text" };
 import {
     pointers$,

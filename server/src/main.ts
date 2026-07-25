@@ -5,16 +5,16 @@ import {
     createWebSocketHandlers,
     getUpgradeData,
 } from "@core/transport/websocket-handlers";
-import { handleStaticFile } from "@api/handlers/static-files";
+import { handleStaticFile } from "@core/http/handlers/static-files";
 import { Logger, extractErrorDetail } from "@utils/logger";
-import { preloadAudioDurations } from "@api/handlers/assets-metadata";
+import { preloadAudioDurations } from "@core/http/handlers/assets-metadata";
 import {
     createAudioReplay,
     createClockReplay,
     imageReplay,
 } from "@core/events/replay-configs";
 import { Router } from "@core/http/router";
-import { registerRoutes } from "@api/routes";
+import { registerRoutes } from "@core/http/routes";
 import type { EventStore } from "@core/events/event-store";
 import type { ClientRegistry } from "@core/transport/client-registry";
 import type { AudioService } from "@services/audio/audio-service";

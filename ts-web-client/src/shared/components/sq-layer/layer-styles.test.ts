@@ -1,7 +1,7 @@
 import { test, expect, describe } from "bun:test";
 import { layerId, imageRef } from "@types";
 import { buildLayerStyles } from "./layer-styles";
-import type { LayerView } from "@core/layer-service";
+import type { LayerView } from "@services/layer-service";
 
 const BASE: LayerView = {
     id: layerId("l"),

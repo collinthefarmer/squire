@@ -1,6 +1,6 @@
 import { html, type TemplateResult } from "lit-html";
 
-import { BaseComponent } from "@core/base-component";
+import { BaseComponent } from "@components/base-component";
 import { drag, tap, onGesture } from "@gestures";
 import panelCss from "./sq-settings-panel.css" with { type: "text" };
 
